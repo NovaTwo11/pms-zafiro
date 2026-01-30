@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Scissors,
   Link2,
+  Eye,
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
@@ -214,6 +215,17 @@ export function ReservationPopover({
 
           {/* Acciones Tab */}
           <TabsContent value="acciones" className="p-4 space-y-3 mt-0">
+
+            {/* Ver reserva completa Button */}
+            <Link href={`/reservas/${reservation.id}`} className="block w-full">
+              <Button
+                  className="w-full bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all font-bold"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                Ver Reserva Completa
+              </Button>
+            </Link>
+
             {/* Check-in Button */}
             <Button
               onClick={onCheckIn}
