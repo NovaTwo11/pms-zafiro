@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CreditCard, Banknote, BedDouble, Search, Building2, Percent, DollarSign, X } from "lucide-react"
+import { CreditCard, Banknote, BedDouble, Search, Building2, Percent, DollarSign, X, Users } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,7 @@ interface CheckoutModalProps {
   preselectedRoom?: string
 }
 
-type PaymentMethod = "cash" | "card" | "transfer" | "room" | null
+type PaymentMethod = "cash" | "card" | "transfer" | "room" | "daypass" | null
 
 // Sample rooms for searching
 const availableRooms = [
@@ -26,6 +26,12 @@ const availableRooms = [
   { number: "304", guest: "Sr. Díaz Sánchez" },
 ]
 
+const availablePasadias = [
+  { id: "e1", alias: "Familia Pérez", description: "Evento de cumpleaños" },
+  { id: "e2", alias: "Empresa ABC Corp", description: "Almuerzo ejecutivo" },
+  { id: "e3", alias: "Sr. López (Pasadía)", description: "Uso de piscina" },
+];
+
 export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedRoom }: CheckoutModalProps) {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null)
   const [roomSearch, setRoomSearch] = useState("")
@@ -35,6 +41,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
   const [showDiscount, setShowDiscount] = useState(false)
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent")
   const [discountValue, setDiscountValue] = useState("")
+  const [selectedPasadia, setSelectedPasadia] = useState<typeof availablePasadias[0] | null>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-CO", {
@@ -109,121 +116,129 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
         <div className="p-6">
           {paymentMethod === null ? (
             /* Payment Method Selection */
-            <div className="space-y-4">
-              {!showDiscount ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDiscount(true)}
-                  className="w-full border-[#059669] text-[#059669] hover:bg-[#059669]/10 bg-transparent"
-                >
-                  <Percent className="h-4 w-4 mr-2" />
-                  Agregar Descuento
-                </Button>
-              ) : (
-                <div className="p-4 rounded-lg border border-[#059669]/30 bg-[#059669]/5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-[#059669]">Descuento</span>
+              <div className="space-y-4">
+                {!showDiscount ? (
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setShowDiscount(false)
-                        setDiscountValue("")
-                      }}
-                      className="h-6 w-6 p-0 text-[#A3A3A3] hover:text-[#E5E5E5]"
+                        variant="outline"
+                        onClick={() => setShowDiscount(true)}
+                        className="w-full border-[#059669] text-[#059669] hover:bg-[#059669]/10 bg-transparent"
                     >
-                      <X className="h-4 w-4" />
+                      <Percent className="h-4 w-4 mr-2"/>
+                      Agregar Descuento
                     </Button>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDiscountType("percent")}
-                      className={cn(
-                        "flex-1 border-[#333333]",
-                        discountType === "percent"
-                          ? "bg-[#059669]/20 text-[#059669] border-[#059669]"
-                          : "text-[#A3A3A3] hover:text-[#E5E5E5] bg-transparent",
-                      )}
-                    >
-                      <Percent className="h-4 w-4 mr-1" />
-                      Porcentaje
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDiscountType("fixed")}
-                      className={cn(
-                        "flex-1 border-[#333333]",
-                        discountType === "fixed"
-                          ? "bg-[#059669]/20 text-[#059669] border-[#059669]"
-                          : "text-[#A3A3A3] hover:text-[#E5E5E5] bg-transparent",
-                      )}
-                    >
-                      <DollarSign className="h-4 w-4 mr-1" />
-                      Valor Fijo
-                    </Button>
-                  </div>
-                  <Input
-                    type="number"
-                    placeholder={discountType === "percent" ? "Ej: 10" : "Ej: 5000"}
-                    value={discountValue}
-                    onChange={(e) => setDiscountValue(e.target.value)}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
-                  />
+                ) : (
+                    <div className="p-4 rounded-lg border border-[#059669]/30 bg-[#059669]/5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-[#059669]">Descuento</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setShowDiscount(false)
+                              setDiscountValue("")
+                            }}
+                            className="h-6 w-6 p-0 text-[#A3A3A3] hover:text-[#E5E5E5]"
+                        >
+                          <X className="h-4 w-4"/>
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDiscountType("percent")}
+                            className={cn(
+                                "flex-1 border-[#333333]",
+                                discountType === "percent"
+                                    ? "bg-[#059669]/20 text-[#059669] border-[#059669]"
+                                    : "text-[#A3A3A3] hover:text-[#E5E5E5] bg-transparent",
+                            )}
+                        >
+                          <Percent className="h-4 w-4 mr-1"/>
+                          Porcentaje
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDiscountType("fixed")}
+                            className={cn(
+                                "flex-1 border-[#333333]",
+                                discountType === "fixed"
+                                    ? "bg-[#059669]/20 text-[#059669] border-[#059669]"
+                                    : "text-[#A3A3A3] hover:text-[#E5E5E5] bg-transparent",
+                            )}
+                        >
+                          <DollarSign className="h-4 w-4 mr-1"/>
+                          Valor Fijo
+                        </Button>
+                      </div>
+                      <Input
+                          type="number"
+                          placeholder={discountType === "percent" ? "Ej: 10" : "Ej: 5000"}
+                          value={discountValue}
+                          onChange={(e) => setDiscountValue(e.target.value)}
+                          className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                      />
+                    </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-4">
+                  <button
+                      onClick={() => setPaymentMethod("cash")}
+                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                  >
+                    <Banknote className="h-8 w-8 text-[#059669] mb-2"/>
+                    <span className="text-sm font-medium text-[#E5E5E5]">Efectivo</span>
+                  </button>
+                  <button
+                      onClick={() => setPaymentMethod("card")}
+                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                  >
+                    <CreditCard className="h-8 w-8 text-[#3B82F6] mb-2"/>
+                    <span className="text-sm font-medium text-[#E5E5E5]">Tarjeta</span>
+                  </button>
+                  <button
+                      onClick={() => setPaymentMethod("transfer")}
+                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                  >
+                    <Building2 className="h-8 w-8 text-[#8B5CF6] mb-2"/>
+                    <span className="text-sm font-medium text-[#E5E5E5]">Transferencia</span>
+                  </button>
                 </div>
-              )}
+                <button
+                    onClick={() => setPaymentMethod("room")}
+                    className="w-full flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                >
+                  <BedDouble className="h-8 w-8 text-[#D4AF37] mb-2"/>
+                  <span className="text-sm font-medium text-[#E5E5E5]">Cargar a Habitación</span>
+                </button>
 
-              <div className="grid grid-cols-3 gap-4">
                 <button
-                  onClick={() => setPaymentMethod("cash")}
-                  className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                    onClick={() => setPaymentMethod("daypass")}
+                    className="w-full flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
                 >
-                  <Banknote className="h-8 w-8 text-[#059669] mb-2" />
-                  <span className="text-sm font-medium text-[#E5E5E5]">Efectivo</span>
+                  <Users className="h-8 w-8 text-[#D4AF37] mb-2"/>
+                  <span className="text-sm font-medium text-[#E5E5E5]">Cargar a Pasadía</span>
                 </button>
-                <button
-                  onClick={() => setPaymentMethod("card")}
-                  className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+
+                <Button
+                    variant="outline"
+                    onClick={handleClose}
+                    className="w-full mt-4 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
                 >
-                  <CreditCard className="h-8 w-8 text-[#3B82F6] mb-2" />
-                  <span className="text-sm font-medium text-[#E5E5E5]">Tarjeta</span>
-                </button>
-                <button
-                  onClick={() => setPaymentMethod("transfer")}
-                  className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
-                >
-                  <Building2 className="h-8 w-8 text-[#8B5CF6] mb-2" />
-                  <span className="text-sm font-medium text-[#E5E5E5]">Transferencia</span>
-                </button>
+                  Cancelar
+                </Button>
               </div>
-              <button
-                onClick={() => setPaymentMethod("room")}
-                className="w-full flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
-              >
-                <BedDouble className="h-8 w-8 text-[#D4AF37] mb-2" />
-                <span className="text-sm font-medium text-[#E5E5E5]">Cargar a Habitación</span>
-              </button>
-
-              <Button
-                variant="outline"
-                onClick={handleClose}
-                className="w-full mt-4 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
-              >
-                Cancelar
-              </Button>
-            </div>
           ) : paymentMethod === "room" && !selectedRoom ? (
-            /* Room Selection */
-            <div className="space-y-4">
-              <Button
-                variant="ghost"
-                onClick={() => setPaymentMethod(null)}
-                className="text-[#A3A3A3] hover:text-[#E5E5E5] px-0"
-              >
-                ← Volver
-              </Button>
+              /* Room Selection */
+              <div className="space-y-4">
+                <Button
+                    variant="ghost"
+                    onClick={() => setPaymentMethod(null)}
+                    className="text-[#A3A3A3] hover:text-[#E5E5E5] px-0"
+                >
+                  ← Volver
+                </Button>
 
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A3A3A3]" />
@@ -257,18 +272,65 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                 )}
               </div>
             </div>
-          ) : (
+          ) : paymentMethod === "daypass" && !selectedPasadia ? (
+                  <div className="space-y-4">
+                    <Button
+                        variant="ghost"
+                        onClick={() => setPaymentMethod(null)}
+                        className="text-[#A3A3A3] hover:text-[#E5E5E5] px-0"
+                    >
+                      ← Volver
+                    </Button>
+
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A3A3A3]" />
+                      <Input
+                          placeholder="Buscar pasadía o cliente externo..."
+                          value={roomSearch} // Reutilizamos el estado de búsqueda
+                          onChange={(e) => setRoomSearch(e.target.value)}
+                          className="pl-9 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
+                          autoFocus
+                      />
+                    </div>
+
+                    <div className="space-y-2 max-h-[240px] overflow-y-auto">
+                      {availablePasadias
+                          .filter(p => p.alias.toLowerCase().includes(roomSearch.toLowerCase()))
+                          .map((pasadia) => (
+                              <button
+                                  key={pasadia.id}
+                                  onClick={() => setSelectedPasadia(pasadia)}
+                                  className="w-full flex items-center gap-3 p-4 rounded-lg border border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300 text-left"
+                              >
+                                <div className="h-12 w-12 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center">
+                                  <Users className="h-6 w-6 text-[#D4AF37]" />
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-[#E5E5E5]">{pasadia.alias}</p>
+                                  <p className="text-xs text-[#A3A3A3]">{pasadia.description}</p>
+                                </div>
+                              </button>
+                          ))}
+                      {availablePasadias.filter(p => p.alias.toLowerCase().includes(roomSearch.toLowerCase())).length === 0 && (
+                          <p className="text-center text-[#A3A3A3] py-4">No se encontraron folios externos</p>
+                      )}
+                    </div>
+                  </div>
+              ) : (
             /* Confirmation */
             <div className="space-y-4">
               <Button
                 variant="ghost"
                 onClick={() => {
                   if (paymentMethod === "room") {
-                    setSelectedRoom(null)
+                    setSelectedRoom(null);
+                  } else if (paymentMethod === "daypass") {
+                    setSelectedPasadia(null);
                   } else {
-                    setPaymentMethod(null)
+                    setPaymentMethod(null);
                   }
-                }}
+                }
+              }
                 className="text-[#A3A3A3] hover:text-[#E5E5E5] px-0"
               >
                 ← Volver
@@ -304,6 +366,16 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                     <p className="text-lg text-[#E5E5E5]">Cargar a Habitación {selectedRoom.number}</p>
                     <p className="text-[#A3A3A3]">{selectedRoom.guest}</p>
                   </>
+                )}
+                {paymentMethod === "daypass" && selectedPasadia && (
+                    <>
+                      <div className="h-16 w-16 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto mb-4">
+                        <Users className="h-8 w-8 text-[#D4AF37]" />
+                      </div>
+                      <p className="text-lg text-[#E5E5E5]">Cargar a Pasadía</p>
+                      <p className="text-[#A3A3A3] font-medium">{selectedPasadia.alias}</p>
+                      <p className="text-xs text-[#666666]">{selectedPasadia.description}</p>
+                    </>
                 )}
               </div>
 
