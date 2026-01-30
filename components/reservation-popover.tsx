@@ -23,7 +23,25 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import type { Reservation, ReservationSegment } from "./cronograma-content"
+
+// Definimos la interfaz aquí o la importamos si la tienes centralizada
+// Ajusta esto según tus tipos reales en cronograma-content
+interface Reservation {
+  id: string
+  guestName: string
+  guestId?: string
+  status: string
+  totalValue: number
+  paidAmount: number
+  balance?: number // Opcional si lo calculas al vuelo
+  segments: { roomId: string; startDate: Date; endDate: Date }[]
+}
+
+export interface ReservationSegment {
+  roomId: string
+  startDate: Date
+  endDate: Date
+}
 
 interface ReservationPopoverProps {
   reservation: Reservation
@@ -39,7 +57,7 @@ interface ReservationPopoverProps {
   children: React.ReactNode
 }
 
-// Sample guest data
+// Sample guest data (Mantenemos tu mock data para visualización)
 const guestData: Record<string, { phone: string; email: string; document: string }> = {
   g1: { phone: "+57 300 123 4567", email: "garcia@email.com", document: "CC 123456789" },
   g2: { phone: "+57 301 234 5678", email: "martinez@email.com", document: "CC 987654321" },
@@ -52,28 +70,32 @@ const guestData: Record<string, { phone: string; email: string; document: string
 }
 
 export function ReservationPopover({
-  reservation,
-  segment,
-  segmentIndex,
-  isOpen,
-  onOpenChange,
-  onCheckIn,
-  onCheckOut,
-  onCancel,
-  onSplit,
-  onMerge,
-  children,
-}: ReservationPopoverProps) {
+                                     reservation,
+                                     segment,
+                                     segmentIndex,
+                                     isOpen,
+                                     onOpenChange,
+                                     onCheckIn,
+                                     onCheckOut,
+                                     onCancel,
+                                     onSplit,
+                                     onMerge,
+                                     children,
+                                   }: ReservationPopoverProps) {
   const [activeTab, setActiveTab] = useState("detalle")
 
   const getStatusLabel = () => {
     switch (reservation.status) {
-      case "in-house":
+      case "check_in_paid":
+      case "check_in_debt":
+      case "in-house": // Soporte legacy
         return "En casa"
       case "checked-out":
         return "Finalizada"
       case "cancelled":
         return "Cancelada"
+      case "blocked":
+        return "Bloqueada"
       default:
         return "Confirmada"
     }
@@ -81,14 +103,19 @@ export function ReservationPopover({
 
   const getStatusColor = () => {
     switch (reservation.status) {
+      case "check_in_paid":
       case "in-house":
         return "text-[#3B82F6] bg-[#3B82F6]/10"
+      case "check_in_debt":
+        return "text-red-500 bg-red-500/10"
       case "checked-out":
         return "text-[#A3A3A3] bg-[#A3A3A3]/10"
       case "cancelled":
         return "text-[#666666] bg-[#666666]/10"
+      case "blocked":
+        return "text-gray-400 bg-gray-400/10"
       default:
-        return "text-[#059669] bg-[#059669]/10"
+        return "text-[#059669] bg-[#059669]/10" // Verde para confirmadas
     }
   }
 
@@ -101,204 +128,219 @@ export function ReservationPopover({
   }
 
   const guest = reservation.guestId ? guestData[reservation.guestId] : null
-  const canCheckIn = reservation.status === "confirmed"
-  const canCheckOut = reservation.status === "in-house" && reservation.balance === 0
-  const hasBalance = reservation.balance > 0
+
+  // LÓGICA CORREGIDA PARA EL BOTÓN DE CHECK-IN
+  // Permitimos check-in si NO está ya en casa/finalizada/cancelada
+  // Y si el estado indica que es una reserva válida (confirmed_...)
+  const isCheckedIn = reservation.status.startsWith("check_in") || reservation.status === "in-house"
+  const isCancelled = reservation.status === "cancelled"
+  const isBlocked = reservation.status === "blocked"
+
+  const canCheckIn = !isCheckedIn && !isCancelled && !isBlocked && (
+      reservation.status === "confirmed" ||
+      reservation.status === "confirmed_deposit" ||
+      reservation.status === "confirmed_no_deposit"
+  )
+
+  const balance = reservation.balance ?? (reservation.totalValue - reservation.paidAmount)
+  const canCheckOut = isCheckedIn && balance <= 0
+  const hasBalance = balance > 0
+
   const isSplitReservation = reservation.segments.length > 1
   const canMerge = isSplitReservation && segmentIndex > 0
 
   return (
-    <Popover open={isOpen} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-80 bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] p-0" align="start" side="bottom">
-        {/* Header */}
-        <div className="border-b border-[#333333] p-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h4 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-[#E5E5E5]">
-                Hab. {segment.roomId}
-              </h4>
-              <p className="text-sm text-[#A3A3A3]">Sr./Sra. {reservation.guestName}</p>
-            </div>
-            <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor()}`}>{getStatusLabel()}</span>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full bg-[#0F0F0F] border-b border-[#333333] rounded-none p-0 h-auto">
-            <TabsTrigger
-              value="detalle"
-              className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
-            >
-              Detalle
-            </TabsTrigger>
-            <TabsTrigger
-              value="huesped"
-              className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
-            >
-              Huésped
-            </TabsTrigger>
-            <TabsTrigger
-              value="acciones"
-              className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
-            >
-              Acciones
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Detalle Tab */}
-          <TabsContent value="detalle" className="p-4 space-y-3 mt-0">
-            <div className="flex items-center gap-3 text-sm">
-              <CalendarDays className="h-4 w-4 text-[#A3A3A3]" />
-              <span className="text-[#A3A3A3]">
-                {format(segment.startDate, "dd MMM", { locale: es })} -{" "}
-                {format(segment.endDate, "dd MMM", { locale: es })}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3 text-sm">
-              <DollarSign className="h-4 w-4 text-[#A3A3A3]" />
-              <span className="text-[#E5E5E5]">Total: {formatCurrency(reservation.totalValue)}</span>
-            </div>
-
-            <div className="flex items-center gap-3 text-sm">
-              <CreditCard className="h-4 w-4 text-[#A3A3A3]" />
-              <span className={hasBalance ? "text-[#CF6679]" : "text-[#059669]"}>
-                {hasBalance ? `Pendiente: ${formatCurrency(reservation.balance)}` : "Pagado completo"}
-              </span>
-            </div>
-
-            {isSplitReservation && (
-              <div className="mt-2 p-2 rounded bg-[#8B5CF6]/10 border border-[#8B5CF6]/30">
-                <p className="text-xs text-[#8B5CF6]">
-                  Reserva fragmentada: Segmento {segmentIndex + 1} de {reservation.segments.length}
-                </p>
+      <Popover open={isOpen} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>{children}</PopoverTrigger>
+        <PopoverContent className="w-80 bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] p-0 shadow-2xl z-50" align="start" side="bottom">
+          {/* Header */}
+          <div className="border-b border-[#333333] p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h4 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-[#E5E5E5]">
+                  Hab. {segment.roomId}
+                </h4>
+                <p className="text-sm text-[#A3A3A3]">Sr./Sra. {reservation.guestName}</p>
               </div>
-            )}
-          </TabsContent>
-
-          {/* Huésped Tab */}
-          <TabsContent value="huesped" className="p-4 space-y-3 mt-0">
-            <div className="flex items-center gap-3 text-sm">
-              <User className="h-4 w-4 text-[#A3A3A3]" />
-              <span className="text-[#E5E5E5]">Sr./Sra. {reservation.guestName}</span>
+              <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor()}`}>{getStatusLabel()}</span>
             </div>
+          </div>
 
-            {guest && (
-              <>
-                <div className="flex items-center gap-3 text-sm">
-                  <Phone className="h-4 w-4 text-[#A3A3A3]" />
-                  <span className="text-[#A3A3A3]">{guest.phone}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <Mail className="h-4 w-4 text-[#A3A3A3]" />
-                  <span className="text-[#A3A3A3]">{guest.email}</span>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <CreditCard className="h-4 w-4 text-[#A3A3A3]" />
-                  <span className="text-[#A3A3A3]">{guest.document}</span>
-                </div>
-              </>
-            )}
-
-            <Link href={`/huespedes/${reservation.guestId}`}>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full mt-2 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full bg-[#0F0F0F] border-b border-[#333333] rounded-none p-0 h-auto">
+              <TabsTrigger
+                  value="detalle"
+                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
               >
-                Ver Perfil Completo
-              </Button>
-            </Link>
-          </TabsContent>
-
-          {/* Acciones Tab */}
-          <TabsContent value="acciones" className="p-4 space-y-3 mt-0">
-
-            {/* Ver reserva completa Button */}
-            <Link href={`/reservas/${reservation.id}`} className="block w-full">
-              <Button
-                  className="w-full bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all font-bold"
+                Detalle
+              </TabsTrigger>
+              <TabsTrigger
+                  value="huesped"
+                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
               >
-                <Eye className="h-4 w-4 mr-2" />
-                Ver Reserva Completa
-              </Button>
-            </Link>
-
-            {/* Check-in Button */}
-            <Button
-              onClick={onCheckIn}
-              disabled={!canCheckIn}
-              className="w-full bg-[#059669] text-white hover:bg-[#059669]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
-            >
-              <LogIn className="h-4 w-4 mr-2" />
-              Check-in
-            </Button>
-
-            {/* Check-out Button with Balance Warning */}
-            <div className="space-y-1">
-              <Button
-                onClick={onCheckOut}
-                disabled={!canCheckOut && reservation.status === "in-house"}
-                className="w-full bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                Huésped
+              </TabsTrigger>
+              <TabsTrigger
+                  value="acciones"
+                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                Check-out
-              </Button>
-              {hasBalance && reservation.status === "in-house" && (
-                <div className="flex items-center gap-1 text-xs text-[#CF6679]">
-                  <AlertTriangle className="h-3 w-3" />
-                  <span>No hay Paz y Salvo. Pendiente: {formatCurrency(reservation.balance)}</span>
-                </div>
+                Acciones
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Detalle Tab */}
+            <TabsContent value="detalle" className="p-4 space-y-3 mt-0">
+              <div className="flex items-center gap-3 text-sm">
+                <CalendarDays className="h-4 w-4 text-[#A3A3A3]" />
+                <span className="text-[#A3A3A3]">
+                {format(segment.startDate, "dd MMM", { locale: es })} -{" "}
+                  {format(segment.endDate, "dd MMM", { locale: es })}
+              </span>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
+                <DollarSign className="h-4 w-4 text-[#A3A3A3]" />
+                <span className="text-[#E5E5E5]">Total: {formatCurrency(reservation.totalValue)}</span>
+              </div>
+
+              <div className="flex items-center gap-3 text-sm">
+                <CreditCard className="h-4 w-4 text-[#A3A3A3]" />
+                <span className={hasBalance ? "text-[#CF6679]" : "text-[#059669]"}>
+                {hasBalance ? `Pendiente: ${formatCurrency(balance)}` : "Pagado completo"}
+              </span>
+              </div>
+
+              {isSplitReservation && (
+                  <div className="mt-2 p-2 rounded bg-[#8B5CF6]/10 border border-[#8B5CF6]/30">
+                    <p className="text-xs text-[#8B5CF6]">
+                      Reserva fragmentada: Segmento {segmentIndex + 1} de {reservation.segments.length}
+                    </p>
+                  </div>
               )}
-            </div>
+            </TabsContent>
 
-            <div className="flex gap-2">
-              <Button
-                onClick={() => onSplit?.(reservation.id, segmentIndex, segment.startDate)}
-                variant="outline"
-                size="sm"
-                className="flex-1 border-[#8B5CF6] text-[#8B5CF6] hover:bg-[#8B5CF6]/10 bg-transparent"
-              >
-                <Scissors className="h-4 w-4 mr-1" />
-                Dividir
-              </Button>
-              {canMerge && (
+            {/* Huésped Tab */}
+            <TabsContent value="huesped" className="p-4 space-y-3 mt-0">
+              <div className="flex items-center gap-3 text-sm">
+                <User className="h-4 w-4 text-[#A3A3A3]" />
+                <span className="text-[#E5E5E5]">Sr./Sra. {reservation.guestName}</span>
+              </div>
+
+              {guest && (
+                  <>
+                    <div className="flex items-center gap-3 text-sm">
+                      <Phone className="h-4 w-4 text-[#A3A3A3]" />
+                      <span className="text-[#A3A3A3]">{guest.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <Mail className="h-4 w-4 text-[#A3A3A3]" />
+                      <span className="text-[#A3A3A3]">{guest.email}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <CreditCard className="h-4 w-4 text-[#A3A3A3]" />
+                      <span className="text-[#A3A3A3]">{guest.document}</span>
+                    </div>
+                  </>
+              )}
+
+              <Link href={`/huespedes/${reservation.guestId || ''}`}>
                 <Button
-                  onClick={() => onMerge?.(reservation.id)}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 border-[#059669] text-[#059669] hover:bg-[#059669]/10 bg-transparent"
+                    variant="outline"
+                    size="sm"
+                    className="w-full mt-2 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
                 >
-                  <Link2 className="h-4 w-4 mr-1" />
-                  Unificar
+                  Ver Perfil Completo
                 </Button>
-              )}
-            </div>
+              </Link>
+            </TabsContent>
 
-            {/* Cancel Button */}
-            <Button
-              onClick={onCancel}
-              disabled={reservation.status === "checked-out" || reservation.status === "cancelled"}
-              variant="outline"
-              className="w-full border-[#CF6679] text-[#CF6679] hover:bg-[#CF6679]/10 bg-transparent disabled:opacity-50 transition-all duration-300"
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Cancelar Reserva
-            </Button>
+            {/* Acciones Tab */}
+            <TabsContent value="acciones" className="p-4 space-y-3 mt-0">
 
-            <Link href={`/folios?id=${reservation.id}`} className="block">
+              {/* Ver reserva completa Button */}
+              <Link href={`/reservas/${reservation.id}`} className="block w-full">
+                <Button
+                    className="w-full bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all font-bold"
+                >
+                  <Eye className="h-4 w-4 mr-2" />
+                  Ver Reserva Completa
+                </Button>
+              </Link>
+
+              {/* Check-in Button */}
               <Button
-                variant="outline"
-                className="w-full border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 bg-transparent transition-all duration-300"
+                  onClick={onCheckIn}
+                  disabled={!canCheckIn}
+                  className="w-full bg-[#059669] text-white hover:bg-[#059669]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
               >
-                Ver Folio Completo
+                <LogIn className="h-4 w-4 mr-2" />
+                Check-in
               </Button>
-            </Link>
-          </TabsContent>
-        </Tabs>
-      </PopoverContent>
-    </Popover>
+
+              {/* Check-out Button with Balance Warning */}
+              <div className="space-y-1">
+                <Button
+                    onClick={onCheckOut}
+                    disabled={!canCheckOut && isCheckedIn}
+                    className="w-full bg-[#3B82F6] text-white hover:bg-[#3B82F6]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Check-out
+                </Button>
+                {hasBalance && isCheckedIn && (
+                    <div className="flex items-center gap-1 text-xs text-[#CF6679]">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>No hay Paz y Salvo. Pendiente: {formatCurrency(balance)}</span>
+                    </div>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                    onClick={() => onSplit?.(reservation.id, segmentIndex, segment.startDate)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 border-[#8B5CF6] text-[#8B5CF6] hover:bg-[#8B5CF6]/10 bg-transparent"
+                >
+                  <Scissors className="h-4 w-4 mr-1" />
+                  Dividir
+                </Button>
+                {canMerge && (
+                    <Button
+                        onClick={() => onMerge?.(reservation.id)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 border-[#059669] text-[#059669] hover:bg-[#059669]/10 bg-transparent"
+                    >
+                      <Link2 className="h-4 w-4 mr-1" />
+                      Unificar
+                    </Button>
+                )}
+              </div>
+
+              {/* Cancel Button */}
+              <Button
+                  onClick={onCancel}
+                  disabled={isCheckedIn || isCancelled}
+                  variant="outline"
+                  className="w-full border-[#CF6679] text-[#CF6679] hover:bg-[#CF6679]/10 bg-transparent disabled:opacity-50 transition-all duration-300"
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Cancelar Reserva
+              </Button>
+
+              <Link href={`/folios?id=${reservation.id}`} className="block">
+                <Button
+                    variant="outline"
+                    className="w-full border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 bg-transparent transition-all duration-300"
+                >
+                  Ver Folio Completo
+                </Button>
+              </Link>
+            </TabsContent>
+          </Tabs>
+        </PopoverContent>
+      </Popover>
   )
 }

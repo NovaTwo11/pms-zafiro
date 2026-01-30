@@ -3,6 +3,7 @@
 import { useState, useRef, useMemo } from "react"
 import { addDays, format, startOfWeek, isSameDay, isToday, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns"
 import { es } from "date-fns/locale"
+import { CheckinWizard } from "@/components/checkin-wizard"
 import { ChevronLeft, ChevronRight, Plus, CalendarDays, Calendar, CalendarRange, Lock, DollarSign, MousePointerClick } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -179,6 +180,11 @@ export function CronogramaContent() {
   const [selectedReservation, setSelectedReservation] = useState<string | null>(null)
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations)
 
+  const [checkinWizardData, setCheckinWizardData] = useState<{
+    isOpen: boolean
+    reservation: Reservation | null
+  } | null>(null)
+
   const [newReservationModal, setNewReservationModal] = useState<{
     isOpen: boolean
     roomId: string
@@ -288,19 +294,37 @@ export function CronogramaContent() {
   }
 
   const handleCheckIn = (reservationId: string) => {
-    // Punto 4: Aquí expandiremos la lógica de Check-in complejo luego.
-    // Por ahora actualizamos al estado correcto según pago (Punto 10)
-    setReservations((prev) =>
-        prev.map((res) => {
-          if (res.id === reservationId) {
-            // Lógica simple: Si pagado -> verde, si no -> rojo
-            const newStatus: ReservationStatus = res.paidAmount >= res.totalValue ? "check_in_paid" : "check_in_debt";
-            return { ...res, status: newStatus, checkInTime: new Date() }
-          }
-          return res;
-        }),
-    )
+    const res = reservations.find(r => r.id === reservationId)
+    if (!res) return
+
+    // Abrimos el Wizard pasándole la reserva completa
+    setCheckinWizardData({
+      isOpen: true,
+      reservation: res
+    })
+
+    // Cerramos el popover pequeño
     setSelectedReservation(null)
+  }
+
+  // Nueva función para cuando el Wizard termina exitosamente
+  const handleCompleteCheckIn = (data: any) => {
+    if (!checkinWizardData?.reservation) return
+
+    console.log("Datos de Check-in completados:", data)
+    // Aquí guardarías los datos del huésped y firma en tu Backend
+
+    // Actualizamos el estado de la reserva localmente a "Verde" (Ya pagó y está en casa)
+    setReservations(prev => prev.map(r => {
+      if (r.id === checkinWizardData.reservation!.id) {
+        return { ...r, status: "check_in_paid", checkInTime: new Date() }
+      }
+      return r
+    }))
+
+    // Cerrar Wizard
+    setCheckinWizardData(null)
+    alert("Check-in realizado con éxito. Firma guardada.")
   }
 
   const handleCheckOut = (reservationId: string) => {
@@ -573,6 +597,23 @@ export function CronogramaContent() {
                 initialDate={newReservationModal.date}
                 type={newReservationModal.type}
                 rooms={floors.flatMap((f) => f.rooms)}
+            />
+        )}
+        {/* Renderizar el Wizard si está abierto */}
+        {checkinWizardData && checkinWizardData.reservation && (
+            <CheckinWizard
+                isOpen={checkinWizardData.isOpen}
+                onClose={() => setCheckinWizardData(null)}
+                reservation={{
+                  id: checkinWizardData.reservation.id,
+                  guestName: checkinWizardData.reservation.guestName,
+                  roomNumber: checkinWizardData.reservation.segments[0].roomId, // Simplificado, idealmente busca el número
+                  checkIn: checkinWizardData.reservation.segments[0].startDate,
+                  checkOut: checkinWizardData.reservation.segments[0].endDate,
+                  totalAmount: checkinWizardData.reservation.totalValue, // IMPORTANTE
+                  paidAmount: checkinWizardData.reservation.paidAmount   // IMPORTANTE
+                }}
+                onComplete={handleCompleteCheckIn}
             />
         )}
       </div>

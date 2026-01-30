@@ -14,6 +14,7 @@ import {
     ArrowRightLeft, DollarSign, Search, Clock,
     Save, User, Briefcase, Flag, Globe
 } from "lucide-react"
+import { CheckinWizard } from "@/components/checkin-wizard"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -127,7 +128,7 @@ interface ReservationDetailsContentProps {
 export function ReservationDetailsContent({ reservationId }: ReservationDetailsContentProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState("general")
-
+    const [isCheckinWizardOpen, setIsCheckinWizardOpen] = useState(false)
     // Estados de Modales
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
     const [isPaymentOpen, setIsPaymentOpen] = useState(false)
@@ -471,9 +472,31 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-semibold shadow-lg shadow-amber-900/20" onClick={() => router.push('/checkin/' + reservationId)}>
+                        <Button className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-semibold shadow-lg shadow-amber-900/20" onClick={() => setIsCheckinWizardOpen(true)}>
                             Check-In
                         </Button>
+                        {/* Componente Wizard */}
+                        {isCheckinWizardOpen && (
+                            <CheckinWizard
+                                isOpen={isCheckinWizardOpen}
+                                onClose={() => setIsCheckinWizardOpen(false)}
+                                reservation={{
+                                    id: mockReservation.id,
+                                    guestName: `${mockReservation.guests[0].primerNombre} ${mockReservation.guests[0].primerApellido}`,
+                                    roomNumber: mockReservation.roomId,
+                                    checkIn: new Date(mockReservation.startDate),
+                                    checkOut: new Date(mockReservation.endDate),
+                                    totalAmount: mockReservation.totalAmount,
+                                    paidAmount: mockReservation.paidAmount
+                                }}
+                                onComplete={(data) => {
+                                    // Lógica de guardado
+                                    setIsCheckinWizardOpen(false)
+                                    toast.success("Check-in completado exitosamente")
+                                    // Actualizar estado local de la vista...
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
 
