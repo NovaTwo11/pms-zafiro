@@ -96,6 +96,14 @@ const externalFolios = [
     balance: 75000,
     createdAt: new Date(2026, 0, 5),
   },
+  {
+    id: "e4",
+    type: "external" as const,
+    alias: "Sr. Segura (Evento)",
+    description: "Uso de instalaciones",
+    balance: 0,
+    createdAt: new Date(2026, 0, 6),
+  },
 ]
 
 export function FoliosContent() {
