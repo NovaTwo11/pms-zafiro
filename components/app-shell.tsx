@@ -1,47 +1,38 @@
 "use client"
 
 import type React from "react"
-
-import { useEffect } from "react"
-import { Sidebar } from "./sidebar"
-import { Topbar } from "./topbar"
-import { useSidebarStore, useSessionStore } from "@/lib/store"
+import { Sidebar } from "@/components/sidebar"
+import { Topbar } from "@/components/topbar"
+import { useSidebarStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
-import { useIsMobile } from "@/hooks/use-mobile"
 
-interface AppShellProps {
-  children: React.ReactNode
-}
+export function AppShell({ children }: { children: React.ReactNode }) {
+    const { isCollapsed } = useSidebarStore()
 
-export function AppShell({ children }: AppShellProps) {
-  const { isCollapsed, setCollapsed } = useSidebarStore()
-  const { setUser, openShift } = useSessionStore()
-  const isMobile = useIsMobile()
+    return (
+        <div className="relative min-h-screen bg-background">
+            {/* Sidebar Fija (z-50) */}
+            <Sidebar />
 
-  // Auto-collapse sidebar on mobile/tablet
-  useEffect(() => {
-    if (isMobile) {
-      setCollapsed(true)
-    }
-  }, [isMobile, setCollapsed])
+            {/* Contenedor Principal */}
+            <div
+                className={cn(
+                    "flex flex-col min-h-screen transition-all duration-300 ease-in-out",
+                    isCollapsed ? "pl-[80px]" : "pl-[280px]" // Empuja el contenido a la derecha según el sidebar
+                )}
+            >
+                {/* Topbar Fija (z-40) */}
+                {/* Nota: Su posición 'left' se controla dentro del componente Topbar para coincidir con el sidebar */}
+                <Topbar />
 
-  // Simulate logged in user and open shift for demo
-  useEffect(() => {
-    setUser({
-      id: "1",
-      name: "Juan Díaz",
-      role: "Recepcionista",
-    })
-    openShift()
-  }, [setUser, openShift])
-
-  return (
-    <div className="min-h-screen bg-background">
-      <Sidebar />
-      <Topbar />
-      <main className={cn("min-h-screen pt-16 transition-all duration-300", isCollapsed ? "pl-[70px]" : "pl-[240px]")}>
-        <div className="p-6">{children}</div>
-      </main>
-    </div>
-  )
+                {/* Área de Contenido Scrollable */}
+                {/* pt-16: Compensamos la altura fija del Topbar para evitar solapamiento */}
+                <main className="flex-1 p-6 pt-20 overflow-y-auto">
+                    <div className="mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {children}
+                    </div>
+                </main>
+            </div>
+        </div>
+    )
 }

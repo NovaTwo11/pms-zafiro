@@ -2,75 +2,37 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
   CalendarDays,
   Users,
   BedDouble,
+  ShoppingBasket,
   FileText,
-  CreditCard,
-  BarChart3,
-  Package,
   Settings,
+  ChevronLeft,
   Menu,
-  X,
-  Hotel,
+  Package,
+  ClipboardList,
+  BarChart3
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useSidebarStore } from "@/lib/store"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+import { useSidebarStore } from "@/lib/store"
+import { cn } from "@/lib/utils"
 
-// Definición de las rutas del menú
-const routes = [
-  {
-    label: "Dashboard",
-    icon: LayoutDashboard,
-    href: "/dashboard",
-    color: "text-sky-500",
-  },
-  {
-    label: "Cronograma",
-    icon: CalendarDays,
-    href: "/cronograma",
-    color: "text-violet-500",
-  },
-  {
-    label: "Folios",
-    icon: FileText,
-    href: "/folios",
-    color: "text-pink-700",
-  },
-  {
-    label: "Huéspedes",
-    icon: Users,
-    href: "/huespedes",
-    color: "text-orange-700",
-  },
-  {
-    label: "Habitaciones",
-    icon: BedDouble,
-    href: "/habitaciones",
-    color: "text-emerald-500",
-  },
-  {
-    label: "Punto de Venta",
-    icon: CreditCard,
-    href: "/pos",
-    color: "text-green-700",
-  },
-  {
-    label: "Inventario",
-    icon: Package,
-    href: "/inventario",
-    color: "text-blue-700",
-  },
-  {
-    label: "Reportes",
-    icon: BarChart3,
-    href: "/reportes",
-    color: "text-indigo-700",
-  },
+// Lista completa de accesos según la estructura de carpetas
+const sidebarItems = [
+  { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
+  { icon: CalendarDays, label: "Cronograma", href: "/cronograma" },
+  { icon: BedDouble, label: "Habitaciones", href: "/habitaciones" },
+  { icon: Users, label: "Huéspedes", href: "/huespedes" },
+  { icon: Package, label: "Inventario", href: "/inventario" },
+  { icon: ShoppingBasket, label: "Punto de Venta", href: "/pos" },
+  { icon: FileText, label: "Folios / Caja", href: "/folios" },
+  { icon: BarChart3, label: "Reportes", href: "/reportes" },
+  { icon: Settings, label: "Configuración", href: "/settings" },
 ]
 
 export function Sidebar() {
@@ -78,84 +40,68 @@ export function Sidebar() {
   const { isCollapsed, toggleSidebar } = useSidebarStore()
 
   return (
-      <div
+      <aside
           className={cn(
-              // CAMBIO: bg-card -> bg-sidebar, border-border -> border-sidebar-border
-              "fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300",
-              isCollapsed ? "w-[70px]" : "w-[240px]",
+              "fixed inset-y-0 left-0 z-50 flex flex-col border-r bg-card/50 backdrop-blur-xl transition-all duration-300 ease-in-out",
+              isCollapsed ? "w-[80px]" : "w-[280px]"
           )}
       >
-        {/* Logo Header */}
-        <div className="flex h-16 items-center justify-center border-b border-sidebar-border px-4">
-          {isCollapsed ? (
-              <Hotel className="h-8 w-8 text-primary animate-pulse" />
-          ) : (
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <Hotel className="h-8 w-8 text-primary" />
-                <span className="font-[family-name:var(--font-logo)] text-xl font-bold text-sidebar-foreground">
-              ZAFIRO
+        {/* Header del Sidebar */}
+        <div className="flex h-16 items-center justify-between px-4 border-b">
+          {!isCollapsed && (
+              <span className="text-xl font-bold bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent truncate pl-2">
+              Hotel Zafiro
             </span>
-              </Link>
           )}
+          <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className={cn("ml-auto", isCollapsed && "mx-auto")}
+          >
+            {isCollapsed ? <Menu className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+          </Button>
         </div>
 
-        {/* Toggle Button (Mobile/Desktop) */}
-        <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-md hover:bg-sidebar-accent"
-        >
-          {isCollapsed ? <Menu className="h-3 w-3" /> : <X className="h-3 w-3" />}
-        </Button>
-
-        {/* Navigation Links */}
-        <ScrollArea className="h-[calc(100vh-4rem)] py-4">
-          <div className="space-y-1 px-2">
-            {routes.map((route) => (
-                <Link
-                    key={route.href}
-                    href={route.href}
-                    className={cn(
-                        "group flex w-full justify-start cursor-pointer rounded-lg p-3 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                        pathname === route.href
-                            ? "bg-sidebar-accent text-sidebar-primary" // Activo
-                            : "text-sidebar-foreground/70", // Inactivo
-                        isCollapsed && "justify-center px-2",
-                    )}
-                >
-                  <div className="flex items-center flex-1">
-                    <route.icon
-                        className={cn(
-                            "h-5 w-5",
-                            route.color,
-                            isCollapsed ? "mr-0" : "mr-3",
-                            pathname === route.href ? "text-sidebar-primary" : "text-sidebar-foreground/70",
-                        )}
-                    />
-                    {!isCollapsed && <span>{route.label}</span>}
-                  </div>
-                </Link>
-            ))}
-          </div>
-
-          {/* Settings Link at Bottom */}
-          <div className="absolute bottom-4 w-full px-2">
-            <Link
-                href="/settings"
-                className={cn(
-                    "group flex w-full justify-start cursor-pointer rounded-lg p-3 text-sm font-medium transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    pathname === "/settings"
-                        ? "bg-sidebar-accent text-sidebar-primary"
-                        : "text-sidebar-foreground/70",
-                    isCollapsed && "justify-center px-2",
-                )}
-            >
-              <Settings className={cn("h-5 w-5 mr-3", isCollapsed && "mr-0")} />
-              {!isCollapsed && <span>Configuración</span>}
-            </Link>
-          </div>
+        {/* Navegación */}
+        <ScrollArea className="flex-1 py-4">
+          <nav className="grid gap-1 px-2">
+            <TooltipProvider delayDuration={0}>
+              {sidebarItems.map((item, index) => {
+                const isActive = pathname.startsWith(item.href)
+                return (
+                    <Tooltip key={index}>
+                      <TooltipTrigger asChild>
+                        <Link
+                            href={item.href}
+                            className={cn(
+                                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all hover:bg-accent hover:text-accent-foreground",
+                                isActive ? "bg-primary/10 text-primary hover:bg-primary/20" : "text-muted-foreground",
+                                isCollapsed && "justify-center px-2"
+                            )}
+                        >
+                          <item.icon className={cn("h-5 w-5 shrink-0", isActive && "text-primary")} />
+                          {!isCollapsed && <span>{item.label}</span>}
+                        </Link>
+                      </TooltipTrigger>
+                      {isCollapsed && (
+                          <TooltipContent side="right" className="font-medium">
+                            {item.label}
+                          </TooltipContent>
+                      )}
+                    </Tooltip>
+                )
+              })}
+            </TooltipProvider>
+          </nav>
         </ScrollArea>
-      </div>
+
+        {/* Footer del Sidebar */}
+        {!isCollapsed && (
+            <div className="p-4 border-t text-xs text-muted-foreground text-center bg-background/50">
+              v0.1.0 • Zafiro PMS
+            </div>
+        )}
+      </aside>
   )
 }

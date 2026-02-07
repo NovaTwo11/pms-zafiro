@@ -1,6 +1,6 @@
 import { create } from "zustand"
 
-// --- SESSION STORE (Mantenemos tu lógica original) ---
+// --- SESSION STORE (Simplificado: Solo usuario Admin) ---
 interface User {
   id: string
   name: string
@@ -10,27 +10,15 @@ interface User {
 
 interface SessionState {
   user: User | null
-  isShiftOpen: boolean
-  shiftStartTime: Date | null
   setUser: (user: User | null) => void
-  openShift: () => void
-  closeShift: () => void
-  // Agregué este helper por si lo necesitas en el futuro,
-  // pero con openShift/closeShift ya cubres la lógica.
-  setShiftOpen: (isOpen: boolean) => void
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
   user: null,
-  isShiftOpen: false,
-  shiftStartTime: null,
   setUser: (user) => set({ user }),
-  openShift: () => set({ isShiftOpen: true, shiftStartTime: new Date() }),
-  closeShift: () => set({ isShiftOpen: false, shiftStartTime: null }),
-  setShiftOpen: (isOpen) => set({ isShiftOpen: isOpen }),
 }))
 
-// --- POS STORE (Mantenemos tu lógica original intacta) ---
+// --- POS STORE (Sin cambios, solo limpieza visual) ---
 interface CartItem {
   id: string
   name: string
@@ -75,15 +63,15 @@ export const usePOSStore = create<POSState>((set, get) => ({
   total: () => get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
 }))
 
-// --- SIDEBAR STORE (Aquí está la corrección) ---
+// --- SIDEBAR STORE ---
 interface SidebarState {
   isCollapsed: boolean
-  toggleSidebar: () => void // CAMBIO: De toggleCollapsed a toggleSidebar
+  toggleSidebar: () => void
   setCollapsed: (collapsed: boolean) => void
 }
 
 export const useSidebarStore = create<SidebarState>((set) => ({
   isCollapsed: false,
-  toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })), // CAMBIO: De toggleCollapsed a toggleSidebar
+  toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
   setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
 }))

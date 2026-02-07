@@ -1,60 +1,50 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Inter, Outfit, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google"
+import { Inter, Outfit } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
+    subsets: ["latin"],
+    variable: "--font-inter",
 })
 
 const outfit = Outfit({
-  subsets: ["latin"],
-  variable: "--font-outfit",
-})
-
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ["latin"],
-  variable: "--font-plus-jakarta",
-})
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
+    subsets: ["latin"],
+    variable: "--font-outfit",
 })
 
 export const metadata: Metadata = {
-  title: "Hotel Zafiro - PMS",
-  description: "Sistema de Gestión Hotelera de Lujo",
-  generator: "v0.app",
+    title: "Hotel Zafiro - PMS",
+    description: "Sistema de Gestión Hotelera de Lujo",
+    generator: "v0.app",
 }
 
 export const viewport: Viewport = {
-  themeColor: "#0F0F0F",
+    themeColor: "#0F0F0F",
 }
 
 export default function RootLayout({
-                                     children,
+                                       children,
                                    }: Readonly<{
-  children: React.ReactNode
+    children: React.ReactNode
 }>) {
-  return (
-      <html lang="es" suppressHydrationWarning>
-      <body
-          className={`${inter.variable} ${outfit.variable} ${plusJakarta.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
-      >
-      <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-      >
-        {children}
-        <Analytics />
-      </ThemeProvider>
-      </body>
-      </html>
-  )
+    return (
+        <html lang="es" suppressHydrationWarning>
+        <body
+            className={`${inter.variable} ${outfit.variable} font-sans antialiased bg-background text-foreground`}
+        >
+        <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem
+            disableTransitionOnChange
+        >
+            {children}
+            <Analytics />
+        </ThemeProvider>
+        </body>
+        </html>
+    )
 }

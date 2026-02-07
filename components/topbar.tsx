@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Plus, User, LogOut, Settings, Sun, Moon } from "lucide-react" // Importar Sun y Moon
+import * as React from "react"
+import { Bell, Search, LogOut, Moon, Sun, Check, Clock } from "lucide-react"
+import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,203 +13,166 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { useSidebarStore, useSessionStore } from "@/lib/store"
-import { cn } from "@/lib/utils"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { useSessionStore, useSidebarStore } from "@/lib/store"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useTheme } from "next-themes" // Importar useTheme
+import { cn } from "@/lib/utils"
 
-const quickActions = [
-  { label: "Nueva Reserva", href: "/cronograma?action=new" },
-  { label: "Check-in Rápido", href: "/folios?action=checkin" },
-  { label: "Venta POS", href: "/pos" },
-  { label: "Nuevo Huésped", href: "/huespedes?action=new" },
+// Datos de prueba para las notificaciones
+const notifications = [
+  {
+    id: 1,
+    title: "Nueva Reserva #1205",
+    message: "Juan Pérez ha reservado la Suite 101.",
+    time: "Hace 5 min",
+    unread: true,
+  },
+  {
+    id: 2,
+    title: "Limpieza Requerida",
+    message: "Habitación 204 marcada como 'Sucia'.",
+    time: "Hace 20 min",
+    unread: true,
+  },
+  {
+    id: 3,
+    title: "Stock Bajo",
+    message: "El inventario de 'Agua Mineral' es crítico.",
+    time: "Hace 1 hora",
+    unread: false,
+  },
+  {
+    id: 4,
+    title: "Turno Cerrado",
+    message: "El reporte de ayer se generó correctamente.",
+    time: "Hace 12 horas",
+    unread: false,
+  },
 ]
 
 export function Topbar() {
+  const { user, setUser } = useSessionStore()
   const { isCollapsed } = useSidebarStore()
-  const { isShiftOpen } = useSessionStore()
+  const { setTheme, theme } = useTheme()
   const router = useRouter()
-  const [profileModalOpen, setProfileModalOpen] = useState(false)
-  const { theme, setTheme } = useTheme() // Hook del tema
-  const [mounted, setMounted] = useState(false)
-
-  // Evitar error de hidratación renderizando el icono solo en cliente
-  useEffect(() => {
-    setMounted(true)
-  }, [])
 
   const handleLogout = () => {
+    setUser(null)
     router.push("/login")
   }
+
+  // Calculamos si hay no leídas para mostrar el punto rojo en la campana
+  const hasUnread = notifications.some((n) => n.unread)
 
   return (
       <header
           className={cn(
-              // CAMBIO: Usar bg-background/80 y border-border en lugar de hex codes fijos
-              "fixed top-0 right-0 z-30 flex h-16 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-6 transition-all duration-300",
-              isCollapsed ? "left-[70px]" : "left-[240px]",
+              "fixed top-0 right-0 z-40 flex h-16 items-center gap-4 border-b bg-background/80 px-6 backdrop-blur-md transition-all duration-300 ease-in-out",
+              isCollapsed ? "left-[80px]" : "left-[280px]"
           )}
       >
-        {/* Left side */}
-        <div />
-
-        {/* Right side */}
-        <div className="flex items-center gap-4">
-
-          {/* Theme Toggle Button */}
-          {mounted && (
-              <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-                  className="text-muted-foreground hover:text-foreground hover:bg-accent"
-              >
-                {theme === "dark" ? (
-                    <Sun className="h-5 w-5" />
-                ) : (
-                    <Moon className="h-5 w-5" />
-                )}
-                <span className="sr-only">Cambiar tema</span>
-              </Button>
-          )}
-
-          {/* Quick Action Button */}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button size="icon" className="h-9 w-9 rounded-full bg-primary text-primary-foreground hover:bg-primary/90">
-                <Plus className="h-5 w-5" />
-              </Button>
-            </DialogTrigger>
-            {/* CAMBIO: Usar clases semánticas para el Dialog */}
-            <DialogContent className="bg-card border-border text-card-foreground">
-              <DialogHeader>
-                <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground">
-                  Acción Rápida
-                </DialogTitle>
-              </DialogHeader>
-              <div className="grid grid-cols-2 gap-3 pt-4">
-                {quickActions.map((action) => (
-                    <Link key={action.href} href={action.href}>
-                      <Button
-                          variant="outline"
-                          // CAMBIO: Adaptar colores al tema
-                          className="w-full h-20 border-border bg-background text-foreground hover:bg-accent hover:border-primary hover:text-primary"
-                      >
-                        {action.label}
-                      </Button>
-                    </Link>
-                ))}
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {/* Shift Indicator */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className={cn("h-2 w-2 rounded-full", isShiftOpen ? "bg-success animate-pulse" : "bg-destructive")} />
-            <span className="text-muted-foreground">{isShiftOpen ? "Turno Abierto" : "Sin Turno"}</span>
+        {/* Barra de búsqueda global */}
+        <div className="flex flex-1 items-center gap-4 md:gap-8">
+          <div className="relative flex-1 md:w-full md:max-w-[300px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+                type="search"
+                placeholder="Buscar reserva, huésped..."
+                className="w-full rounded-full bg-muted/50 pl-9 md:w-[300px] lg:w-[400px]"
+            />
           </div>
+        </div>
 
-          {/* User Menu */}
+        <div className="flex items-center gap-2">
+          {/* Toggle Modo Oscuro */}
+          <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className="text-muted-foreground hover:text-foreground"
+          >
+            <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Alternar tema</span>
+          </Button>
+
+          {/* Notificaciones Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full">
-                <Avatar className="h-9 w-9 border border-border">
-                  <AvatarFallback className="bg-accent text-foreground">JD</AvatarFallback>
+              <Button variant="ghost" size="icon" className="relative text-muted-foreground hover:text-foreground">
+                <Bell className="h-5 w-5" />
+                {hasUnread && (
+                    <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex items-center justify-between pb-2">
+                <span>Notificaciones</span>
+                <span className="text-xs font-normal text-muted-foreground cursor-pointer hover:text-primary">
+                Marcar leídas
+              </span>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <ScrollArea className="h-[300px]">
+                <div className="flex flex-col gap-1 p-1">
+                  {notifications.map((notification) => (
+                      <div
+                          key={notification.id}
+                          className={cn(
+                              "flex flex-col gap-1 rounded-md p-3 text-sm transition-colors hover:bg-accent cursor-pointer",
+                              notification.unread ? "bg-accent/50" : "bg-transparent"
+                          )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className={cn("font-medium", notification.unread && "text-primary")}>
+                            {notification.title}
+                          </p>
+                          {notification.unread && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
+                          <Clock className="h-3 w-3" />
+                          {notification.time}
+                        </div>
+                      </div>
+                  ))}
+                </div>
+              </ScrollArea>
+              <DropdownMenuSeparator />
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Menú de Usuario */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full ml-2">
+                <Avatar className="h-10 w-10 border-2 border-primary/20">
+                  <AvatarImage src="/placeholder-user.jpg" alt={user?.name || "Admin"} />
+                  <AvatarFallback className="bg-primary/10 text-primary">AD</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 bg-popover border-border text-popover-foreground" align="end">
+            <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium text-foreground">Juan Díaz</p>
-                  <p className="text-xs text-muted-foreground">Recepcionista</p>
+                  <p className="text-sm font-medium leading-none">{user?.name || "Administrador"}</p>
+                  <p className="text-xs leading-none text-muted-foreground">admin@hotelzafiro.com</p>
                 </div>
               </DropdownMenuLabel>
-              <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuItem
-                  onClick={() => setProfileModalOpen(true)}
-                  className="focus:bg-accent focus:text-accent-foreground cursor-pointer"
-              >
-                <User className="h-4 w-4 mr-2" />
-                Mi Perfil
-              </DropdownMenuItem>
-              <Link href="/settings">
-                <DropdownMenuItem className="focus:bg-accent focus:text-accent-foreground cursor-pointer">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configuración
-                </DropdownMenuItem>
-              </Link>
-              <DropdownMenuSeparator className="bg-border" />
-              <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Cerrar Sesión
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-500 focus:text-red-500 cursor-pointer">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Cerrar Sesión</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
-        <Dialog open={profileModalOpen} onOpenChange={setProfileModalOpen}>
-          <DialogContent className="sm:max-w-[400px] bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground">
-                Mi Perfil
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-16 w-16 border-2 border-primary">
-                  <AvatarFallback className="bg-accent text-foreground text-xl">JD</AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="font-medium text-foreground">Juan Díaz</p>
-                  <p className="text-sm text-muted-foreground">Recepcionista</p>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs">Email</Label>
-                  <Input
-                      value="juan.diaz@hotelzafiro.com"
-                      readOnly
-                      className="bg-background border-input text-foreground"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs">Teléfono</Label>
-                  <Input value="+57 300 123 4567" readOnly className="bg-background border-input text-foreground" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs">Rol</Label>
-                  <Input value="Recepcionista" readOnly className="bg-background border-input text-foreground" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs">Turno Actual</Label>
-                  <Input
-                      value={isShiftOpen ? "Turno Abierto - 06:00 AM" : "Sin Turno"}
-                      readOnly
-                      className="bg-background border-input text-foreground"
-                  />
-                </div>
-              </div>
-
-              <Button
-                  variant="outline"
-                  onClick={() => setProfileModalOpen(false)}
-                  className="w-full border-border text-foreground hover:bg-accent bg-transparent"
-              >
-                Cerrar
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
       </header>
   )
 }
