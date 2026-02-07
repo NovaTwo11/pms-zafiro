@@ -1,11 +1,13 @@
 import { ReservationDetailsContent } from "@/components/reservation-details-content"
 
 interface PageProps {
-    params: {
+    params: Promise<{
         id: string
-    }
+    }>
 }
 
-export default function ReservationPage({ params }: PageProps) {
-    return <ReservationDetailsContent reservationId={params.id} />
+export default async function ReservationPage({ params }: PageProps) {
+    const { id } = await params;
+
+    return <ReservationDetailsContent reservationId={id} />
 }
