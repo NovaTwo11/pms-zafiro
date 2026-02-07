@@ -139,23 +139,23 @@ export function FoliosContent() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-3xl font-semibold text-[#E5E5E5]">Folios</h1>
-            <p className="text-[#A3A3A3]">Gestión de cuentas y consumos</p>
+            <h1 className="font-[family-name:var(--font-heading)] text-3xl font-semibold text-foreground">Folios</h1>
+            <p className="text-muted-foreground">Gestión de cuentas y consumos</p>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A3A3A3]" />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nombre o habitación..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-[280px] pl-9 bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
+                className="w-[280px] pl-9 bg-card border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
               />
             </div>
             <Button
               onClick={() => setNewFolioModal(true)}
-              className="bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all duration-300"
+              className="bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all duration-300"
             >
               <Plus className="h-4 w-4 mr-2" />
               Nuevo Folio
@@ -165,11 +165,11 @@ export function FoliosContent() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-[#1A1A1A] border border-[#333333] p-1">
+          <TabsList className="bg-card border border-border p-1">
             <TabsTrigger
               value="guests"
               className={cn(
-                "data-[state=active]:bg-[#D4AF37]/10 data-[state=active]:text-[#D4AF37] text-[#A3A3A3] transition-all duration-300",
+                "data-[state=active]:bg-primary/10 data-[state=active]:text-[#D4AF37] text-muted-foreground transition-all duration-300",
               )}
             >
               <BedDouble className="h-4 w-4 mr-2" />
@@ -178,7 +178,7 @@ export function FoliosContent() {
             <TabsTrigger
               value="external"
               className={cn(
-                "data-[state=active]:bg-[#D4AF37]/10 data-[state=active]:text-[#D4AF37] text-[#A3A3A3] transition-all duration-300",
+                "data-[state=active]:bg-primary/10 data-[state=active]:text-[#D4AF37] text-muted-foreground transition-all duration-300",
               )}
             >
               <Users className="h-4 w-4 mr-2" />
@@ -200,7 +200,7 @@ export function FoliosContent() {
             </div>
             {filteredGuestFolios.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-[#A3A3A3]">No se encontraron folios con ese criterio</p>
+                <p className="text-muted-foreground">No se encontraron folios con ese criterio</p>
               </div>
             )}
           </TabsContent>
@@ -219,7 +219,7 @@ export function FoliosContent() {
             </div>
             {filteredExternalFolios.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-[#A3A3A3]">No se encontraron folios externos</p>
+                <p className="text-muted-foreground">No se encontraron folios externos</p>
               </div>
             )}
           </TabsContent>
@@ -230,35 +230,35 @@ export function FoliosContent() {
       <FolioDrawer folio={currentFolio} isOpen={!!selectedFolio} onClose={() => setSelectedFolio(null)} />
 
       <Dialog open={newFolioModal} onOpenChange={setNewFolioModal}>
-        <DialogContent className="sm:max-w-[400px] bg-[#1A1A1A] border-[#333333]">
+        <DialogContent className="sm:max-w-[400px] bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-[#E5E5E5]">
+            <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground">
               Nuevo Folio Externo
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 pt-4">
-            <p className="text-sm text-[#A3A3A3]">
+            <p className="text-sm text-muted-foreground">
               Crea una cuenta para pasadías o clientes externos sin habitación asignada.
             </p>
 
             <div className="space-y-2">
-              <Label className="text-[#A3A3A3]">Nombre / Alias *</Label>
+              <Label className="text-muted-foreground">Nombre / Alias *</Label>
               <Input
                 value={newFolioData.alias}
                 onChange={(e) => setNewFolioData({ ...newFolioData, alias: e.target.value })}
                 placeholder="Ej: Familia Pérez, Empresa XYZ"
-                className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] resize-none transition-all duration-300"
+                className="bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] resize-none transition-all duration-300"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[#A3A3A3]">Descripción</Label>
+              <Label className="text-muted-foreground">Descripción</Label>
               <Textarea
                 value={newFolioData.description}
                 onChange={(e) => setNewFolioData({ ...newFolioData, description: e.target.value })}
                 placeholder="Ej: Evento de cumpleaños, uso de piscina..."
-                className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] resize-none transition-all duration-300"
+                className="bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] resize-none transition-all duration-300"
                 rows={3}
               />
             </div>
@@ -267,14 +267,14 @@ export function FoliosContent() {
               <Button
                 variant="outline"
                 onClick={() => setNewFolioModal(false)}
-                className="flex-1 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
+                className="flex-1 border-border text-foreground hover:bg-accent bg-transparent transition-all duration-300"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleCreateFolio}
                 disabled={!newFolioData.alias}
-                className="flex-1 bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all duration-300"
+                className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all duration-300"
               >
                 Crear Folio
               </Button>

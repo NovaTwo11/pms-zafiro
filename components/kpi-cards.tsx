@@ -17,7 +17,7 @@ const kpis = [
     change: "Para hoy",
     icon: CalendarCheck,
     color: "text-[#D4AF37]",
-    bgColor: "bg-[#D4AF37]/10",
+    bgColor: "bg-primary/10",
   },
   {
     label: "Ocupación",
@@ -33,7 +33,7 @@ const kpis = [
     change: "COP",
     icon: DollarSign,
     color: "text-[#D4AF37]",
-    bgColor: "bg-[#D4AF37]/10",
+    bgColor: "bg-primary/10",
   },
 ]
 
@@ -45,12 +45,12 @@ export function KPICards() {
         return (
           <div
             key={kpi.label}
-            className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-5 transition-colors hover:border-[#444444]"
+            className="rounded-lg border border-border bg-card p-5 transition-colors hover:border-[#444444]"
           >
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-sm text-[#A3A3A3]">{kpi.label}</p>
-                <p className="mt-2 text-3xl font-semibold text-[#E5E5E5]">{kpi.value}</p>
+                <p className="text-sm text-muted-foreground">{kpi.label}</p>
+                <p className="mt-2 text-3xl font-semibold text-foreground">{kpi.value}</p>
                 <p className={`mt-1 text-xs ${kpi.color}`}>{kpi.change}</p>
               </div>
               <div className={`rounded-lg ${kpi.bgColor} p-2.5`}>

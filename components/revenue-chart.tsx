@@ -16,8 +16,8 @@ const data = [
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
-            <div className="rounded-lg border border-[#D4AF37] bg-[#0F0F0F] p-3 shadow-xl">
-                <p className="text-sm font-bold text-[#E5E5E5] mb-2">{label}</p>
+            <div className="rounded-lg border border-[#D4AF37] bg-background p-3 shadow-xl">
+                <p className="text-sm font-bold text-foreground mb-2">{label}</p>
                 <div className="space-y-1">
                     {payload.map((entry: any, index: number) => (
                         <div key={index} className="flex items-center gap-2 text-xs">
@@ -25,8 +25,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: entry.color }}
                             />
-                            <span className="text-[#A3A3A3] w-16">{entry.name}:</span>
-                            <span className="font-mono font-medium text-[#E5E5E5]">
+                            <span className="text-muted-foreground w-16">{entry.name}:</span>
+                            <span className="font-mono font-medium text-foreground">
                 {new Intl.NumberFormat("es-CO", {
                     style: "currency",
                     currency: "COP",
@@ -44,12 +44,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function RevenueChart() {
     return (
-        <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6 flex flex-col h-[400px]">
+        <div className="rounded-lg border border-border bg-card p-6 flex flex-col h-[400px]">
             <div className="mb-4">
-                <h3 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-[#E5E5E5]">
+                <h3 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-foreground">
                     Balance Semanal
                 </h3>
-                <p className="text-xs text-[#A3A3A3]">Comparativa de flujos de caja</p>
+                <p className="text-xs text-muted-foreground">Comparativa de flujos de caja</p>
             </div>
 
             {/* Contenedor responsivo que ocupa el resto de la altura */}

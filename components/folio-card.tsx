@@ -50,8 +50,8 @@ export function FolioCard({ folio, isSelected, onClick }: FolioCardProps) {
       <button
         onClick={onClick}
         className={cn(
-          "w-full text-left rounded-lg border bg-[#1A1A1A] p-4 transition-all hover:border-[#444444]",
-          isSelected ? "border-[#D4AF37] ring-1 ring-[#D4AF37]" : "border-[#333333]",
+          "w-full text-left rounded-lg border bg-card p-4 transition-all hover:border-[#444444]",
+          isSelected ? "border-[#D4AF37] ring-1 ring-[#D4AF37]" : "border-border",
         )}
       >
         <div className="flex items-start justify-between mb-3">
@@ -60,8 +60,8 @@ export function FolioCard({ folio, isSelected, onClick }: FolioCardProps) {
               <BedDouble className="h-5 w-5 text-[#3B82F6]" />
             </div>
             <div>
-              <p className="text-lg font-semibold text-[#E5E5E5]">{folio.roomNumber}</p>
-              <p className="text-xs text-[#A3A3A3]">En casa</p>
+              <p className="text-lg font-semibold text-foreground">{folio.roomNumber}</p>
+              <p className="text-xs text-muted-foreground">En casa</p>
             </div>
           </div>
           {hasBalance ? (
@@ -71,14 +71,14 @@ export function FolioCard({ folio, isSelected, onClick }: FolioCardProps) {
           )}
         </div>
 
-        <p className="text-sm font-medium text-[#E5E5E5] truncate mb-1">{folio.guestName}</p>
-        <p className="text-xs text-[#A3A3A3] mb-3">
+        <p className="text-sm font-medium text-foreground truncate mb-1">{folio.guestName}</p>
+        <p className="text-xs text-muted-foreground mb-3">
           {format(folio.checkIn, "dd MMM", { locale: es })} - {format(folio.checkOut, "dd MMM", { locale: es })} •{" "}
           {folio.nights} noches
         </p>
 
-        <div className="pt-3 border-t border-[#333333]">
-          <p className="text-xs text-[#A3A3A3]">Saldo pendiente</p>
+        <div className="pt-3 border-t border-border">
+          <p className="text-xs text-muted-foreground">Saldo pendiente</p>
           <p className={cn("text-lg font-semibold", hasBalance ? "text-[#CF6679]" : "text-[#059669]")}>
             {formatCurrency(folio.balance)}
           </p>
@@ -92,17 +92,17 @@ export function FolioCard({ folio, isSelected, onClick }: FolioCardProps) {
     <button
       onClick={onClick}
       className={cn(
-        "w-full text-left rounded-lg border bg-[#1A1A1A] p-4 transition-all hover:border-[#444444]",
-        isSelected ? "border-[#D4AF37] ring-1 ring-[#D4AF37]" : "border-[#333333]",
+        "w-full text-left rounded-lg border bg-card p-4 transition-all hover:border-[#444444]",
+        isSelected ? "border-[#D4AF37] ring-1 ring-[#D4AF37]" : "border-border",
       )}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Users className="h-5 w-5 text-[#D4AF37]" />
           </div>
           <div>
-            <p className="text-xs text-[#A3A3A3]">Externo</p>
+            <p className="text-xs text-muted-foreground">Externo</p>
           </div>
         </div>
         {hasBalance ? (
@@ -112,11 +112,11 @@ export function FolioCard({ folio, isSelected, onClick }: FolioCardProps) {
         )}
       </div>
 
-      <p className="text-sm font-medium text-[#E5E5E5] truncate mb-1">{folio.alias}</p>
-      <p className="text-xs text-[#A3A3A3] mb-3 truncate">{folio.description}</p>
+      <p className="text-sm font-medium text-foreground truncate mb-1">{folio.alias}</p>
+      <p className="text-xs text-muted-foreground mb-3 truncate">{folio.description}</p>
 
-      <div className="pt-3 border-t border-[#333333]">
-        <p className="text-xs text-[#A3A3A3]">Saldo pendiente</p>
+      <div className="pt-3 border-t border-border">
+        <p className="text-xs text-muted-foreground">Saldo pendiente</p>
         <p className={cn("text-lg font-semibold", hasBalance ? "text-[#CF6679]" : "text-[#059669]")}>
           {formatCurrency(folio.balance)}
         </p>

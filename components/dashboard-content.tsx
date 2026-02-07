@@ -12,8 +12,8 @@ export function DashboardContent() {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="font-[family-name:var(--font-heading)] text-3xl font-bold text-[#E5E5E5]">Dashboard</h1>
-                <p className="text-[#A3A3A3]">Resumen operativo del día</p>
+                <h1 className="font-[family-name:var(--font-heading)] text-3xl font-bold text-foreground">Dashboard</h1>
+                <p className="text-muted-foreground">Resumen operativo del día</p>
             </div>
 
             {/* KPI Cards */}

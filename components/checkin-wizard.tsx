@@ -240,16 +240,16 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
   return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         {/* MODIFICACIÓN: Ancho aumentado a max-w-[90vw] y altura máxima relajada */}
-        <DialogContent className="w-full max-w-[95vw] lg:max-w-7xl h-[95vh] flex flex-col p-0 bg-[#0F0F0F] border-[#333333] shadow-2xl">
+        <DialogContent className="w-full max-w-[95vw] lg:max-w-7xl h-[95vh] flex flex-col p-0 bg-background border-border shadow-2xl">
 
           {/* Header */}
-          <div className="bg-[#141414] px-8 py-6 border-b border-[#333333] shrink-0">
+          <div className="bg-[#141414] px-8 py-6 border-b border-border shrink-0">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h2 className="text-3xl font-bold text-[#E5E5E5] font-[family-name:var(--font-heading)]">Check-in Digital</h2>
-                <p className="text-[#A3A3A3] text-lg">Habitación {reservation.roomNumber} • {reservation.guestName}</p>
+                <h2 className="text-3xl font-bold text-foreground font-[family-name:var(--font-heading)]">Check-in Digital</h2>
+                <p className="text-muted-foreground text-lg">Habitación {reservation.roomNumber} • {reservation.guestName}</p>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10"><X className="h-6 w-6 text-[#A3A3A3]"/></Button>
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10"><X className="h-6 w-6 text-muted-foreground"/></Button>
             </div>
 
             {/* Stepper Ampliado */}
@@ -260,7 +260,7 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                 return (
                     <div key={step.number} className="flex items-center">
                       <div className={cn("flex items-center gap-3 px-6 py-2 rounded-full border transition-all",
-                          isActive ? "bg-[#D4AF37]/10 border-[#D4AF37] text-[#D4AF37]" :
+                          isActive ? "bg-primary/10 border-[#D4AF37] text-[#D4AF37]" :
                               isCompleted ? "bg-[#059669]/10 border-[#059669] text-[#059669]" : "border-transparent text-[#555]")}>
                         <step.icon className="h-5 w-5" />
                         <span className="text-base font-medium">{step.title}</span>
@@ -273,7 +273,7 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
           </div>
 
           {/* Body */}
-          <div className="px-8 py-8 overflow-y-auto flex-1 bg-[#0F0F0F]">
+          <div className="px-8 py-8 overflow-y-auto flex-1 bg-background">
 
             {/* PASO 0: DEUDA */}
             {currentStep === 0 && (
@@ -283,15 +283,15 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                       <AlertTriangle className="h-5 w-5 mr-2" /> Saldo Pendiente Requerido
                     </Badge>
                     <div className="py-4">
-                      <h3 className="text-5xl font-bold text-[#E5E5E5]">${pendingAmount.toLocaleString()}</h3>
-                      <p className="text-[#A3A3A3] mt-2 text-lg">Debe saldar la cuenta para habilitar el Check-in.</p>
+                      <h3 className="text-5xl font-bold text-foreground">${pendingAmount.toLocaleString()}</h3>
+                      <p className="text-muted-foreground mt-2 text-lg">Debe saldar la cuenta para habilitar el Check-in.</p>
                     </div>
                   </div>
 
-                  <div className="w-full max-w-md bg-[#1A1A1A] p-8 rounded-2xl border border-[#333333] space-y-6 shadow-xl">
-                    <div className="flex justify-between text-base"><span className="text-[#777]">Total Reserva</span> <span className="text-[#E5E5E5] font-medium">${reservation.totalAmount.toLocaleString()}</span></div>
+                  <div className="w-full max-w-md bg-card p-8 rounded-2xl border border-border space-y-6 shadow-xl">
+                    <div className="flex justify-between text-base"><span className="text-[#777]">Total Reserva</span> <span className="text-foreground font-medium">${reservation.totalAmount.toLocaleString()}</span></div>
                     <div className="flex justify-between text-base"><span className="text-[#777]">Abonado</span> <span className="text-green-500 font-medium">${localPaidAmount.toLocaleString()}</span></div>
-                    <Button className="w-full h-12 text-lg bg-[#E5E5E5] text-black hover:bg-white font-bold mt-2" onClick={handleOpenPayment}>
+                    <Button className="w-full h-12 text-lg bg-[#E5E5E5] text-black hover:bg-card font-bold mt-2" onClick={handleOpenPayment}>
                       <Wallet className="h-5 w-5 mr-2" /> Registrar Pago Ahora
                     </Button>
                   </div>
@@ -301,77 +301,77 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
             {/* PASO 1: TITULAR */}
             {currentStep === 1 && (
                 <div className="space-y-8 max-w-6xl mx-auto">
-                  <h3 className="text-xl font-bold text-[#D4AF37] border-b border-[#333333] pb-4">Información del Titular</h3>
+                  <h3 className="text-xl font-bold text-[#D4AF37] border-b border-border pb-4">Información del Titular</h3>
                   {/* Grid de 4 columnas en pantallas grandes para aprovechar el ancho */}
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
                     {/* Grupo Identificación */}
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Nacionalidad *</Label>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Nacionalidad *</Label>
                       <Select value={mainGuest.nacionalidad} onValueChange={v => setMainGuest({...mainGuest, nacionalidad: v})}>
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">{countries.map(c => <SelectItem key={c} value={c} className="text-[#E5E5E5] focus:bg-[#252525]">{c}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="bg-card border-border h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-card border-border">{countries.map(c => <SelectItem key={c} value={c} className="text-foreground focus:bg-accent">{c}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Tipo ID *</Label>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Tipo ID *</Label>
                       <Select value={mainGuest.tipoId} onValueChange={v => setMainGuest({...mainGuest, tipoId: v})}>
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">{documentTypes.map(d => <SelectItem key={d.value} value={d.value} className="text-[#E5E5E5] focus:bg-[#252525]">{d.label}</SelectItem>)}</SelectContent>
+                        <SelectTrigger className="bg-card border-border h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-card border-border">{documentTypes.map(d => <SelectItem key={d.value} value={d.value} className="text-foreground focus:bg-accent">{d.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2 xl:col-span-2"><Label className="text-[#A3A3A3]">Número ID *</Label>
-                      <Input value={mainGuest.numeroId} onChange={e => setMainGuest({...mainGuest, numeroId: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    <div className="space-y-2 xl:col-span-2"><Label className="text-muted-foreground">Número ID *</Label>
+                      <Input value={mainGuest.numeroId} onChange={e => setMainGuest({...mainGuest, numeroId: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
 
                     {/* Grupo Nombre */}
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Primer Nombre *</Label>
-                      <Input value={mainGuest.primerNombre} onChange={e => setMainGuest({...mainGuest, primerNombre: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Primer Nombre *</Label>
+                      <Input value={mainGuest.primerNombre} onChange={e => setMainGuest({...mainGuest, primerNombre: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Segundo Nombre</Label>
-                      <Input value={mainGuest.segundoNombre} onChange={e => setMainGuest({...mainGuest, segundoNombre: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Segundo Nombre</Label>
+                      <Input value={mainGuest.segundoNombre} onChange={e => setMainGuest({...mainGuest, segundoNombre: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Primer Apellido *</Label>
-                      <Input value={mainGuest.primerApellido} onChange={e => setMainGuest({...mainGuest, primerApellido: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Primer Apellido *</Label>
+                      <Input value={mainGuest.primerApellido} onChange={e => setMainGuest({...mainGuest, primerApellido: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Segundo Apellido</Label>
-                      <Input value={mainGuest.segundoApellido} onChange={e => setMainGuest({...mainGuest, segundoApellido: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Segundo Apellido</Label>
+                      <Input value={mainGuest.segundoApellido} onChange={e => setMainGuest({...mainGuest, segundoApellido: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
 
                     {/* Grupo Demográfico */}
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Fecha Nacimiento *</Label>
-                      <Input type="date" value={mainGuest.fechaCumpleanos} onChange={e => setMainGuest({...mainGuest, fechaCumpleanos: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11 dark:[color-scheme:dark]"/>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Fecha Nacimiento *</Label>
+                      <Input type="date" value={mainGuest.fechaCumpleanos} onChange={e => setMainGuest({...mainGuest, fechaCumpleanos: e.target.value})} className="bg-card border-border h-11 dark:[color-scheme:dark]"/>
                     </div>
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Género *</Label>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Género *</Label>
                       <Select value={mainGuest.genero} onValueChange={v => setMainGuest({...mainGuest, genero: v})}>
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue placeholder="Seleccione"/></SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                          <SelectItem value="M" className="text-[#E5E5E5] focus:bg-[#252525]">Masculino</SelectItem>
-                          <SelectItem value="F" className="text-[#E5E5E5] focus:bg-[#252525]">Femenino</SelectItem>
-                          <SelectItem value="O" className="text-[#E5E5E5] focus:bg-[#252525]">Otro</SelectItem>
+                        <SelectTrigger className="bg-card border-border h-11"><SelectValue placeholder="Seleccione"/></SelectTrigger>
+                        <SelectContent className="bg-card border-border">
+                          <SelectItem value="M" className="text-foreground focus:bg-accent">Masculino</SelectItem>
+                          <SelectItem value="F" className="text-foreground focus:bg-accent">Femenino</SelectItem>
+                          <SelectItem value="O" className="text-foreground focus:bg-accent">Otro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Teléfono *</Label>
-                      <Input type="tel" value={mainGuest.telefono} onChange={e => setMainGuest({...mainGuest, telefono: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    <div className="space-y-2"><Label className="text-muted-foreground">Teléfono *</Label>
+                      <Input type="tel" value={mainGuest.telefono} onChange={e => setMainGuest({...mainGuest, telefono: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
                     <div className="space-y-2"><Label className="text-[#D4AF37]">Correo Electrónico *</Label>
-                      <Input type="email" value={mainGuest.correo} onChange={e => setMainGuest({...mainGuest, correo: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                      <Input type="email" value={mainGuest.correo} onChange={e => setMainGuest({...mainGuest, correo: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
 
                     {/* Grupo Ubicación */}
                     <div className="space-y-2 xl:col-span-2"><Label className="text-[#D4AF37]">Dirección Residencia *</Label>
-                      <Input value={mainGuest.direccion} onChange={e => setMainGuest({...mainGuest, direccion: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                      <Input value={mainGuest.direccion} onChange={e => setMainGuest({...mainGuest, direccion: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
                     <div className="space-y-2"><Label className="text-[#D4AF37]">Ciudad Origen *</Label>
-                      <Input value={mainGuest.ciudadOrigen} onChange={e => setMainGuest({...mainGuest, ciudadOrigen: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                      <Input value={mainGuest.ciudadOrigen} onChange={e => setMainGuest({...mainGuest, ciudadOrigen: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
                     <div className="space-y-2"><Label className="text-[#D4AF37]">Ciudad Destino *</Label>
-                      <Input value={mainGuest.ciudadDestino} onChange={e => setMainGuest({...mainGuest, ciudadDestino: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                      <Input value={mainGuest.ciudadDestino} onChange={e => setMainGuest({...mainGuest, ciudadDestino: e.target.value})} className="bg-card border-border h-11"/>
                     </div>
                     <div className="space-y-2 xl:col-span-4"><Label className="text-[#D4AF37]">Ocupación *</Label>
                       <Select value={mainGuest.ocupacion} onValueChange={v => setMainGuest({...mainGuest, ocupacion: v})}>
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue placeholder="Seleccione"/></SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                          {occupations.map(o => <SelectItem key={o} value={o} className="text-[#E5E5E5] focus:bg-[#252525]">{o}</SelectItem>)}
+                        <SelectTrigger className="bg-card border-border h-11"><SelectValue placeholder="Seleccione"/></SelectTrigger>
+                        <SelectContent className="bg-card border-border">
+                          {occupations.map(o => <SelectItem key={o} value={o} className="text-foreground focus:bg-accent">{o}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -382,17 +382,17 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
             {/* PASO 2: ACOMPAÑANTES */}
             {currentStep === 2 && (
                 <div className="space-y-8 max-w-6xl mx-auto">
-                  <div className="flex justify-between items-center bg-[#1A1A1A] p-6 rounded-xl border border-[#333333]">
+                  <div className="flex justify-between items-center bg-card p-6 rounded-xl border border-border">
                     <div>
                       <h3 className="text-xl font-bold text-[#D4AF37]">Registro de Acompañantes</h3>
                       <p className="text-[#777]">Ingrese los datos de las personas adicionales en la habitación.</p>
                     </div>
-                    <Button onClick={addCompanion} size="lg" className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90 font-medium px-6"><Plus className="h-5 w-5 mr-2"/> Agregar Nuevo</Button>
+                    <Button onClick={addCompanion} size="lg" className="bg-primary text-black hover:bg-primary/90 font-medium px-6"><Plus className="h-5 w-5 mr-2"/> Agregar Nuevo</Button>
                   </div>
 
                   <div className="space-y-4">
                     {companions.map((comp, idx) => (
-                        <div key={comp.id} className="p-6 bg-[#141414] border border-[#333333] rounded-xl relative transition-all hover:border-[#555]">
+                        <div key={comp.id} className="p-6 bg-[#141414] border border-border rounded-xl relative transition-all hover:border-[#555]">
                           <Button size="icon" variant="ghost" className="absolute top-4 right-4 text-red-500 hover:bg-red-900/20 hover:text-red-400" onClick={() => {
                             setCompanions(companions.filter(c => c.id !== comp.id))
                           }}><Trash2 className="h-5 w-5"/></Button>
@@ -403,40 +403,40 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                             <div className="space-y-1"><Label className="text-xs text-[#777]">Nacionalidad *</Label>
                               <Select value={comp.nacionalidad} onValueChange={v => updateCompanion(comp.id, "nacionalidad", v)}>
-                                <SelectTrigger className="h-10 bg-[#0F0F0F] border-[#333333]"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-[#1A1A1A] border-[#333333]">{countries.map(c => <SelectItem key={c} value={c} className="text-[#E5E5E5] focus:bg-[#252525]">{c}</SelectItem>)}</SelectContent>
+                                <SelectTrigger className="h-10 bg-background border-border"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-card border-border">{countries.map(c => <SelectItem key={c} value={c} className="text-foreground focus:bg-accent">{c}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
                             <div className="space-y-1"><Label className="text-xs text-[#777]">No. Documento *</Label>
-                              <Input className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.numeroId} onChange={e => updateCompanion(comp.id, "numeroId", e.target.value)} />
+                              <Input className="h-10 bg-background border-border" value={comp.numeroId} onChange={e => updateCompanion(comp.id, "numeroId", e.target.value)} />
                             </div>
                             <div className="space-y-1"><Label className="text-xs text-[#777]">Primer Nombre *</Label>
-                              <Input className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.primerNombre} onChange={e => updateCompanion(comp.id, "primerNombre", e.target.value)} />
+                              <Input className="h-10 bg-background border-border" value={comp.primerNombre} onChange={e => updateCompanion(comp.id, "primerNombre", e.target.value)} />
                             </div>
                             <div className="space-y-1"><Label className="text-xs text-[#777]">Primer Apellido *</Label>
-                              <Input className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.primerApellido} onChange={e => updateCompanion(comp.id, "primerApellido", e.target.value)} />
+                              <Input className="h-10 bg-background border-border" value={comp.primerApellido} onChange={e => updateCompanion(comp.id, "primerApellido", e.target.value)} />
                             </div>
 
                             <div className="space-y-1"><Label className="text-xs text-[#777]">Fecha Nacimiento *</Label>
-                              <Input type="date" className="h-10 bg-[#0F0F0F] border-[#333333] dark:[color-scheme:dark]" value={comp.fechaCumpleanos} onChange={e => updateCompanion(comp.id, "fechaCumpleanos", e.target.value)} />
+                              <Input type="date" className="h-10 bg-background border-border dark:[color-scheme:dark]" value={comp.fechaCumpleanos} onChange={e => updateCompanion(comp.id, "fechaCumpleanos", e.target.value)} />
                             </div>
                             <div className="space-y-1"><Label className="text-xs text-[#777]">Género *</Label>
                               <Select value={comp.genero} onValueChange={v => updateCompanion(comp.id, "genero", v)}>
-                                <SelectTrigger className="h-10 bg-[#0F0F0F] border-[#333333]"><SelectValue placeholder="-"/></SelectTrigger>
-                                <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                                  <SelectItem value="M" className="text-[#E5E5E5] focus:bg-[#252525]">Masculino</SelectItem>
-                                  <SelectItem value="F" className="text-[#E5E5E5] focus:bg-[#252525]">Femenino</SelectItem>
+                                <SelectTrigger className="h-10 bg-background border-border"><SelectValue placeholder="-"/></SelectTrigger>
+                                <SelectContent className="bg-card border-border">
+                                  <SelectItem value="M" className="text-foreground focus:bg-accent">Masculino</SelectItem>
+                                  <SelectItem value="F" className="text-foreground focus:bg-accent">Femenino</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>
                             <div className="space-y-1 md:col-span-2"><Label className="text-xs text-[#777]">Teléfono *</Label>
-                              <Input type="tel" className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.telefono} onChange={e => updateCompanion(comp.id, "telefono", e.target.value)} />
+                              <Input type="tel" className="h-10 bg-background border-border" value={comp.telefono} onChange={e => updateCompanion(comp.id, "telefono", e.target.value)} />
                             </div>
                           </div>
                         </div>
                     ))}
                     {companions.length === 0 && (
-                        <div className="text-center py-12 border-2 border-dashed border-[#333333] rounded-xl">
+                        <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
                           <Users className="h-16 w-16 text-[#333333] mx-auto mb-4"/>
                           <p className="text-[#555] text-lg">No hay acompañantes registrados.</p>
                         </div>
@@ -451,22 +451,22 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                   {/* Lado Legal */}
                   <div className="space-y-8 flex flex-col justify-center">
                     <div>
-                      <h3 className="text-2xl font-bold text-[#E5E5E5] mb-2">Términos Legales</h3>
-                      <p className="text-[#A3A3A3]">Lea y acepte para continuar.</p>
+                      <h3 className="text-2xl font-bold text-foreground mb-2">Términos Legales</h3>
+                      <p className="text-muted-foreground">Lea y acepte para continuar.</p>
                     </div>
-                    <div className="space-y-6 p-8 bg-[#141414] rounded-2xl border border-[#333333]">
+                    <div className="space-y-6 p-8 bg-[#141414] rounded-2xl border border-border">
                       <div className="flex gap-4 items-start">
-                        <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(c) => setTermsAccepted(c as boolean)} className="mt-1 border-[#555] h-5 w-5 data-[state=checked]:bg-[#D4AF37]"/>
+                        <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(c) => setTermsAccepted(c as boolean)} className="mt-1 border-[#555] h-5 w-5 data-[state=checked]:bg-primary"/>
                         <div className="grid gap-1">
-                          <Label htmlFor="terms" className="text-base font-medium text-[#E5E5E5] cursor-pointer">Reglamento Interno</Label>
+                          <Label htmlFor="terms" className="text-base font-medium text-foreground cursor-pointer">Reglamento Interno</Label>
                           <p className="text-sm text-[#777]">Acepto las políticas de cancelación, horarios y normas de convivencia del hotel.</p>
                         </div>
                       </div>
                       <div className="h-px bg-[#333333]" />
                       <div className="flex gap-4 items-start">
-                        <Checkbox id="privacy" checked={dataPolicyAccepted} onCheckedChange={(c) => setDataPolicyAccepted(c as boolean)} className="mt-1 border-[#555] h-5 w-5 data-[state=checked]:bg-[#D4AF37]"/>
+                        <Checkbox id="privacy" checked={dataPolicyAccepted} onCheckedChange={(c) => setDataPolicyAccepted(c as boolean)} className="mt-1 border-[#555] h-5 w-5 data-[state=checked]:bg-primary"/>
                         <div className="grid gap-1">
-                          <Label htmlFor="privacy" className="text-base font-medium text-[#E5E5E5] cursor-pointer">Tratamiento de Datos (Habeas Data)</Label>
+                          <Label htmlFor="privacy" className="text-base font-medium text-foreground cursor-pointer">Tratamiento de Datos (Habeas Data)</Label>
                           <p className="text-sm text-[#777]">Autorizo el uso de mis datos personales según la Ley 1581 de 2012 para fines del servicio.</p>
                         </div>
                       </div>
@@ -475,9 +475,9 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
 
                   {/* Lado Firma - MODIFICADO: Altura aumentada */}
                   <div className="space-y-4 flex flex-col h-full">
-                    <h3 className="text-xl font-bold text-[#E5E5E5]">Firma Digital</h3>
+                    <h3 className="text-xl font-bold text-foreground">Firma Digital</h3>
 
-                    <div className="flex-1 min-h-[300px] border-2 border-dashed border-[#444] bg-[#0F0F0F] rounded-xl overflow-hidden relative shadow-inner">
+                    <div className="flex-1 min-h-[300px] border-2 border-dashed border-[#444] bg-background rounded-xl overflow-hidden relative shadow-inner">
                       {/* Canvas con resolución interna aumentada para evitar pixelado en pantallas grandes */}
                       <canvas
                           ref={canvasRef}
@@ -495,7 +495,7 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                       )}
                     </div>
 
-                    <Button variant="outline" onClick={clearSignature} className="text-[#CF6679] border-[#333333] hover:bg-[#CF6679]/10 hover:border-[#CF6679] w-full h-12">
+                    <Button variant="outline" onClick={clearSignature} className="text-[#CF6679] border-border hover:bg-[#CF6679]/10 hover:border-[#CF6679] w-full h-12">
                       <Trash2 className="h-5 w-5 mr-2"/> Borrar Firma y Reintentar
                     </Button>
                   </div>
@@ -504,8 +504,8 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
           </div>
 
           {/* Footer */}
-          <div className="px-8 py-6 bg-[#141414] border-t border-[#333333] flex justify-between shrink-0">
-            <Button variant="outline" size="lg" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} className="border-[#333333] text-[#A3A3A3] hover:text-[#E5E5E5] hover:bg-[#252525] px-6">
+          <div className="px-8 py-6 bg-[#141414] border-t border-border flex justify-between shrink-0">
+            <Button variant="outline" size="lg" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} className="border-border text-muted-foreground hover:text-foreground hover:bg-accent px-6">
               <ChevronLeft className="h-5 w-5 mr-2"/> Anterior
             </Button>
 
@@ -513,7 +513,7 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                 <Button onClick={() => setCurrentStep(currentStep+1)}
                         size="lg"
                         disabled={(currentStep === 0 && hasDebt) || (currentStep === 1 && !isMainGuestValid()) || (currentStep === 2 && !areCompanionsValid())}
-                        className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90 font-bold px-8 text-lg"
+                        className="bg-primary text-black hover:bg-primary/90 font-bold px-8 text-lg"
                 >
                   Siguiente <ChevronRight className="h-5 w-5 ml-2"/>
                 </Button>
@@ -526,7 +526,7 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
 
           {/* MODAL DE PAGO */}
           <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-            <DialogContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] sm:max-w-md">
+            <DialogContent className="bg-card border-border text-foreground sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="text-[#D4AF37] flex items-center gap-2 text-xl">
                   <DollarSign className="h-6 w-6"/> Registrar Pago
@@ -541,7 +541,7 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                         type="number"
                         value={paymentAmount}
                         onChange={(e) => setPaymentAmount(e.target.value)}
-                        className="pl-8 bg-[#0F0F0F] border-[#333333] text-2xl font-bold h-14"
+                        className="pl-8 bg-background border-border text-2xl font-bold h-14"
                     />
                   </div>
                   <p className="text-sm text-[#777]">Deuda actual: ${pendingAmount.toLocaleString()}</p>
@@ -549,17 +549,17 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
                 <div className="grid gap-2">
                   <Label>Método de Pago</Label>
                   <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] h-12"><SelectValue /></SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                      <SelectItem value="efectivo" className="text-[#E5E5E5] focus:bg-[#252525]">Efectivo</SelectItem>
-                      <SelectItem value="tarjeta" className="text-[#E5E5E5] focus:bg-[#252525]">Tarjeta Débito/Crédito</SelectItem>
-                      <SelectItem value="transferencia" className="text-[#E5E5E5] focus:bg-[#252525]">Transferencia</SelectItem>
+                    <SelectTrigger className="bg-background border-border h-12"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="efectivo" className="text-foreground focus:bg-accent">Efectivo</SelectItem>
+                      <SelectItem value="tarjeta" className="text-foreground focus:bg-accent">Tarjeta Débito/Crédito</SelectItem>
+                      <SelectItem value="transferencia" className="text-foreground focus:bg-accent">Transferencia</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)} className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] h-11">Cancelar</Button>
+                <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)} className="border-border text-foreground hover:bg-accent h-11">Cancelar</Button>
                 <Button onClick={handleRegisterPayment} className="bg-[#059669] text-white hover:bg-[#059669]/90 h-11 font-bold">Confirmar Pago</Button>
               </DialogFooter>
             </DialogContent>

@@ -88,17 +88,17 @@ export function NewReservationModal({
 
   return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="sm:max-w-[550px] bg-[#1A1A1A] border-[#333333] p-0 text-[#E5E5E5] max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <DialogContent className="sm:max-w-[550px] bg-card border-border p-0 text-foreground max-h-[90vh] overflow-y-auto custom-scrollbar">
           <DialogHeader className="p-6 pb-0">
             <div className="flex items-center justify-between">
-              <DialogTitle className="font-bold text-2xl text-[#E5E5E5]">
+              <DialogTitle className="font-bold text-2xl text-foreground">
                 {activeTab === "reservation" ? "Nueva Reserva" : "Bloqueo / Mantenimiento"}
               </DialogTitle>
               <Button
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
-                  className="h-8 w-8 text-[#A3A3A3] hover:text-[#E5E5E5] hover:bg-[#252525] transition-all duration-300"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -106,17 +106,17 @@ export function NewReservationModal({
           </DialogHeader>
 
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "reservation" | "maintenance")}>
-            <TabsList className="w-full bg-[#0F0F0F] border-b border-[#333333] rounded-none p-0 h-auto mx-0 px-6 sticky top-0 z-10">
+            <TabsList className="w-full bg-background border-b border-border rounded-none p-0 h-auto mx-0 px-6 sticky top-0 z-10">
               <TabsTrigger
                   value="reservation"
-                  className="flex-1 rounded-none py-3 text-sm data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3] transition-all duration-300"
+                  className="flex-1 rounded-none py-3 text-sm data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-muted-foreground transition-all duration-300"
               >
                 <BedDouble className="h-4 w-4 mr-2" />
                 Reserva
               </TabsTrigger>
               <TabsTrigger
                   value="maintenance"
-                  className="flex-1 rounded-none py-3 text-sm data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3] transition-all duration-300"
+                  className="flex-1 rounded-none py-3 text-sm data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-muted-foreground transition-all duration-300"
               >
                 <Wrench className="h-4 w-4 mr-2" />
                 Bloqueo
@@ -135,19 +135,19 @@ export function NewReservationModal({
 
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-[#A3A3A3] text-xs">Nombre Completo *</Label>
+                      <Label className="text-muted-foreground text-xs">Nombre Completo *</Label>
                       <Input
                           value={formData.guestName}
                           onChange={(e) => setFormData({ ...formData, guestName: e.target.value })}
                           placeholder="Ej: Juan Pérez"
-                          className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]"
+                          className="bg-background border-border text-foreground focus:border-[#D4AF37]"
                           required
                       />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-[#A3A3A3] text-xs">Correo Electrónico</Label>
+                        <Label className="text-muted-foreground text-xs">Correo Electrónico</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#666]" />
                           <Input
@@ -155,12 +155,12 @@ export function NewReservationModal({
                               value={formData.email}
                               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                               placeholder="cliente@email.com"
-                              className="pl-8 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]"
+                              className="pl-8 bg-background border-border text-foreground focus:border-[#D4AF37]"
                           />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[#A3A3A3] text-xs">Teléfono</Label>
+                        <Label className="text-muted-foreground text-xs">Teléfono</Label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#666]" />
                           <Input
@@ -168,7 +168,7 @@ export function NewReservationModal({
                               value={formData.phone}
                               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                               placeholder="+57 300..."
-                              className="pl-8 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]"
+                              className="pl-8 bg-background border-border text-foreground focus:border-[#D4AF37]"
                           />
                         </div>
                       </div>
@@ -176,12 +176,12 @@ export function NewReservationModal({
 
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1.5 col-span-1">
-                        <Label className="text-[#A3A3A3] text-xs">Tipo Doc</Label>
+                        <Label className="text-muted-foreground text-xs">Tipo Doc</Label>
                         <Select value={formData.docType} onValueChange={(v) => setFormData({ ...formData, docType: v })}>
-                          <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]">
+                          <SelectTrigger className="bg-background border-border text-foreground">
                             <SelectValue placeholder="Tipo" />
                           </SelectTrigger>
-                          <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                          <SelectContent className="bg-card border-border text-foreground">
                             <SelectItem value="CC">CC</SelectItem>
                             <SelectItem value="CE">CE</SelectItem>
                             <SelectItem value="PA">Pasaporte</SelectItem>
@@ -190,14 +190,14 @@ export function NewReservationModal({
                         </Select>
                       </div>
                       <div className="space-y-1.5 col-span-2">
-                        <Label className="text-[#A3A3A3] text-xs">Número Documento</Label>
+                        <Label className="text-muted-foreground text-xs">Número Documento</Label>
                         <div className="relative">
                           <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#666]" />
                           <Input
                               value={formData.docNumber}
                               onChange={(e) => setFormData({ ...formData, docNumber: e.target.value })}
                               placeholder="123456789"
-                              className="pl-8 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]"
+                              className="pl-8 bg-background border-border text-foreground focus:border-[#D4AF37]"
                           />
                         </div>
                       </div>
@@ -213,14 +213,14 @@ export function NewReservationModal({
 
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label className="text-[#A3A3A3] text-xs">Habitación *</Label>
+                      <Label className="text-muted-foreground text-xs">Habitación *</Label>
                       <Select value={formData.roomId} onValueChange={(v) => setFormData({ ...formData, roomId: v })} required>
-                        <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]">
+                        <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37]">
                           <SelectValue placeholder="Seleccionar habitación" />
                         </SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                        <SelectContent className="bg-card border-border text-foreground">
                           {rooms.map((room) => (
-                              <SelectItem key={room.id} value={room.id} className="focus:bg-[#252525]">
+                              <SelectItem key={room.id} value={room.id} className="focus:bg-accent">
                                 {room.number} - {room.category}
                               </SelectItem>
                           ))}
@@ -230,22 +230,22 @@ export function NewReservationModal({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-[#A3A3A3] text-xs">Check-in *</Label>
+                        <Label className="text-muted-foreground text-xs">Check-in *</Label>
                         <Input
                             type="date"
                             value={formData.checkIn}
                             onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
-                            className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] [color-scheme:dark]"
+                            className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                             required
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[#A3A3A3] text-xs">Check-out *</Label>
+                        <Label className="text-muted-foreground text-xs">Check-out *</Label>
                         <Input
                             type="date"
                             value={formData.checkOut}
                             onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
-                            className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] [color-scheme:dark]"
+                            className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                             required
                         />
                       </div>
@@ -253,36 +253,36 @@ export function NewReservationModal({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-[#A3A3A3] text-xs">Adultos</Label>
+                        <Label className="text-muted-foreground text-xs">Adultos</Label>
                         <Input
                             type="number"
                             min={1}
                             max={6}
                             value={formData.adults}
                             onChange={(e) => setFormData({ ...formData, adults: Number.parseInt(e.target.value) })}
-                            className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]"
+                            className="bg-background border-border text-foreground focus:border-[#D4AF37]"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-[#A3A3A3] text-xs">Niños</Label>
+                        <Label className="text-muted-foreground text-xs">Niños</Label>
                         <Input
                             type="number"
                             min={0}
                             max={4}
                             value={formData.children}
                             onChange={(e) => setFormData({ ...formData, children: Number.parseInt(e.target.value) })}
-                            className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]"
+                            className="bg-background border-border text-foreground focus:border-[#D4AF37]"
                         />
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label className="text-[#A3A3A3] text-xs">Notas</Label>
+                      <Label className="text-muted-foreground text-xs">Notas</Label>
                       <Textarea
                           value={formData.notes}
                           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                           placeholder="Solicitudes especiales..."
-                          className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] resize-none h-16"
+                          className="bg-background border-border text-foreground focus:border-[#D4AF37] resize-none h-16"
                       />
                     </div>
                   </div>
@@ -295,9 +295,9 @@ export function NewReservationModal({
                       checked={sendEmail}
                       onCheckedChange={setSendEmail}
                       disabled={!formData.email} // REGLA: No se puede activar si no hay email
-                      className="data-[state=checked]:bg-[#D4AF37]"
+                      className="data-[state=checked]:bg-primary"
                   />
-                  <Label htmlFor="email-mode" className={`text-xs ${!formData.email ? 'text-[#666]' : 'text-[#E5E5E5]'}`}>
+                  <Label htmlFor="email-mode" className={`text-xs ${!formData.email ? 'text-[#666]' : 'text-foreground'}`}>
                     Enviar confirmación por correo { !formData.email && "(Requiere email)" }
                   </Label>
                 </div>
@@ -307,14 +307,14 @@ export function NewReservationModal({
               {/* --- TAB MANTENIMIENTO --- */}
               <TabsContent value="maintenance" className="p-6 space-y-4 mt-0">
                 <div className="space-y-1.5">
-                  <Label className="text-[#A3A3A3] text-xs">Habitación *</Label>
+                  <Label className="text-muted-foreground text-xs">Habitación *</Label>
                   <Select value={formData.roomId} onValueChange={(v) => setFormData({ ...formData, roomId: v })} required>
-                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37]">
                       <SelectValue placeholder="Seleccionar habitación" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                    <SelectContent className="bg-card border-border text-foreground">
                       {rooms.map((room) => (
-                          <SelectItem key={room.id} value={room.id} className="focus:bg-[#252525]">
+                          <SelectItem key={room.id} value={room.id} className="focus:bg-accent">
                             {room.number} - {room.category}
                           </SelectItem>
                       ))}
@@ -324,72 +324,72 @@ export function NewReservationModal({
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-[#A3A3A3] text-xs">Desde *</Label>
+                    <Label className="text-muted-foreground text-xs">Desde *</Label>
                     <Input
                         type="date"
                         value={formData.checkIn}
                         onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
-                        className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] [color-scheme:dark]"
+                        className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                         required
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[#A3A3A3] text-xs">Hasta *</Label>
+                    <Label className="text-muted-foreground text-xs">Hasta *</Label>
                     <Input
                         type="date"
                         value={formData.checkOut}
                         onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
-                        className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] [color-scheme:dark]"
+                        className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                         required
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[#A3A3A3] text-xs">Motivo de Bloqueo *</Label>
+                  <Label className="text-muted-foreground text-xs">Motivo de Bloqueo *</Label>
                   <Select
                       value={formData.maintenanceReason}
                       onValueChange={(v) => setFormData({ ...formData, maintenanceReason: v })}
                       required
                   >
-                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37]">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37]">
                       <SelectValue placeholder="Seleccionar motivo" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
-                      <SelectItem value="repair" className="focus:bg-[#252525]">Reparación General</SelectItem>
-                      <SelectItem value="ac" className="focus:bg-[#252525]">Reparación A/C</SelectItem>
-                      <SelectItem value="plumbing" className="focus:bg-[#252525]">Plomería</SelectItem>
-                      <SelectItem value="painting" className="focus:bg-[#252525]">Pintura</SelectItem>
-                      <SelectItem value="cleaning" className="focus:bg-[#252525]">Limpieza Profunda</SelectItem>
-                      <SelectItem value="other" className="focus:bg-[#252525]">Otro motivo</SelectItem>
+                    <SelectContent className="bg-card border-border text-foreground">
+                      <SelectItem value="repair" className="focus:bg-accent">Reparación General</SelectItem>
+                      <SelectItem value="ac" className="focus:bg-accent">Reparación A/C</SelectItem>
+                      <SelectItem value="plumbing" className="focus:bg-accent">Plomería</SelectItem>
+                      <SelectItem value="painting" className="focus:bg-accent">Pintura</SelectItem>
+                      <SelectItem value="cleaning" className="focus:bg-accent">Limpieza Profunda</SelectItem>
+                      <SelectItem value="other" className="focus:bg-accent">Otro motivo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[#A3A3A3] text-xs">Detalles</Label>
+                  <Label className="text-muted-foreground text-xs">Detalles</Label>
                   <Textarea
                       value={formData.notes}
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       placeholder="Descripción del bloqueo..."
-                      className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] resize-none h-20"
+                      className="bg-background border-border text-foreground focus:border-[#D4AF37] resize-none h-20"
                   />
                 </div>
               </TabsContent>
 
               {/* Footer de Acciones */}
-              <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-[#1A1A1A] z-10 pb-6">
+              <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-card z-10 pb-6">
                 <Button
                     type="button"
                     variant="outline"
                     onClick={onClose}
-                    className="flex-1 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
+                    className="flex-1 border-border text-foreground hover:bg-accent bg-transparent transition-all duration-300"
                 >
                   Cancelar
                 </Button>
                 <Button
                     type="submit"
-                    className="flex-1 bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all duration-300 font-medium"
+                    className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all duration-300 font-medium"
                 >
                   {activeTab === "reservation" ? (sendEmail ? "Confirmar y Enviar" : "Confirmar Reserva") : "Bloquear"}
                 </Button>

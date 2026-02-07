@@ -339,27 +339,27 @@ export function CronogramaContent() {
   }
 
   return (
-      <div className="space-y-4 h-full flex flex-col bg-[#09090b] text-[#E5E5E5] p-2">
+      <div className="space-y-4 h-full flex flex-col bg-[#09090b] text-foreground p-2">
 
         {/* HEADER PRINCIPAL */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
           <div>
-            <h1 className="text-2xl font-bold text-[#E5E5E5] tracking-tight">Cronograma</h1>
-            <p className="text-xs text-[#A3A3A3]">Gestión de ocupación y tarifas</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Cronograma</h1>
+            <p className="text-xs text-muted-foreground">Gestión de ocupación y tarifas</p>
           </div>
 
           <div className="flex items-center gap-2">
             <Button
                 variant="outline"
                 size="sm"
-                className="border-[#333] bg-[#1A1A1A] text-[#E5E5E5] hover:bg-[#252525] hover:text-[#D4AF37] transition-colors"
+                className="border-[#333] bg-card text-foreground hover:bg-accent hover:text-[#D4AF37] transition-colors"
                 onClick={() => setRateModalOpen(true)}
             >
               <DollarSign className="h-4 w-4 mr-2" />
               Tarifas
             </Button>
 
-            <div className="flex items-center rounded-lg border border-[#333] bg-[#1A1A1A] p-1">
+            <div className="flex items-center rounded-lg border border-[#333] bg-card p-1">
               {(["day", "week", "month"] as ViewMode[]).map((mode) => (
                   <Button
                       key={mode}
@@ -368,7 +368,7 @@ export function CronogramaContent() {
                       onClick={() => setViewMode(mode)}
                       className={cn(
                           "h-7 px-3 text-xs capitalize transition-all",
-                          viewMode === mode ? "bg-[#D4AF37] text-black font-semibold shadow-sm" : "text-[#A3A3A3] hover:text-white"
+                          viewMode === mode ? "bg-primary text-black font-semibold shadow-sm" : "text-muted-foreground hover:text-white"
                       )}
                   >
                     {mode === "day" ? "Día" : mode === "week" ? "Semana" : "Mes"}
@@ -379,7 +379,7 @@ export function CronogramaContent() {
             <Button
                 size="sm"
                 onClick={() => setNewReservationModal({ isOpen: true, roomId: "", date: currentDate, type: "reservation" })}
-                className="bg-[#D4AF37] text-black hover:bg-[#c4a02e] font-medium"
+                className="bg-primary text-black hover:bg-[#c4a02e] font-medium"
             >
               <Plus className="h-4 w-4 mr-1" /> Crear
             </Button>
@@ -387,14 +387,14 @@ export function CronogramaContent() {
         </div>
 
         {/* NAVEGACIÓN DE FECHAS */}
-        <div className="flex items-center justify-between shrink-0 bg-[#1A1A1A] p-2 rounded-md border border-[#333]">
-          <Button variant="ghost" size="icon" onClick={navigatePrevious} className="h-8 w-8 text-[#A3A3A3] hover:text-white hover:bg-[#333]">
+        <div className="flex items-center justify-between shrink-0 bg-card p-2 rounded-md border border-[#333]">
+          <Button variant="ghost" size="icon" onClick={navigatePrevious} className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-[#333]">
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-bold text-[#E5E5E5] capitalize tracking-wide">
+          <span className="text-sm font-bold text-foreground capitalize tracking-wide">
             {format(currentDate, "MMMM yyyy", { locale: es })}
         </span>
-          <Button variant="ghost" size="icon" onClick={navigateNext} className="h-8 w-8 text-[#A3A3A3] hover:text-white hover:bg-[#333]">
+          <Button variant="ghost" size="icon" onClick={navigateNext} className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-[#333]">
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button variant="link" size="sm" onClick={goToToday} className="text-[#D4AF37] text-xs h-8 ml-2">
@@ -403,14 +403,14 @@ export function CronogramaContent() {
         </div>
 
         {/* GRID DE RESERVAS */}
-        <div className="rounded-lg border border-[#333] bg-[#0F0F0F] flex-1 flex flex-col overflow-hidden shadow-2xl relative">
+        <div className="rounded-lg border border-[#333] bg-background flex-1 flex flex-col overflow-hidden shadow-2xl relative">
           <div ref={gridRef} className="flex-1 overflow-auto custom-scrollbar">
             <div className="min-w-max">
 
               {/* HEADER DE DÍAS */}
-              <div className="flex sticky top-0 z-20 bg-[#1A1A1A] shadow-md border-b border-[#333]">
-                <div className="w-[180px] shrink-0 border-r border-[#333] bg-[#1A1A1A] p-3 sticky left-0 z-30 flex items-center justify-between">
-                  <span className="text-xs font-semibold text-[#A3A3A3]">Habitación</span>
+              <div className="flex sticky top-0 z-20 bg-card shadow-md border-b border-[#333]">
+                <div className="w-[180px] shrink-0 border-r border-[#333] bg-card p-3 sticky left-0 z-30 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-muted-foreground">Habitación</span>
                   <span className="text-[10px] text-[#525252] font-mono">Tarifa Hoy</span>
                 </div>
                 <div className="flex">
@@ -421,14 +421,14 @@ export function CronogramaContent() {
                             key={idx}
                             className={cn(
                                 "min-w-[48px] w-12 border-r border-[#333] py-2 text-center flex flex-col justify-center relative group",
-                                isCurrent && "bg-[#D4AF37]/5"
+                                isCurrent && "bg-primary/5"
                             )}
                         >
                           <span className="text-[10px] text-[#737373] uppercase font-medium">{format(day, "EEE", { locale: es })}</span>
-                          <span className={cn("text-sm font-bold", isCurrent ? "text-[#D4AF37]" : "text-[#E5E5E5]")}>
+                          <span className={cn("text-sm font-bold", isCurrent ? "text-[#D4AF37]" : "text-foreground")}>
                         {format(day, "d")}
                       </span>
-                          <div className="mt-1 h-[2px] w-3 mx-auto bg-[#333] group-hover:bg-[#D4AF37] transition-colors rounded-full" />
+                          <div className="mt-1 h-[2px] w-3 mx-auto bg-[#333] group-hover:bg-primary transition-colors rounded-full" />
                         </div>
                     )
                   })}
@@ -455,16 +455,16 @@ export function CronogramaContent() {
                             <div
                                 key={room.id}
                                 // --- DROP ZONE LOGIC ---
-                                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("bg-[#D4AF37]/10") }}
-                                onDragLeave={(e) => { e.currentTarget.classList.remove("bg-[#D4AF37]/10") }}
-                                onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("bg-[#D4AF37]/10"); handleDrop(room.id) }}
-                                className="flex border-b border-[#333]/50 h-[72px] relative hover:bg-[#252525]/30 group transition-colors"
+                                onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("bg-primary/10") }}
+                                onDragLeave={(e) => { e.currentTarget.classList.remove("bg-primary/10") }}
+                                onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("bg-primary/10"); handleDrop(room.id) }}
+                                className="flex border-b border-[#333]/50 h-[72px] relative hover:bg-accent/30 group transition-colors"
                             >
 
                               {/* COLUMNA INFO HABITACIÓN */}
-                              <div className="w-[180px] shrink-0 border-r border-[#333] px-4 flex flex-col justify-center sticky left-0 z-10 bg-[#0F0F0F] group-hover:bg-[#1A1A1A] transition-colors border-r-2 border-r-[#222]">
+                              <div className="w-[180px] shrink-0 border-r border-[#333] px-4 flex flex-col justify-center sticky left-0 z-10 bg-background group-hover:bg-card transition-colors border-r-2 border-r-[#222]">
                                 <div className="flex items-center justify-between w-full mb-1">
-                                  <span className="text-xl font-bold text-[#E5E5E5]">{room.number}</span>
+                                  <span className="text-xl font-bold text-foreground">{room.number}</span>
                                   <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 rounded-sm border-0", getCategoryColor(room.category))}>
                                     {room.category}
                                   </Badge>
@@ -473,7 +473,7 @@ export function CronogramaContent() {
                                     className="flex items-center gap-1.5 cursor-pointer hover:bg-[#333] rounded px-1 -ml-1 py-0.5 transition-colors w-fit"
                                     onClick={() => alert(`Gestionar tarifa habitación ${room.number}`)}
                                 >
-                                  <span className="text-[10px] text-[#A3A3A3]">Hoy:</span>
+                                  <span className="text-[10px] text-muted-foreground">Hoy:</span>
                                   <span className="text-xs font-medium text-[#D4AF37]">${formatPriceShort(todayPrice)}</span>
                                 </div>
                               </div>
@@ -487,7 +487,7 @@ export function CronogramaContent() {
                                         onClick={() => setNewReservationModal({ isOpen: true, roomId: room.id, date: day, type: "reservation" })}
                                         className={cn(
                                             "min-w-[48px] w-12 border-r border-[#333]/30 cursor-pointer transition-all hover:bg-[#333]/40 flex items-end justify-center pb-1",
-                                            isToday(day) && "bg-[#D4AF37]/5"
+                                            isToday(day) && "bg-primary/5"
                                         )}
                                     >
                                 <span className="text-[8px] text-[#555] opacity-0 group-hover:opacity-100 select-none transition-opacity">
@@ -560,7 +560,7 @@ export function CronogramaContent() {
         </div>
 
         {/* LEYENDA */}
-        <div className="flex flex-wrap items-center justify-center gap-6 text-xs bg-[#1A1A1A] py-3 px-6 rounded-full border border-[#333] w-fit mx-auto shadow-lg">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-xs bg-card py-3 px-6 rounded-full border border-[#333] w-fit mx-auto shadow-lg">
           {[
             { color: "bg-emerald-500", label: "Al día" },
             { color: "bg-rose-500", label: "Deuda" },
@@ -570,7 +570,7 @@ export function CronogramaContent() {
           ].map((status) => (
               <div key={status.label} className="flex items-center gap-2">
                 <div className={`w-2.5 h-2.5 rounded-full ${status.color} shadow-[0_0_8px_rgba(0,0,0,0.5)]`}></div>
-                <span className="text-[#A3A3A3] font-medium">{status.label}</span>
+                <span className="text-muted-foreground font-medium">{status.label}</span>
               </div>
           ))}
         </div>

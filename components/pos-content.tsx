@@ -163,8 +163,8 @@ export function POSContent() {
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
           <div className="mb-4">
-            <h1 className="font-serif text-3xl font-semibold text-[#E5E5E5]">Punto de Venta</h1>
-            <p className="text-[#A3A3A3]">Bar & Restaurante</p>
+            <h1 className="font-serif text-3xl font-semibold text-foreground">Punto de Venta</h1>
+            <p className="text-muted-foreground">Bar & Restaurante</p>
           </div>
 
           {/* Category Tabs - Capsule style */}
@@ -175,8 +175,8 @@ export function POSContent() {
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   selectedCategory === cat.id
-                    ? "bg-[#D4AF37] text-[#0F0F0F]"
-                    : "bg-[#1A1A1A] text-[#A3A3A3] border border-[#333333] hover:border-[#444444] hover:text-[#E5E5E5]"
+                    ? "bg-primary text-[#0F0F0F]"
+                    : "bg-card text-muted-foreground border border-border hover:border-[#444444] hover:text-foreground"
                 }`}
               >
                 {cat.name}

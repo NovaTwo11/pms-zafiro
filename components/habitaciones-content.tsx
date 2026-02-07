@@ -152,7 +152,7 @@ const reservationStatusConfig = {
   confirmed_deposit: { label: "Reserva (Abono)", color: "bg-blue-600", border: "border-blue-700" },
   confirmed_no_deposit: { label: "Reserva (Sin Abono)", color: "bg-orange-600", border: "border-orange-700" },
   blocked: { label: "Bloqueada", color: "bg-gray-600", border: "border-gray-700" },
-  available: { label: "Disponible", color: "bg-[#1A1A1A]", border: "border-[#333333]" }
+  available: { label: "Disponible", color: "bg-card", border: "border-border" }
 }
 
 export function HabitacionesContent() {
@@ -226,10 +226,10 @@ export function HabitacionesContent() {
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-[family-name:var(--font-heading)] text-3xl font-semibold text-[#E5E5E5]">
+            <h1 className="font-[family-name:var(--font-heading)] text-3xl font-semibold text-foreground">
               Control de Habitaciones
             </h1>
-            <p className="text-[#A3A3A3]">
+            <p className="text-muted-foreground">
               {format(today, "EEEE, d 'de' MMMM", { locale: es })} — Vista operativa en tiempo real
             </p>
           </div>
@@ -237,12 +237,12 @@ export function HabitacionesContent() {
           {/* KPI Rápidos */}
           <div className="flex gap-4">
             <div className="flex flex-col items-end">
-              <span className="text-xs text-[#A3A3A3]">Sucias</span>
+              <span className="text-xs text-muted-foreground">Sucias</span>
               <span className="text-xl font-bold text-red-500">{rooms.filter(r => r.housekeeping === 'dirty').length}</span>
             </div>
             <div className="h-10 w-px bg-[#333333]"></div>
             <div className="flex flex-col items-end">
-              <span className="text-xs text-[#A3A3A3]">Disponibles</span>
+              <span className="text-xs text-muted-foreground">Disponibles</span>
               <span className="text-xl font-bold text-emerald-500">
                     {rooms.filter(r => !activeReservations.some(res => res.roomId === r.id && isWithinInterval(today, { start: res.startDate, end: res.endDate }))).length}
                 </span>
@@ -251,14 +251,14 @@ export function HabitacionesContent() {
         </div>
 
         {/* Barra de Filtros */}
-        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-[#333333] bg-[#1A1A1A]">
+        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border border-border bg-card">
           <Filter className="h-4 w-4 text-[#D4AF37] mr-2" />
 
           <Select value={filterOccupancy} onValueChange={(v: any) => setFilterOccupancy(v)}>
-            <SelectTrigger className="w-[180px] bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]">
+            <SelectTrigger className="w-[180px] bg-background border-border text-foreground">
               <SelectValue placeholder="Estado Ocupación" />
             </SelectTrigger>
-            <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+            <SelectContent className="bg-card border-border text-foreground">
               <SelectItem value="all">Todas las Ocupaciones</SelectItem>
               <SelectItem value="available">Disponibles</SelectItem>
               <SelectItem value="occupied">Ocupadas / Reservadas</SelectItem>
@@ -267,10 +267,10 @@ export function HabitacionesContent() {
           </Select>
 
           <Select value={filterHousekeeping} onValueChange={(v: any) => setFilterHousekeeping(v)}>
-            <SelectTrigger className="w-[180px] bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]">
+            <SelectTrigger className="w-[180px] bg-background border-border text-foreground">
               <SelectValue placeholder="Estado Limpieza" />
             </SelectTrigger>
-            <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+            <SelectContent className="bg-card border-border text-foreground">
               <SelectItem value="all">Todas las Limpiezas</SelectItem>
               <SelectItem value="clean">Limpias</SelectItem>
               <SelectItem value="dirty">Sucias</SelectItem>
@@ -280,7 +280,7 @@ export function HabitacionesContent() {
 
           <Button
               variant="ghost"
-              className="ml-auto text-[#D4AF37] hover:bg-[#D4AF37]/10"
+              className="ml-auto text-[#D4AF37] hover:bg-primary/10"
               onClick={() => {setFilterOccupancy("all"); setFilterHousekeeping("all")}}
           >
             Limpiar Filtros
@@ -310,14 +310,14 @@ export function HabitacionesContent() {
                             key={room.id}
                             className={cn(
                                 "relative group rounded-xl border p-4 transition-all duration-300 hover:shadow-lg flex flex-col justify-between min-h-[180px]",
-                                isSalesAlert ? "border-red-500/50 bg-red-950/10" : "border-[#333333] bg-[#1A1A1A] hover:bg-[#202020]"
+                                isSalesAlert ? "border-red-500/50 bg-red-950/10" : "border-border bg-card hover:bg-[#202020]"
                             )}
                         >
                           {/* Header Tarjeta: Número y Estado Limpieza */}
                           <div className="flex justify-between items-start mb-4">
                             <div>
-                              <span className="text-3xl font-bold text-[#E5E5E5] tracking-tight">{room.number}</span>
-                              <p className="text-xs text-[#A3A3A3] font-medium mt-1">{room.category}</p>
+                              <span className="text-3xl font-bold text-foreground tracking-tight">{room.number}</span>
+                              <p className="text-xs text-muted-foreground font-medium mt-1">{room.category}</p>
                             </div>
 
                             {/* Control de Limpieza (Estado Secundario) */}
@@ -335,14 +335,14 @@ export function HabitacionesContent() {
                                   {hkConfig.label}
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent className="bg-[#1A1A1A] border-[#333333]">
-                                <DropdownMenuLabel className="text-[#A3A3A3]">Cambiar estado limpieza</DropdownMenuLabel>
+                              <DropdownMenuContent className="bg-card border-border">
+                                <DropdownMenuLabel className="text-muted-foreground">Cambiar estado limpieza</DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-[#333333]" />
                                 {(Object.keys(housekeepingConfig) as HousekeepingStatus[]).map((status) => (
                                     <DropdownMenuItem
                                         key={status}
                                         onClick={() => handleStatusChange(room.id, status)}
-                                        className="text-[#E5E5E5] focus:bg-[#252525] cursor-pointer gap-2"
+                                        className="text-foreground focus:bg-accent cursor-pointer gap-2"
                                     >
                                       <div className={cn("h-2 w-2 rounded-full", housekeepingConfig[status].color.replace('text-', 'bg-'))} />
                                       {housekeepingConfig[status].label}
@@ -355,7 +355,7 @@ export function HabitacionesContent() {
                           {/* Cuerpo: Estado Primario (Ocupación) */}
                           <div className="space-y-3">
                             {primaryStatus === "available" ? (
-                                <div className="p-3 rounded-lg bg-[#0F0F0F] border border-[#333333] border-dashed flex items-center justify-center gap-2 text-[#666666]">
+                                <div className="p-3 rounded-lg bg-background border border-border border-dashed flex items-center justify-center gap-2 text-[#666666]">
                                   <CheckCircle2 className="h-4 w-4" />
                                   <span className="text-sm">Disponible</span>
                                 </div>
@@ -366,7 +366,7 @@ export function HabitacionesContent() {
                                 )}>
                                   {/* Indicadores de Flujo */}
                                   {isCheckInToday && (
-                                      <Badge className="absolute top-0 right-0 rounded-none rounded-bl-lg bg-white/90 text-black text-[9px] font-bold px-1.5 h-4 hover:bg-white">
+                                      <Badge className="absolute top-0 right-0 rounded-none rounded-bl-lg bg-card/90 text-black text-[9px] font-bold px-1.5 h-4 hover:bg-card">
                                         LLEGADA
                                       </Badge>
                                   )}

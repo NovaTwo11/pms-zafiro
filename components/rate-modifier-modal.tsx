@@ -29,7 +29,7 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-[#1A1A1A] border-[#333] text-[#E5E5E5]">
+            <DialogContent className="bg-card border-[#333] text-foreground">
                 <DialogHeader>
                     <DialogTitle>Gestión de Tarifas y Temporadas</DialogTitle>
                 </DialogHeader>
@@ -42,7 +42,7 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="bg-[#0F0F0F] border-[#333] text-white"
+                                className="bg-background border-[#333] text-white"
                             />
                         </div>
                         <div className="space-y-2">
@@ -51,7 +51,7 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="bg-[#0F0F0F] border-[#333] text-white"
+                                className="bg-background border-[#333] text-white"
                             />
                         </div>
                     </div>
@@ -59,10 +59,10 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                     <div className="space-y-2">
                         <Label>Aplicar a</Label>
                         <Select value={scope} onValueChange={setScope}>
-                            <SelectTrigger className="bg-[#0F0F0F] border-[#333] text-white">
+                            <SelectTrigger className="bg-background border-[#333] text-white">
                                 <SelectValue placeholder="Seleccionar alcance" />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1A1A1A] border-[#333] text-[#E5E5E5]">
+                            <SelectContent className="bg-card border-[#333] text-foreground">
                                 <SelectItem value="ALL">Todas las habitaciones</SelectItem>
                                 {roomCategories.map((cat) => (
                                     <SelectItem key={cat} value={cat}>Categoría: {cat}</SelectItem>
@@ -74,21 +74,21 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                     <div className="space-y-2">
                         <Label>Nuevo Precio por Noche</Label>
                         <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-[#A3A3A3]">$</span>
+                            <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
                             <Input
                                 type="number"
                                 placeholder="Ej: 180000"
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
-                                className="pl-7 bg-[#0F0F0F] border-[#333] text-white"
+                                className="pl-7 bg-background border-[#333] text-white"
                             />
                         </div>
                     </div>
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose} className="border-[#333] hover:bg-[#252525] text-white">Cancelar</Button>
-                    <Button onClick={handleSave} className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90">Aplicar Tarifa</Button>
+                    <Button variant="outline" onClick={onClose} className="border-[#333] hover:bg-accent text-white">Cancelar</Button>
+                    <Button onClick={handleSave} className="bg-primary text-black hover:bg-primary/90">Aplicar Tarifa</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

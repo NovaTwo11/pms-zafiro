@@ -42,29 +42,29 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-[family-name:var(--font-heading)] text-3xl font-bold text-[#E5E5E5]">Configuración</h1>
-        <p className="text-[#A3A3A3]">Administra la configuración del hotel y las integraciones</p>
+        <h1 className="font-[family-name:var(--font-heading)] text-3xl font-bold text-foreground">Configuración</h1>
+        <p className="text-muted-foreground">Administra la configuración del hotel y las integraciones</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full bg-[#1A1A1A] border border-[#333333] rounded-lg p-1 h-auto">
+        <TabsList className="w-full bg-card border border-border rounded-lg p-1 h-auto">
           <TabsTrigger
             value="general"
-            className="flex-1 py-3 text-sm data-[state=active]:bg-[#D4AF37]/10 data-[state=active]:text-[#D4AF37] text-[#A3A3A3] rounded-md transition-all duration-300"
+            className="flex-1 py-3 text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-[#D4AF37] text-muted-foreground rounded-md transition-all duration-300"
           >
             <Settings className="h-4 w-4 mr-2" />
             General
           </TabsTrigger>
           <TabsTrigger
             value="integrations"
-            className="flex-1 py-3 text-sm data-[state=active]:bg-[#D4AF37]/10 data-[state=active]:text-[#D4AF37] text-[#A3A3A3] rounded-md transition-all duration-300"
+            className="flex-1 py-3 text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-[#D4AF37] text-muted-foreground rounded-md transition-all duration-300"
           >
             <Link2 className="h-4 w-4 mr-2" />
             Integraciones
           </TabsTrigger>
           <TabsTrigger
             value="users"
-            className="flex-1 py-3 text-sm data-[state=active]:bg-[#D4AF37]/10 data-[state=active]:text-[#D4AF37] text-[#A3A3A3] rounded-md transition-all duration-300"
+            className="flex-1 py-3 text-sm data-[state=active]:bg-primary/10 data-[state=active]:text-[#D4AF37] text-muted-foreground rounded-md transition-all duration-300"
           >
             <Users className="h-4 w-4 mr-2" />
             Usuarios
@@ -73,19 +73,19 @@ export default function SettingsPage() {
 
         {/* General Tab */}
         <TabsContent value="general" className="mt-6 space-y-6">
-          <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6">
-            <h3 className="font-[family-name:var(--font-heading)] text-lg text-[#E5E5E5] mb-6">
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="font-[family-name:var(--font-heading)] text-lg text-foreground mb-6">
               Información del Hotel
             </h3>
 
             {/* Hotel Logo */}
-            <div className="flex items-center gap-6 mb-6 pb-6 border-b border-[#333333]">
-              <div className="h-24 w-24 rounded-xl bg-[#D4AF37] flex items-center justify-center">
+            <div className="flex items-center gap-6 mb-6 pb-6 border-b border-border">
+              <div className="h-24 w-24 rounded-xl bg-primary flex items-center justify-center">
                 <span className="font-[family-name:var(--font-logo)] text-4xl font-extrabold text-[#0F0F0F]">Z</span>
               </div>
               <div>
-                <p className="text-sm text-[#A3A3A3] mb-2">Logo del Hotel</p>
-                <Button variant="outline" className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent">
+                <p className="text-sm text-muted-foreground mb-2">Logo del Hotel</p>
+                <Button variant="outline" className="border-border text-foreground hover:bg-accent bg-transparent">
                   <Upload className="h-4 w-4 mr-2" />
                   Cambiar Logo
                 </Button>
@@ -94,106 +94,106 @@ export default function SettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Nombre del Hotel</Label>
+                <Label className="text-muted-foreground">Nombre del Hotel</Label>
                 <Input
                   value={hotelData.name}
                   onChange={(e) => setHotelData({ ...hotelData, name: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Teléfono</Label>
+                <Label className="text-muted-foreground">Teléfono</Label>
                 <Input
                   value={hotelData.phone}
                   onChange={(e) => setHotelData({ ...hotelData, phone: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Email</Label>
+                <Label className="text-muted-foreground">Email</Label>
                 <Input
                   type="email"
                   value={hotelData.email}
                   onChange={(e) => setHotelData({ ...hotelData, email: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Sitio Web</Label>
+                <Label className="text-muted-foreground">Sitio Web</Label>
                 <Input
                   value={hotelData.website}
                   onChange={(e) => setHotelData({ ...hotelData, website: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label className="text-[#A3A3A3]">Dirección</Label>
+                <Label className="text-muted-foreground">Dirección</Label>
                 <Input
                   value={hotelData.address}
                   onChange={(e) => setHotelData({ ...hotelData, address: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
             </div>
 
-            <h4 className="font-medium text-[#E5E5E5] mt-6 mb-4">Redes Sociales</h4>
+            <h4 className="font-medium text-foreground mt-6 mb-4">Redes Sociales</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Facebook</Label>
+                <Label className="text-muted-foreground">Facebook</Label>
                 <Input
                   value={hotelData.facebook}
                   onChange={(e) => setHotelData({ ...hotelData, facebook: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Instagram</Label>
+                <Label className="text-muted-foreground">Instagram</Label>
                 <Input
                   value={hotelData.instagram}
                   onChange={(e) => setHotelData({ ...hotelData, instagram: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
             </div>
 
-            <Button className="mt-6 bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90">Guardar Cambios</Button>
+            <Button className="mt-6 bg-primary text-[#0F0F0F] hover:bg-primary/90">Guardar Cambios</Button>
           </div>
         </TabsContent>
 
         {/* Integrations Tab */}
         <TabsContent value="integrations" className="mt-6 space-y-6">
           {/* Facturacion */}
-          <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6">
-            <h3 className="font-[family-name:var(--font-heading)] text-lg text-[#E5E5E5] mb-4">
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="font-[family-name:var(--font-heading)] text-lg text-foreground mb-4">
               Facturación Electrónica
             </h3>
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Token Factus API</Label>
+                <Label className="text-muted-foreground">Token Factus API</Label>
                 <Input
                   type="password"
                   placeholder="Ingrese el token de Factus"
                   value={integrations.factusToken}
                   onChange={(e) => setIntegrations({ ...integrations, factusToken: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Token Siigo API (Alternativo)</Label>
+                <Label className="text-muted-foreground">Token Siigo API (Alternativo)</Label>
                 <Input
                   type="password"
                   placeholder="Ingrese el token de Siigo"
                   value={integrations.siigoToken}
                   onChange={(e) => setIntegrations({ ...integrations, siigoToken: e.target.value })}
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                  className="bg-background border-border text-foreground"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-4 rounded-lg bg-[#0F0F0F] border border-[#333333]">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-background border border-border">
                 <div>
-                  <p className="text-sm font-medium text-[#E5E5E5]">Facturar automáticamente al Check-out</p>
-                  <p className="text-xs text-[#A3A3A3]">Genera factura electrónica cuando el huésped hace check-out</p>
+                  <p className="text-sm font-medium text-foreground">Facturar automáticamente al Check-out</p>
+                  <p className="text-xs text-muted-foreground">Genera factura electrónica cuando el huésped hace check-out</p>
                 </div>
                 <Switch
                   checked={integrations.autoInvoice}
@@ -204,8 +204,8 @@ export default function SettingsPage() {
           </div>
 
           {/* Booking.com */}
-          <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6">
-            <h3 className="font-[family-name:var(--font-heading)] text-lg text-[#E5E5E5] mb-4">
+          <div className="rounded-lg border border-border bg-card p-6">
+            <h3 className="font-[family-name:var(--font-heading)] text-lg text-foreground mb-4">
               Channel Manager - Booking.com
             </h3>
 
@@ -230,10 +230,10 @@ export default function SettingsPage() {
                 )}
               </div>
               <div className="flex-1">
-                <p className="font-medium text-[#E5E5E5]">
+                <p className="font-medium text-foreground">
                   {integrations.bookingConnected ? "Conectado" : "Desconectado"}
                 </p>
-                <p className="text-sm text-[#A3A3A3]">
+                <p className="text-sm text-muted-foreground">
                   {integrations.bookingConnected
                     ? "Sincronización activa con Booking.com"
                     : "Configure la conexión con Booking.com"}
@@ -242,7 +242,7 @@ export default function SettingsPage() {
               <Button
                 variant="outline"
                 className={cn(
-                  "border-[#333333] bg-transparent",
+                  "border-border bg-transparent",
                   integrations.bookingConnected
                     ? "text-[#CF6679] hover:bg-[#CF6679]/10"
                     : "text-[#059669] hover:bg-[#059669]/10",
@@ -256,10 +256,10 @@ export default function SettingsPage() {
 
         {/* Users Tab */}
         <TabsContent value="users" className="mt-6 space-y-6">
-          <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6">
+          <div className="rounded-lg border border-border bg-card p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-[family-name:var(--font-heading)] text-lg text-[#E5E5E5]">Usuarios del Sistema</h3>
-              <Button className="bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90">
+              <h3 className="font-[family-name:var(--font-heading)] text-lg text-foreground">Usuarios del Sistema</h3>
+              <Button className="bg-primary text-[#0F0F0F] hover:bg-primary/90">
                 <Plus className="h-4 w-4 mr-2" />
                 Agregar Usuario
               </Button>
@@ -269,11 +269,11 @@ export default function SettingsPage() {
               {staff.map((member) => (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-[#333333] bg-[#0F0F0F]"
+                  className="flex items-center justify-between p-4 rounded-lg border border-border bg-background"
                 >
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-10 w-10 border border-[#333333]">
-                      <AvatarFallback className="bg-[#252525] text-[#E5E5E5]">
+                    <Avatar className="h-10 w-10 border border-border">
+                      <AvatarFallback className="bg-accent text-foreground">
                         {member.name
                           .split(" ")
                           .map((n) => n[0])
@@ -281,20 +281,20 @@ export default function SettingsPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium text-[#E5E5E5]">{member.name}</p>
-                      <p className="text-sm text-[#A3A3A3]">{member.email}</p>
+                      <p className="font-medium text-foreground">{member.name}</p>
+                      <p className="text-sm text-muted-foreground">{member.email}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     <Select defaultValue={member.role}>
-                      <SelectTrigger className="w-[140px] bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                      <SelectTrigger className="w-[140px] bg-card border-border text-foreground">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                        <SelectItem value="admin" className="text-[#E5E5E5] focus:bg-[#252525]">
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="admin" className="text-foreground focus:bg-accent">
                           Administrador
                         </SelectItem>
-                        <SelectItem value="operator" className="text-[#E5E5E5] focus:bg-[#252525]">
+                        <SelectItem value="operator" className="text-foreground focus:bg-accent">
                           Operador
                         </SelectItem>
                       </SelectContent>

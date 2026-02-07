@@ -5,9 +5,9 @@ import { Separator } from "@/components/ui/separator"
 
 export function ReservationFinanceCard({ financial }: { financial: any }) {
     return (
-        <Card className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+        <Card className="bg-card border-border text-foreground">
             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-[#A3A3A3] uppercase tracking-wider">Estado Financiero</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Estado Financiero</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="flex items-center justify-between mb-2">

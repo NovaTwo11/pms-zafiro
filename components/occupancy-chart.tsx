@@ -14,9 +14,9 @@ export function OccupancyChart() {
   const percentage = Math.round((occupied / total) * 100)
 
   return (
-    <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6">
-      <h3 className="font-serif text-lg font-semibold text-[#E5E5E5]">Estado de Habitaciones</h3>
-      <p className="text-sm text-[#A3A3A3]">Distribución actual</p>
+    <div className="rounded-lg border border-border bg-card p-6">
+      <h3 className="font-serif text-lg font-semibold text-foreground">Estado de Habitaciones</h3>
+      <p className="text-sm text-muted-foreground">Distribución actual</p>
 
       <div className="mt-4 flex items-center gap-8">
         <div className="relative h-[180px] w-[180px]">
@@ -41,7 +41,7 @@ export function OccupancyChart() {
           {/* Center text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-3xl font-bold text-[#D4AF37]">{percentage}%</span>
-            <span className="text-xs text-[#A3A3A3]">Ocupación</span>
+            <span className="text-xs text-muted-foreground">Ocupación</span>
           </div>
         </div>
 
@@ -49,8 +49,8 @@ export function OccupancyChart() {
           {data.map((item) => (
             <div key={item.name} className="flex items-center gap-3">
               <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-sm text-[#A3A3A3]">{item.name}</span>
-              <span className="ml-auto text-sm font-medium text-[#E5E5E5]">{item.value}</span>
+              <span className="text-sm text-muted-foreground">{item.name}</span>
+              <span className="ml-auto text-sm font-medium text-foreground">{item.value}</span>
             </div>
           ))}
         </div>

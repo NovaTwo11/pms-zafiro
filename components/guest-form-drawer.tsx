@@ -211,18 +211,18 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-[600px] bg-[#1A1A1A] border-l border-[#333333] p-0 flex flex-col">
+      <SheetContent className="w-full sm:max-w-[600px] bg-card border-l border-border p-0 flex flex-col">
         {/* Header */}
-        <SheetHeader className="p-6 border-b border-[#333333]">
+        <SheetHeader className="p-6 border-b border-border">
           <div className="flex items-center justify-between">
-            <SheetTitle className="font-[family-name:var(--font-heading)] text-2xl text-[#E5E5E5]">
+            <SheetTitle className="font-[family-name:var(--font-heading)] text-2xl text-foreground">
               {isCheckIn ? "Check-in - Registro de Huésped" : isNew ? "Nuevo Huésped" : "Editar Huésped"}
             </SheetTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={onClose}
-              className="h-8 w-8 text-[#A3A3A3] hover:text-[#E5E5E5] hover:bg-[#252525] transition-all duration-300"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300"
             >
               <X className="h-4 w-4" />
             </Button>
@@ -237,20 +237,20 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
               <h3 className="text-sm font-medium text-[#D4AF37] mb-4">Datos Básicos</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Nombre *</Label>
+                  <Label className="text-muted-foreground">Nombre *</Label>
                   <Input
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">1er Apellido *</Label>
+                  <Label className="text-muted-foreground">1er Apellido *</Label>
                   <Input
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                     required
                   />
                 </div>
@@ -258,27 +258,27 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">2do Apellido</Label>
+                  <Label className="text-muted-foreground">2do Apellido</Label>
                   <Input
                     value={formData.secondLastName}
                     onChange={(e) => setFormData({ ...formData, secondLastName: e.target.value })}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Género *</Label>
+                  <Label className="text-muted-foreground">Género *</Label>
                   <Select value={formData.gender} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
-                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                      <SelectItem value="M" className="text-[#E5E5E5] focus:bg-[#252525]">
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="M" className="text-foreground focus:bg-accent">
                         Masculino
                       </SelectItem>
-                      <SelectItem value="F" className="text-[#E5E5E5] focus:bg-[#252525]">
+                      <SelectItem value="F" className="text-foreground focus:bg-accent">
                         Femenino
                       </SelectItem>
-                      <SelectItem value="O" className="text-[#E5E5E5] focus:bg-[#252525]">
+                      <SelectItem value="O" className="text-foreground focus:bg-accent">
                         Otro
                       </SelectItem>
                     </SelectContent>
@@ -288,27 +288,27 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Fecha de Nacimiento *</Label>
+                  <Label className="text-muted-foreground">Fecha de Nacimiento *</Label>
                   <Input
                     type="date"
                     value={formData.dateOfBirth}
                     onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Ocupación *</Label>
+                  <Label className="text-muted-foreground">Ocupación *</Label>
                   <Select
                     value={formData.occupation}
                     onValueChange={(v) => setFormData({ ...formData, occupation: v })}
                   >
-                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-[#333333]">
+                    <SelectContent className="bg-card border-border">
                       {occupations.map((o) => (
-                        <SelectItem key={o} value={o} className="text-[#E5E5E5] focus:bg-[#252525]">
+                        <SelectItem key={o} value={o} className="text-foreground focus:bg-accent">
                           {o}
                         </SelectItem>
                       ))}
@@ -325,60 +325,60 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
               <h3 className="text-sm font-medium text-[#D4AF37] mb-4">Contacto</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Teléfono *</Label>
+                  <Label className="text-muted-foreground">Teléfono *</Label>
                   <Input
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+57 300 123 4567"
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Email *</Label>
+                  <Label className="text-muted-foreground">Email *</Label>
                   <Input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                     required
                   />
                 </div>
               </div>
 
               <div className="space-y-2 mt-4">
-                <Label className="text-[#A3A3A3]">Dirección de Residencia *</Label>
+                <Label className="text-muted-foreground">Dirección de Residencia *</Label>
                 <Input
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   placeholder="Calle, número, barrio"
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
+                  className="bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
                   required
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Ciudad de Residencia *</Label>
+                  <Label className="text-muted-foreground">Ciudad de Residencia *</Label>
                   <Input
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">País de Origen *</Label>
+                  <Label className="text-muted-foreground">País de Origen *</Label>
                   <Select
                     value={formData.countryOrigin}
                     onValueChange={(v) => setFormData({ ...formData, countryOrigin: v })}
                   >
-                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-[#333333]">
+                    <SelectContent className="bg-card border-border">
                       {nationalities.map((n) => (
-                        <SelectItem key={n} value={n} className="text-[#E5E5E5] focus:bg-[#252525]">
+                        <SelectItem key={n} value={n} className="text-foreground focus:bg-accent">
                           {n}
                         </SelectItem>
                       ))}
@@ -395,14 +395,14 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
               <h3 className="text-sm font-medium text-[#D4AF37] mb-4">Documentación Legal</h3>
 
               <div className="space-y-2 mb-4">
-                <Label className="text-[#A3A3A3]">Nacionalidad *</Label>
+                <Label className="text-muted-foreground">Nacionalidad *</Label>
                 <Select value={nationality} onValueChange={setNationality}>
-                  <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300">
+                  <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1A1A1A] border-[#333333]">
+                  <SelectContent className="bg-card border-border">
                     {nationalities.map((n) => (
-                      <SelectItem key={n} value={n} className="text-[#E5E5E5] focus:bg-[#252525]">
+                      <SelectItem key={n} value={n} className="text-foreground focus:bg-accent">
                         {n}
                       </SelectItem>
                     ))}
@@ -412,36 +412,36 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Tipo de Documento *</Label>
+                  <Label className="text-muted-foreground">Tipo de Documento *</Label>
                   <Select
                     value={formData.documentType}
                     onValueChange={(v) => setFormData({ ...formData, documentType: v })}
                   >
-                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300">
+                    <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                      <SelectItem value="CC" className="text-[#E5E5E5] focus:bg-[#252525]">
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="CC" className="text-foreground focus:bg-accent">
                         Cédula de Ciudadanía
                       </SelectItem>
-                      <SelectItem value="CE" className="text-[#E5E5E5] focus:bg-[#252525]">
+                      <SelectItem value="CE" className="text-foreground focus:bg-accent">
                         Cédula de Extranjería
                       </SelectItem>
-                      <SelectItem value="Pasaporte" className="text-[#E5E5E5] focus:bg-[#252525]">
+                      <SelectItem value="Pasaporte" className="text-foreground focus:bg-accent">
                         Pasaporte
                       </SelectItem>
-                      <SelectItem value="TI" className="text-[#E5E5E5] focus:bg-[#252525]">
+                      <SelectItem value="TI" className="text-foreground focus:bg-accent">
                         Tarjeta de Identidad
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-[#A3A3A3]">Número de Documento *</Label>
+                  <Label className="text-muted-foreground">Número de Documento *</Label>
                   <Input
                     value={formData.documentNumber}
                     onChange={(e) => setFormData({ ...formData, documentNumber: e.target.value })}
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                     required
                   />
                 </div>
@@ -449,27 +449,27 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
 
               {/* SIRE fields for foreigners */}
               {isForeigner && (
-                <div className="mt-4 p-4 rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/5">
+                <div className="mt-4 p-4 rounded-lg border border-[#D4AF37]/30 bg-primary/5">
                   <p className="text-xs text-[#D4AF37] font-medium mb-3">
                     Campos obligatorios SIRE (Migración Colombia)
                   </p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Número de Pasaporte *</Label>
+                      <Label className="text-muted-foreground">Número de Pasaporte *</Label>
                       <Input
                         value={formData.passportNumber}
                         onChange={(e) => setFormData({ ...formData, passportNumber: e.target.value })}
-                        className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                        className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Fecha Entrada al País *</Label>
+                      <Label className="text-muted-foreground">Fecha Entrada al País *</Label>
                       <Input
                         type="date"
                         value={formData.entryDate}
                         onChange={(e) => setFormData({ ...formData, entryDate: e.target.value })}
-                        className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300"
+                        className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300"
                         required
                       />
                     </div>
@@ -484,12 +484,12 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
             <div>
               <h3 className="text-sm font-medium text-[#D4AF37] mb-4">Información de Viaje</h3>
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Ciudad de Destino *</Label>
+                <Label className="text-muted-foreground">Ciudad de Destino *</Label>
                 <Input
                   value={formData.destinationCity}
                   onChange={(e) => setFormData({ ...formData, destinationCity: e.target.value })}
                   placeholder="Ciudad de destino final del viaje"
-                  className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
+                  className="bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
                   required
                 />
               </div>
@@ -501,10 +501,10 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
                 <Separator className="bg-[#333333]" />
                 <div>
                   <h3 className="text-sm font-medium text-[#D4AF37] mb-4">Firma Digital del Huésped</h3>
-                  <p className="text-xs text-[#A3A3A3] mb-3">
+                  <p className="text-xs text-muted-foreground mb-3">
                     El huésped debe firmar en el área de abajo usando el dedo o stylus
                   </p>
-                  <div className="relative rounded-lg border border-[#333333] overflow-hidden">
+                  <div className="relative rounded-lg border border-border overflow-hidden">
                     <canvas
                       ref={canvasRef}
                       width={400}
@@ -529,7 +529,7 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
                     variant="outline"
                     size="sm"
                     onClick={clearSignature}
-                    className="mt-2 border-[#333333] text-[#A3A3A3] hover:bg-[#252525] bg-transparent transition-all duration-300"
+                    className="mt-2 border-border text-muted-foreground hover:bg-accent bg-transparent transition-all duration-300"
                   >
                     <Eraser className="h-4 w-4 mr-2" />
                     Borrar Firma
@@ -548,7 +548,7 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full justify-start border-[#333333] bg-[#0F0F0F] text-[#E5E5E5] hover:bg-[#252525] transition-all duration-300"
+                      className="w-full justify-start border-border bg-background text-foreground hover:bg-accent transition-all duration-300"
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       Generar Contrato de Hospedaje
@@ -569,15 +569,15 @@ export function GuestFormDrawer({ isOpen, onClose, guest, isNew, isCheckIn = fal
         </div>
 
         {/* Actions */}
-        <div className="p-4 border-t border-[#333333] bg-[#1A1A1A] flex gap-3">
+        <div className="p-4 border-t border-border bg-card flex gap-3">
           <Button
             variant="outline"
             onClick={onClose}
-            className="flex-1 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
+            className="flex-1 border-border text-foreground hover:bg-accent bg-transparent transition-all duration-300"
           >
             Cancelar
           </Button>
-          <Button className="flex-1 bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all duration-300">
+          <Button className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all duration-300">
             <Save className="h-4 w-4 mr-2" />
             {isCheckIn ? "Completar Check-in" : isNew ? "Crear Huésped" : "Guardar Cambios"}
           </Button>

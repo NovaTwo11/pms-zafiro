@@ -51,28 +51,28 @@ export function LoginForm() {
       </div>
 
       <div
-        className={`rounded-xl border border-[#D4AF37]/30 bg-[#1A1A1A]/95 backdrop-blur-sm p-8 shadow-2xl transition-all duration-700 ${
+        className={`rounded-xl border border-[#D4AF37]/30 bg-card/95 backdrop-blur-sm p-8 shadow-2xl transition-all duration-700 ${
           mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5"
         }`}
       >
         {/* Logo - Updated to use Outfit font */}
         <div className="text-center mb-8">
           <div
-            className={`mx-auto h-16 w-16 rounded-full bg-[#D4AF37] flex items-center justify-center mb-4 transition-all duration-500 delay-100 ${
+            className={`mx-auto h-16 w-16 rounded-full bg-primary flex items-center justify-center mb-4 transition-all duration-500 delay-100 ${
               mounted ? "scale-100 opacity-100" : "scale-75 opacity-0"
             }`}
           >
             <span className="font-[family-name:var(--font-logo)] text-2xl font-extrabold text-[#0F0F0F]">Z</span>
           </div>
           <h1
-            className={`font-[family-name:var(--font-heading)] text-2xl font-bold text-[#E5E5E5] transition-all duration-500 delay-200 ${
+            className={`font-[family-name:var(--font-heading)] text-2xl font-bold text-foreground transition-all duration-500 delay-200 ${
               mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
             }`}
           >
             Hotel Zafiro
           </h1>
           <p
-            className={`text-sm text-[#A3A3A3] mt-1 transition-all duration-500 delay-300 ${
+            className={`text-sm text-muted-foreground mt-1 transition-all duration-500 delay-300 ${
               mounted ? "opacity-100" : "opacity-0"
             }`}
           >
@@ -87,7 +87,7 @@ export function LoginForm() {
               mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
             }`}
           >
-            <Label htmlFor="email" className="text-[#A3A3A3] text-sm">
+            <Label htmlFor="email" className="text-muted-foreground text-sm">
               Usuario o Email
             </Label>
             <Input
@@ -96,7 +96,7 @@ export function LoginForm() {
               placeholder="recepcion@hotelzafiro.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="h-11 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 transition-all duration-300"
+              className="h-11 bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 transition-all duration-300"
             />
           </div>
 
@@ -105,7 +105,7 @@ export function LoginForm() {
               mounted ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"
             }`}
           >
-            <Label htmlFor="password" className="text-[#A3A3A3] text-sm">
+            <Label htmlFor="password" className="text-muted-foreground text-sm">
               Contraseña
             </Label>
             <Input
@@ -114,7 +114,7 @@ export function LoginForm() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="h-11 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 transition-all duration-300"
+              className="h-11 bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] focus:ring-[#D4AF37]/20 transition-all duration-300"
             />
           </div>
 
@@ -126,7 +126,7 @@ export function LoginForm() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-11 bg-[#D4AF37] text-[#0F0F0F] font-semibold hover:bg-[#D4AF37]/90 disabled:opacity-50 transition-all duration-300 hover:shadow-lg hover:shadow-[#D4AF37]/20"
+              className="w-full h-11 bg-primary text-[#0F0F0F] font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all duration-300 hover:shadow-lg hover:shadow-[#D4AF37]/20"
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Iniciar Sesión"}
             </Button>

@@ -32,14 +32,14 @@ export function Ticket({ items, total, onCheckout }: TicketProps) {
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
 
   return (
-    <div className="h-full flex flex-col rounded-xl border border-[#333333] bg-[#1A1A1A] overflow-hidden">
+    <div className="h-full flex flex-col rounded-xl border border-border bg-card overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[#333333] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShoppingCart className="h-5 w-5 text-[#D4AF37]" />
-          <h3 className="font-serif text-lg font-semibold text-[#E5E5E5]">Ticket</h3>
+          <h3 className="font-serif text-lg font-semibold text-foreground">Ticket</h3>
           {itemCount > 0 && (
-            <span className="h-5 min-w-[20px] px-1.5 rounded-full bg-[#D4AF37] text-xs font-semibold text-[#0F0F0F] flex items-center justify-center">
+            <span className="h-5 min-w-[20px] px-1.5 rounded-full bg-primary text-xs font-semibold text-[#0F0F0F] flex items-center justify-center">
               {itemCount}
             </span>
           )}
@@ -61,7 +61,7 @@ export function Ticket({ items, total, onCheckout }: TicketProps) {
         {items.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center">
             <ShoppingCart className="h-12 w-12 text-[#333333] mb-3" />
-            <p className="text-[#A3A3A3]">Carrito vacío</p>
+            <p className="text-muted-foreground">Carrito vacío</p>
             <p className="text-xs text-[#666666] mt-1">Toca un producto para agregarlo</p>
           </div>
         ) : (
@@ -69,24 +69,24 @@ export function Ticket({ items, total, onCheckout }: TicketProps) {
             {items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-[#0F0F0F] border border-[#333333]"
+                className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#E5E5E5] truncate">{item.name}</p>
-                  <p className="text-xs text-[#A3A3A3]">{formatCurrency(item.price)} c/u</p>
+                  <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(item.price)} c/u</p>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                    className="h-8 w-8 rounded-lg bg-[#252525] text-[#E5E5E5] flex items-center justify-center hover:bg-[#333333] transition-colors touch-manipulation"
+                    className="h-8 w-8 rounded-lg bg-accent text-foreground flex items-center justify-center hover:bg-[#333333] transition-colors touch-manipulation"
                   >
                     <Minus className="h-4 w-4" />
                   </button>
-                  <span className="w-8 text-center text-sm font-medium text-[#E5E5E5]">{item.quantity}</span>
+                  <span className="w-8 text-center text-sm font-medium text-foreground">{item.quantity}</span>
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                    className="h-8 w-8 rounded-lg bg-[#252525] text-[#E5E5E5] flex items-center justify-center hover:bg-[#333333] transition-colors touch-manipulation"
+                    className="h-8 w-8 rounded-lg bg-accent text-foreground flex items-center justify-center hover:bg-[#333333] transition-colors touch-manipulation"
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -102,15 +102,15 @@ export function Ticket({ items, total, onCheckout }: TicketProps) {
       </div>
 
       {/* Footer / Checkout */}
-      <div className="p-4 border-t border-[#333333] bg-[#0F0F0F]">
+      <div className="p-4 border-t border-border bg-background">
         <div className="flex items-center justify-between mb-4">
-          <span className="text-[#A3A3A3]">Total</span>
-          <span className="text-2xl font-bold text-[#E5E5E5]">{formatCurrency(total)}</span>
+          <span className="text-muted-foreground">Total</span>
+          <span className="text-2xl font-bold text-foreground">{formatCurrency(total)}</span>
         </div>
         <Button
           onClick={onCheckout}
           disabled={items.length === 0}
-          className="w-full h-14 text-lg font-semibold bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-14 text-lg font-semibold bg-primary text-[#0F0F0F] hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           COBRAR
         </Button>

@@ -30,12 +30,12 @@ export function ProductGrid({ products, onProductClick }: ProductGridProps) {
         <button
           key={product.id}
           onClick={() => onProductClick(product)}
-          className="flex flex-col rounded-xl border border-[#333333] bg-[#1A1A1A] p-3 transition-all hover:border-[#D4AF37] hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
+          className="flex flex-col rounded-xl border border-border bg-card p-3 transition-all hover:border-[#D4AF37] hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
         >
-          <div className="relative aspect-square w-full mb-3 rounded-lg overflow-hidden bg-[#0F0F0F]">
+          <div className="relative aspect-square w-full mb-3 rounded-lg overflow-hidden bg-background">
             <Image src={product.image || "/placeholder.svg"} alt={product.name} fill className="object-cover" />
           </div>
-          <p className="text-sm font-medium text-[#E5E5E5] text-left truncate">{product.name}</p>
+          <p className="text-sm font-medium text-foreground text-left truncate">{product.name}</p>
           <p className="text-sm text-[#D4AF37] text-left">{formatCurrency(product.price)}</p>
         </button>
       ))}

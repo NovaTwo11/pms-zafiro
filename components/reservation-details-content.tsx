@@ -176,16 +176,16 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
     }
 
     return (
-        <div className="flex flex-col h-full bg-[#0F0F0F] text-[#E5E5E5] overflow-y-auto">
+        <div className="flex flex-col h-full bg-background text-foreground overflow-y-auto">
 
             {/* --- MODAL DE EDICIÓN DE HUÉSPED (NUEVO) --- */}
             <Dialog open={!!editingGuest} onOpenChange={(open) => !open && setEditingGuest(null)}>
-                <DialogContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] sm:max-w-[700px] h-[85vh] p-0 flex flex-col">
-                    <DialogHeader className="px-6 py-4 border-b border-[#333333]">
+                <DialogContent className="bg-card border-border text-foreground sm:max-w-[700px] h-[85vh] p-0 flex flex-col">
+                    <DialogHeader className="px-6 py-4 border-b border-border">
                         <DialogTitle className="flex items-center gap-2 text-white">
                             <User className="h-5 w-5 text-[#D4AF37]" /> Editar Datos del Huésped
                         </DialogTitle>
-                        <DialogDescription className="text-[#A3A3A3]">
+                        <DialogDescription className="text-muted-foreground">
                             Completa todos los campos necesarios para el registro hotelero y facturación.
                         </DialogDescription>
                     </DialogHeader>
@@ -200,28 +200,28 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                 </h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Primer Nombre</Label>
-                                        <Input defaultValue={editingGuest?.primerNombre} className="bg-[#0F0F0F] border-[#333333]" placeholder="Ej: Carlos" />
+                                        <Label className="text-xs text-muted-foreground">Primer Nombre</Label>
+                                        <Input defaultValue={editingGuest?.primerNombre} className="bg-background border-border" placeholder="Ej: Carlos" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Segundo Nombre</Label>
-                                        <Input defaultValue={editingGuest?.segundoNombre} className="bg-[#0F0F0F] border-[#333333]" placeholder="Ej: Andrés" />
+                                        <Label className="text-xs text-muted-foreground">Segundo Nombre</Label>
+                                        <Input defaultValue={editingGuest?.segundoNombre} className="bg-background border-border" placeholder="Ej: Andrés" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Primer Apellido</Label>
-                                        <Input defaultValue={editingGuest?.primerApellido} className="bg-[#0F0F0F] border-[#333333]" placeholder="Ej: García" />
+                                        <Label className="text-xs text-muted-foreground">Primer Apellido</Label>
+                                        <Input defaultValue={editingGuest?.primerApellido} className="bg-background border-border" placeholder="Ej: García" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Segundo Apellido</Label>
-                                        <Input defaultValue={editingGuest?.segundoApellido} className="bg-[#0F0F0F] border-[#333333]" placeholder="Ej: Márquez" />
+                                        <Label className="text-xs text-muted-foreground">Segundo Apellido</Label>
+                                        <Input defaultValue={editingGuest?.segundoApellido} className="bg-background border-border" placeholder="Ej: Márquez" />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Tipo Documento</Label>
+                                        <Label className="text-xs text-muted-foreground">Tipo Documento</Label>
                                         <Select defaultValue={editingGuest?.tipoId || "CC"}>
-                                            <SelectTrigger className="bg-[#0F0F0F] border-[#333333]"><SelectValue /></SelectTrigger>
-                                            <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                                            <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                                            <SelectContent className="bg-card border-border text-foreground">
                                                 <SelectItem value="CC">Cédula (CC)</SelectItem>
                                                 <SelectItem value="CE">Cédula Ext. (CE)</SelectItem>
                                                 <SelectItem value="PP">Pasaporte (PP)</SelectItem>
@@ -229,18 +229,18 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         </Select>
                                     </div>
                                     <div className="space-y-2 col-span-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Número de Documento</Label>
-                                        <Input defaultValue={editingGuest?.numeroId} className="bg-[#0F0F0F] border-[#333333]" placeholder="Ej: 1098..." />
+                                        <Label className="text-xs text-muted-foreground">Número de Documento</Label>
+                                        <Input defaultValue={editingGuest?.numeroId} className="bg-background border-border" placeholder="Ej: 1098..." />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Fecha Nacimiento</Label>
-                                        <Input type="date" defaultValue={editingGuest?.fechaNacimiento} className="bg-[#0F0F0F] border-[#333333] block" />
+                                        <Label className="text-xs text-muted-foreground">Fecha Nacimiento</Label>
+                                        <Input type="date" defaultValue={editingGuest?.fechaNacimiento} className="bg-background border-border block" />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Nacionalidad</Label>
-                                        <Input defaultValue={editingGuest?.nacionalidad} className="bg-[#0F0F0F] border-[#333333]" placeholder="Ej: Colombiano" />
+                                        <Label className="text-xs text-muted-foreground">Nacionalidad</Label>
+                                        <Input defaultValue={editingGuest?.nacionalidad} className="bg-background border-border" placeholder="Ej: Colombiano" />
                                     </div>
                                 </div>
                             </div>
@@ -254,16 +254,16 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                 </h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Teléfono / Móvil</Label>
-                                        <Input defaultValue={editingGuest?.telefono} className="bg-[#0F0F0F] border-[#333333]" placeholder="+57..." />
+                                        <Label className="text-xs text-muted-foreground">Teléfono / Móvil</Label>
+                                        <Input defaultValue={editingGuest?.telefono} className="bg-background border-border" placeholder="+57..." />
                                     </div>
                                     <div className="space-y-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Correo Electrónico</Label>
-                                        <Input defaultValue={editingGuest?.correo} className="bg-[#0F0F0F] border-[#333333]" placeholder="correo@ejemplo.com" />
+                                        <Label className="text-xs text-muted-foreground">Correo Electrónico</Label>
+                                        <Input defaultValue={editingGuest?.correo} className="bg-background border-border" placeholder="correo@ejemplo.com" />
                                     </div>
                                     <div className="space-y-2 col-span-2">
-                                        <Label className="text-xs text-[#A3A3A3]">Ocupación / Profesión</Label>
-                                        <Input defaultValue={editingGuest?.ocupacion} className="bg-[#0F0F0F] border-[#333333]" placeholder="Ej: Ingeniero, Estudiante..." />
+                                        <Label className="text-xs text-muted-foreground">Ocupación / Profesión</Label>
+                                        <Input defaultValue={editingGuest?.ocupacion} className="bg-background border-border" placeholder="Ej: Ingeniero, Estudiante..." />
                                     </div>
                                 </div>
                             </div>
@@ -277,32 +277,32 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                 </h3>
                                 <div className="grid grid-cols-2 gap-6">
                                     {/* Procedencia */}
-                                    <div className="space-y-3 p-3 border border-[#333333] rounded-lg bg-[#262626]/50">
-                                        <span className="text-[10px] uppercase text-[#A3A3A3] font-bold">Lugar de Procedencia</span>
+                                    <div className="space-y-3 p-3 border border-border rounded-lg bg-[#262626]/50">
+                                        <span className="text-[10px] uppercase text-muted-foreground font-bold">Lugar de Procedencia</span>
                                         <div className="space-y-2">
-                                            <Label className="text-xs text-[#A3A3A3]">País</Label>
-                                            <Input defaultValue={editingGuest?.paisOrigen} className="bg-[#0F0F0F] border-[#333333] h-8 text-xs" placeholder="País" />
+                                            <Label className="text-xs text-muted-foreground">País</Label>
+                                            <Input defaultValue={editingGuest?.paisOrigen} className="bg-background border-border h-8 text-xs" placeholder="País" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs text-[#A3A3A3]">Ciudad</Label>
-                                            <Input defaultValue={editingGuest?.ciudadOrigen} className="bg-[#0F0F0F] border-[#333333] h-8 text-xs" placeholder="Ciudad" />
+                                            <Label className="text-xs text-muted-foreground">Ciudad</Label>
+                                            <Input defaultValue={editingGuest?.ciudadOrigen} className="bg-background border-border h-8 text-xs" placeholder="Ciudad" />
                                         </div>
                                     </div>
 
                                     {/* Residencia */}
-                                    <div className="space-y-3 p-3 border border-[#333333] rounded-lg bg-[#262626]/50">
-                                        <span className="text-[10px] uppercase text-[#A3A3A3] font-bold">Lugar de Residencia</span>
+                                    <div className="space-y-3 p-3 border border-border rounded-lg bg-[#262626]/50">
+                                        <span className="text-[10px] uppercase text-muted-foreground font-bold">Lugar de Residencia</span>
                                         <div className="space-y-2">
-                                            <Label className="text-xs text-[#A3A3A3]">País</Label>
-                                            <Input defaultValue={editingGuest?.paisResidencia} className="bg-[#0F0F0F] border-[#333333] h-8 text-xs" placeholder="País" />
+                                            <Label className="text-xs text-muted-foreground">País</Label>
+                                            <Input defaultValue={editingGuest?.paisResidencia} className="bg-background border-border h-8 text-xs" placeholder="País" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs text-[#A3A3A3]">Ciudad</Label>
-                                            <Input defaultValue={editingGuest?.ciudadResidencia} className="bg-[#0F0F0F] border-[#333333] h-8 text-xs" placeholder="Ciudad" />
+                                            <Label className="text-xs text-muted-foreground">Ciudad</Label>
+                                            <Input defaultValue={editingGuest?.ciudadResidencia} className="bg-background border-border h-8 text-xs" placeholder="Ciudad" />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs text-[#A3A3A3]">Dirección</Label>
-                                            <Input defaultValue={editingGuest?.direccionResidencia} className="bg-[#0F0F0F] border-[#333333] h-8 text-xs" placeholder="Dirección completa" />
+                                            <Label className="text-xs text-muted-foreground">Dirección</Label>
+                                            <Input defaultValue={editingGuest?.direccionResidencia} className="bg-background border-border h-8 text-xs" placeholder="Dirección completa" />
                                         </div>
                                     </div>
                                 </div>
@@ -310,11 +310,11 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                         </form>
                     </ScrollArea>
 
-                    <DialogFooter className="px-6 py-4 border-t border-[#333333] bg-[#1A1A1A]">
-                        <Button variant="ghost" onClick={() => setEditingGuest(null)} className="border-0 text-[#A3A3A3] hover:text-white hover:bg-[#333333]">
+                    <DialogFooter className="px-6 py-4 border-t border-border bg-card">
+                        <Button variant="ghost" onClick={() => setEditingGuest(null)} className="border-0 text-muted-foreground hover:text-white hover:bg-[#333333]">
                             Cancelar
                         </Button>
-                        <Button type="submit" form="guest-form" className="bg-[#D4AF37] text-black hover:bg-[#B5952F] min-w-[120px]">
+                        <Button type="submit" form="guest-form" className="bg-primary text-black hover:bg-[#B5952F] min-w-[120px]">
                             <Save className="h-4 w-4 mr-2" /> Guardar
                         </Button>
                     </DialogFooter>
@@ -325,15 +325,15 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
             {/* ... (Aquí van los otros Dialogs que ya tenías: Cancel, Payment, ChangeRoom. No los repito para no saturar, pero deben estar aquí) ... */}
             <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
                 {/* ... Código del AlertDialog ... */}
-                <AlertDialogContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                <AlertDialogContent className="bg-card border-border text-foreground">
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Estás seguro de cancelar esta reserva?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-[#A3A3A3]">
+                        <AlertDialogDescription className="text-muted-foreground">
                             Esta acción no se puede deshacer. Se liberará la habitación {mockReservation.roomId}.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="border-[#333333] hover:bg-[#333333] hover:text-white">Volver</AlertDialogCancel>
+                        <AlertDialogCancel className="border-border hover:bg-[#333333] hover:text-white">Volver</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={(e) => { e.preventDefault(); handleCancelReservation() }}
                             className="bg-red-900/50 text-red-200 hover:bg-red-900 border border-red-900"
@@ -346,12 +346,12 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
             </AlertDialog>
 
             <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-                <DialogContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] sm:max-w-[500px]">
+                <DialogContent className="bg-card border-border text-foreground sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
                             <DollarSign className="h-5 w-5" /> Registrar Nuevo Pago
                         </DialogTitle>
-                        <DialogDescription className="text-[#A3A3A3]">
+                        <DialogDescription className="text-muted-foreground">
                             Ingresa los detalles del pago recibido para la habitación {mockReservation.roomId}.
                         </DialogDescription>
                     </DialogHeader>
@@ -360,15 +360,15 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             <div className="space-y-2">
                                 <Label>Monto a Pagar</Label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-2.5 text-[#A3A3A3]">$</span>
-                                    <Input type="number" className="pl-7 bg-[#0F0F0F] border-[#333333]" defaultValue={pendingAmount} />
+                                    <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                                    <Input type="number" className="pl-7 bg-background border-border" defaultValue={pendingAmount} />
                                 </div>
                             </div>
                             <div className="space-y-2">
                                 <Label>Método de Pago</Label>
                                 <Select>
-                                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333]"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                                    <SelectContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                                    <SelectTrigger className="bg-background border-border"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                                    <SelectContent className="bg-card border-border text-foreground">
                                         <SelectItem value="efectivo">Efectivo</SelectItem>
                                         <SelectItem value="tarjeta">Tarjeta</SelectItem>
                                         <SelectItem value="transferencia">Transferencia</SelectItem>
@@ -378,23 +378,23 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                         </div>
                         <div className="space-y-2">
                             <Label>Notas Internas</Label>
-                            <Textarea placeholder="Detalles..." className="bg-[#0F0F0F] border-[#333333] resize-none" />
+                            <Textarea placeholder="Detalles..." className="bg-background border-border resize-none" />
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPaymentOpen(false)} className="border-[#333333] text-[#E5E5E5] hover:bg-[#333333]">Cancelar</Button>
-                        <Button className="bg-[#D4AF37] text-black hover:bg-[#B5952F]">Confirmar</Button>
+                        <Button variant="outline" onClick={() => setIsPaymentOpen(false)} className="border-border text-foreground hover:bg-[#333333]">Cancelar</Button>
+                        <Button className="bg-primary text-black hover:bg-[#B5952F]">Confirmar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             <Dialog open={isChangeRoomOpen} onOpenChange={setIsChangeRoomOpen}>
-                <DialogContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] sm:max-w-[600px]">
+                <DialogContent className="bg-card border-border text-foreground sm:max-w-[600px]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-white">
                             <ArrowRightLeft className="h-5 w-5 text-[#D4AF37]" /> Cambio de Habitación
                         </DialogTitle>
-                        <DialogDescription className="text-[#A3A3A3]">
+                        <DialogDescription className="text-muted-foreground">
                             Mover reserva actual de la <strong>{mockReservation.roomId}</strong> a una nueva unidad.
                         </DialogDescription>
                     </DialogHeader>
@@ -402,44 +402,44 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                         <div className="space-y-2">
                             <Label>Buscar disponibilidad</Label>
                             <div className="relative">
-                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A3A3A3]" />
-                                <Input placeholder="Filtrar..." className="pl-9 bg-[#0F0F0F] border-[#333333]" />
+                                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                <Input placeholder="Filtrar..." className="pl-9 bg-background border-border" />
                             </div>
                         </div>
                         <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
                             {[{ id: "102", type: "Suite Deluxe", status: "Limpia", price: 180000 }, { id: "205", type: "Junior Suite", status: "Sucia", price: 150000 }].map((room) => (
-                                <div key={room.id} className="flex items-center justify-between p-3 rounded-lg border border-[#333333] bg-[#262626] hover:border-[#D4AF37] cursor-pointer transition-colors group">
+                                <div key={room.id} className="flex items-center justify-between p-3 rounded-lg border border-border bg-[#262626] hover:border-[#D4AF37] cursor-pointer transition-colors group">
                                     <div className="flex items-center gap-3">
-                                        <div className="h-10 w-10 bg-[#1A1A1A] rounded flex items-center justify-center font-bold text-white group-hover:text-[#D4AF37]">{room.id}</div>
-                                        <div><p className="text-sm font-medium text-[#E5E5E5]">{room.type}</p><p className="text-xs text-[#A3A3A3]">{room.status}</p></div>
+                                        <div className="h-10 w-10 bg-card rounded flex items-center justify-center font-bold text-white group-hover:text-[#D4AF37]">{room.id}</div>
+                                        <div><p className="text-sm font-medium text-foreground">{room.type}</p><p className="text-xs text-muted-foreground">{room.status}</p></div>
                                     </div>
-                                    <div className="text-right"><p className="text-sm font-bold text-[#E5E5E5]">${room.price.toLocaleString()}</p></div>
+                                    <div className="text-right"><p className="text-sm font-bold text-foreground">${room.price.toLocaleString()}</p></div>
                                 </div>
                             ))}
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setIsChangeRoomOpen(false)} className="text-[#A3A3A3] hover:text-white">Cancelar</Button>
-                        <Button className="bg-[#E5E5E5] text-black hover:bg-white">Aplicar Cambio</Button>
+                        <Button variant="ghost" onClick={() => setIsChangeRoomOpen(false)} className="text-muted-foreground hover:text-white">Cancelar</Button>
+                        <Button className="bg-[#E5E5E5] text-black hover:bg-card">Aplicar Cambio</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* --- HEADER PRINCIPAL --- */}
-            <header className="bg-[#1A1A1A] border-b border-[#333333] px-6 py-4 sticky top-0 z-10 shadow-sm">
+            <header className="bg-card border-b border-border px-6 py-4 sticky top-0 z-10 shadow-sm">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-4">
                         <Link href="/cronograma">
-                            <Button variant="ghost" size="icon" className="h-9 w-9 text-[#A3A3A3] hover:text-[#E5E5E5] hover:bg-[#333333]">
+                            <Button variant="ghost" size="icon" className="h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-[#333333]">
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                         </Link>
                         <div>
                             <div className="flex items-center gap-3">
                                 <h1 className="text-2xl font-bold tracking-tight text-white">Reserva #{mockReservation.id}</h1>
-                                <Badge variant="outline" className="border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/10 px-2 py-0.5 text-xs uppercase tracking-wider">Confirmada</Badge>
+                                <Badge variant="outline" className="border-[#D4AF37] text-[#D4AF37] bg-primary/10 px-2 py-0.5 text-xs uppercase tracking-wider">Confirmada</Badge>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-[#A3A3A3] mt-1">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
                                 <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Creada: {format(new Date(mockReservation.createdDate), "dd MMM yyyy", { locale: es })}</span>
                                 <span>•</span>
                                 <span className="text-[#D4AF37]">Canal: {mockReservation.origin}</span>
@@ -450,11 +450,11 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                     <div className="flex items-center gap-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="border-[#333333] text-[#E5E5E5] bg-[#1A1A1A] hover:bg-[#333333]">
+                                <Button variant="outline" className="border-border text-foreground bg-card hover:bg-[#333333]">
                                     Acciones <MoreVertical className="h-4 w-4 ml-2" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+                            <DropdownMenuContent align="end" className="bg-card border-border text-foreground">
                                 <DropdownMenuLabel>Gestión</DropdownMenuLabel>
                                 <DropdownMenuItem className="hover:bg-[#333333] cursor-pointer" onClick={() => handleCopy("https://...", "Link Pre-Checkin")}>
                                     <LinkIcon className="h-4 w-4 mr-2" /> Copiar Link Pre-Checkin
@@ -472,7 +472,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button className="bg-[#D4AF37] text-black hover:bg-[#B5952F] font-semibold shadow-lg shadow-amber-900/20" onClick={() => setIsCheckinWizardOpen(true)}>
+                        <Button className="bg-primary text-black hover:bg-[#B5952F] font-semibold shadow-lg shadow-amber-900/20" onClick={() => setIsCheckinWizardOpen(true)}>
                             Check-In
                         </Button>
                         {/* Componente Wizard */}
@@ -507,12 +507,12 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                         const isCurrent = stepNum === mockReservation.statusStep;
                         return (
                             <div key={step} className="flex flex-col items-center relative flex-1">
-                                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 z-10 transition-colors ${isActive ? 'bg-[#D4AF37] border-[#D4AF37] text-black' : 'bg-[#1A1A1A] border-[#333333] text-[#555]'}`}>
+                                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 z-10 transition-colors ${isActive ? 'bg-primary border-[#D4AF37] text-black' : 'bg-card border-border text-[#555]'}`}>
                                     {isActive ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
                                 </div>
                                 <span className={`text-xs mt-2 font-medium ${isCurrent ? 'text-[#D4AF37]' : 'text-[#737373]'}`}>{step}</span>
                                 {index !== 3 && (
-                                    <div className={`absolute top-4 left-1/2 w-full h-[2px] -z-0 ${isActive ? 'bg-[#D4AF37]' : 'bg-[#333333]'}`} />
+                                    <div className={`absolute top-4 left-1/2 w-full h-[2px] -z-0 ${isActive ? 'bg-primary' : 'bg-[#333333]'}`} />
                                 )}
                             </div>
                         )
@@ -527,19 +527,19 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                     <div className="lg:col-span-8 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
                         <Tabs defaultValue="general" className="w-full" onValueChange={setActiveTab}>
                             <div className="flex items-center justify-between mb-4">
-                                <TabsList className="bg-[#1A1A1A] border border-[#333333] h-10">
-                                    <TabsTrigger value="general" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">General</TabsTrigger>
-                                    <TabsTrigger value="huespedes" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">Huéspedes ({mockReservation.guests.length})</TabsTrigger>
-                                    <TabsTrigger value="finance" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-black">Finanzas</TabsTrigger>
+                                <TabsList className="bg-card border border-border h-10">
+                                    <TabsTrigger value="general" className="data-[state=active]:bg-primary data-[state=active]:text-black">General</TabsTrigger>
+                                    <TabsTrigger value="huespedes" className="data-[state=active]:bg-primary data-[state=active]:text-black">Huéspedes ({mockReservation.guests.length})</TabsTrigger>
+                                    <TabsTrigger value="finance" className="data-[state=active]:bg-primary data-[state=active]:text-black">Finanzas</TabsTrigger>
                                 </TabsList>
                             </div>
 
                             <TabsContent value="general" className="space-y-6 mt-0">
                                 {/* ... (Mismo contenido de General) ... */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Card className="bg-[#1A1A1A] border-[#333333]">
+                                    <Card className="bg-card border-border">
                                         <CardHeader className="pb-2">
-                                            <CardTitle className="text-sm font-medium text-[#A3A3A3] uppercase flex items-center gap-2">
+                                            <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
                                                 <Calendar className="h-4 w-4 text-[#D4AF37]" /> Detalles de Estadía
                                             </CardTitle>
                                         </CardHeader>
@@ -547,26 +547,26 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                             <div className="flex justify-between items-center mb-4">
                                                 <div>
                                                     <p className="text-xs text-[#737373]">Check-In</p>
-                                                    <p className="text-lg font-bold text-[#E5E5E5]">{format(new Date(mockReservation.startDate), "dd MMM yyyy", { locale: es })}</p>
+                                                    <p className="text-lg font-bold text-foreground">{format(new Date(mockReservation.startDate), "dd MMM yyyy", { locale: es })}</p>
                                                 </div>
                                                 <div className="flex flex-col items-center px-4">
-                                                    <div className="bg-[#333333] text-[#A3A3A3] text-xs px-2 py-1 rounded-full mb-1">{nights} Noches</div>
+                                                    <div className="bg-[#333333] text-muted-foreground text-xs px-2 py-1 rounded-full mb-1">{nights} Noches</div>
                                                     <ArrowLeft className="h-4 w-4 text-[#555] rotate-180" />
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-xs text-[#737373]">Check-Out</p>
-                                                    <p className="text-lg font-bold text-[#E5E5E5]">{format(new Date(mockReservation.endDate), "dd MMM yyyy", { locale: es })}</p>
+                                                    <p className="text-lg font-bold text-foreground">{format(new Date(mockReservation.endDate), "dd MMM yyyy", { locale: es })}</p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center justify-between text-sm text-[#A3A3A3]">
+                                            <div className="flex items-center justify-between text-sm text-muted-foreground">
                                                 <span>{mockReservation.adults} Adultos, {mockReservation.children} Niños</span>
                                             </div>
                                         </CardContent>
                                     </Card>
 
-                                    <Card className="bg-[#1A1A1A] border-[#333333]">
+                                    <Card className="bg-card border-border">
                                         <CardHeader className="pb-2">
-                                            <CardTitle className="text-sm font-medium text-[#A3A3A3] uppercase flex items-center gap-2">
+                                            <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
                                                 <Bed className="h-4 w-4 text-[#D4AF37]" /> Habitación Asignada
                                             </CardTitle>
                                         </CardHeader>
@@ -574,28 +574,28 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                             <div className="flex items-start justify-between">
                                                 <div>
                                                     <div className="text-3xl font-bold text-white mb-1">{mockReservation.roomId}</div>
-                                                    <p className="text-sm text-[#A3A3A3]">{mockReservation.roomName}</p>
+                                                    <p className="text-sm text-muted-foreground">{mockReservation.roomName}</p>
                                                 </div>
                                                 <Badge className="bg-green-900/20 text-green-400 border-green-900">Limpia</Badge>
                                             </div>
                                             <div className="mt-4">
-                                                <Button variant="outline" size="sm" className="w-full border-[#333333] hover:bg-[#333333] text-xs text-[#E5E5E5]" onClick={() => setIsChangeRoomOpen(true)}>
+                                                <Button variant="outline" size="sm" className="w-full border-border hover:bg-[#333333] text-xs text-foreground" onClick={() => setIsChangeRoomOpen(true)}>
                                                     <ArrowRightLeft className="h-3 w-3 mr-2" /> Cambiar Habitación
                                                 </Button>
                                             </div>
                                         </CardContent>
                                     </Card>
                                 </div>
-                                <Card className="bg-[#1A1A1A] border-[#333333]">
+                                <Card className="bg-card border-border">
                                     <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                                        <CardTitle className="text-sm font-medium text-[#A3A3A3] uppercase flex items-center gap-2">
+                                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
                                             <MessageSquare className="h-4 w-4 text-[#D4AF37]" /> Notas de Recepción
                                         </CardTitle>
-                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-[#333333]"><Edit className="h-3 w-3 text-[#A3A3A3]" /></Button>
+                                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-[#333333]"><Edit className="h-3 w-3 text-muted-foreground" /></Button>
                                     </CardHeader>
                                     <CardContent>
                                         <div className="bg-[#262626] border-l-4 border-[#D4AF37] p-4 rounded-r-md">
-                                            <p className="text-sm text-[#E5E5E5] leading-relaxed italic">"{mockReservation.notes}"</p>
+                                            <p className="text-sm text-foreground leading-relaxed italic">"{mockReservation.notes}"</p>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -619,37 +619,37 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
 
                             <TabsContent value="finance">
                                 {/* ... (Mismo contenido de Finanzas) ... */}
-                                <Card className="bg-[#1A1A1A] border-[#333333]">
-                                    <CardHeader className="flex flex-row items-center justify-between border-b border-[#333333] pb-4">
+                                <Card className="bg-card border-border">
+                                    <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
                                         <div className="space-y-1">
-                                            <CardTitle className="text-base text-[#E5E5E5]">Detalle de Cargos</CardTitle>
-                                            <CardDescription className="text-xs text-[#A3A3A3]">Pre-visualización de Folio #{mockReservation.id}</CardDescription>
+                                            <CardTitle className="text-base text-foreground">Detalle de Cargos</CardTitle>
+                                            <CardDescription className="text-xs text-muted-foreground">Pre-visualización de Folio #{mockReservation.id}</CardDescription>
                                         </div>
-                                        <Button variant="outline" size="sm" className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10" onClick={goToFolios}>
+                                        <Button variant="outline" size="sm" className="border-[#D4AF37] text-[#D4AF37] hover:bg-primary/10" onClick={goToFolios}>
                                             <FileText className="h-4 w-4 mr-2" /> Ver Folio Completo
                                         </Button>
                                     </CardHeader>
                                     <CardContent className="p-0">
                                         <Table>
                                             <TableHeader className="bg-[#262626]">
-                                                <TableRow className="border-[#333333] hover:bg-[#262626]">
-                                                    <TableHead className="text-[#A3A3A3] text-xs uppercase">Fecha</TableHead>
-                                                    <TableHead className="text-[#A3A3A3] text-xs uppercase w-[50%]">Concepto</TableHead>
-                                                    <TableHead className="text-[#A3A3A3] text-xs uppercase text-right">Cant</TableHead>
-                                                    <TableHead className="text-[#A3A3A3] text-xs uppercase text-right">Total</TableHead>
+                                                <TableRow className="border-border hover:bg-[#262626]">
+                                                    <TableHead className="text-muted-foreground text-xs uppercase">Fecha</TableHead>
+                                                    <TableHead className="text-muted-foreground text-xs uppercase w-[50%]">Concepto</TableHead>
+                                                    <TableHead className="text-muted-foreground text-xs uppercase text-right">Cant</TableHead>
+                                                    <TableHead className="text-muted-foreground text-xs uppercase text-right">Total</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {mockReservation.folioItems.map((item: any) => (
-                                                    <TableRow key={item.id} className="border-[#333333] hover:bg-[#333333]/50">
-                                                        <TableCell className="text-xs text-[#E5E5E5] font-mono">{item.date}</TableCell>
-                                                        <TableCell className="text-xs text-[#E5E5E5]">{item.concept}</TableCell>
-                                                        <TableCell className="text-xs text-[#A3A3A3] text-right">{item.qty}</TableCell>
-                                                        <TableCell className="text-xs text-[#E5E5E5] text-right font-bold">$ {item.total.toLocaleString()}</TableCell>
+                                                    <TableRow key={item.id} className="border-border hover:bg-[#333333]/50">
+                                                        <TableCell className="text-xs text-foreground font-mono">{item.date}</TableCell>
+                                                        <TableCell className="text-xs text-foreground">{item.concept}</TableCell>
+                                                        <TableCell className="text-xs text-muted-foreground text-right">{item.qty}</TableCell>
+                                                        <TableCell className="text-xs text-foreground text-right font-bold">$ {item.total.toLocaleString()}</TableCell>
                                                     </TableRow>
                                                 ))}
-                                                <TableRow className="bg-[#262626] border-t-2 border-[#333333] hover:bg-[#262626]">
-                                                    <TableCell colSpan={3} className="text-right text-xs font-bold text-[#A3A3A3] uppercase">Total Cargos</TableCell>
+                                                <TableRow className="bg-[#262626] border-t-2 border-border hover:bg-[#262626]">
+                                                    <TableCell colSpan={3} className="text-right text-xs font-bold text-muted-foreground uppercase">Total Cargos</TableCell>
                                                     <TableCell className="text-right text-sm font-bold text-[#D4AF37]">$ {mockReservation.totalAmount.toLocaleString()}</TableCell>
                                                 </TableRow>
                                             </TableBody>
@@ -663,9 +663,9 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                     {/* COLUMNA DERECHA */}
                     <div className="lg:col-span-4 space-y-6">
                         {/* ... (Mismo contenido Sidebar) ... */}
-                        <Card className="bg-[#1A1A1A] border-[#333333] overflow-hidden">
-                            <div className="bg-[#262626] p-4 border-b border-[#333333] flex justify-between items-center">
-                                <span className="font-semibold text-[#E5E5E5]">Balance</span>
+                        <Card className="bg-card border-border overflow-hidden">
+                            <div className="bg-[#262626] p-4 border-b border-border flex justify-between items-center">
+                                <span className="font-semibold text-foreground">Balance</span>
                                 <Badge variant={pendingAmount > 0 ? "destructive" : "default"} className="uppercase text-[10px]">
                                     {pendingAmount > 0 ? "Pendiente" : "Pagado"}
                                 </Badge>
@@ -676,7 +676,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         <span className="text-white">Total</span>
                                         <span className="text-[#D4AF37]">$ {mockReservation.totalAmount.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between text-xs text-[#A3A3A3]">
+                                    <div className="flex justify-between text-xs text-muted-foreground">
                                         <span>Pagado: $ {mockReservation.paidAmount.toLocaleString()}</span>
                                         <span>{percentPaid.toFixed(0)}%</span>
                                     </div>
@@ -691,18 +691,18 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         </div>
                                     </div>
                                 )}
-                                <Button className="w-full bg-[#E5E5E5] text-black hover:bg-white font-semibold" onClick={() => setIsPaymentOpen(true)}>
+                                <Button className="w-full bg-[#E5E5E5] text-black hover:bg-card font-semibold" onClick={() => setIsPaymentOpen(true)}>
                                     <CreditCard className="h-4 w-4 mr-2" /> Registrar Pago
                                 </Button>
-                                <Button variant="link" className="w-full text-[#A3A3A3] text-xs h-auto hover:text-[#E5E5E5]" onClick={goToFolios}>
+                                <Button variant="link" className="w-full text-muted-foreground text-xs h-auto hover:text-foreground" onClick={goToFolios}>
                                     Ir a Folios & Facturación <ExternalLink className="ml-1 h-3 w-3" />
                                 </Button>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-[#1A1A1A] border-[#333333]">
-                            <CardHeader className="pb-3 border-b border-[#333333]/50">
-                                <CardTitle className="text-sm font-medium text-[#A3A3A3] uppercase flex items-center gap-2">
+                        <Card className="bg-card border-border">
+                            <CardHeader className="pb-3 border-b border-border/50">
+                                <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
                                     <Users className="h-4 w-4 text-[#D4AF37]" /> Titular
                                 </CardTitle>
                             </CardHeader>
@@ -714,22 +714,22 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         </AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="font-bold text-[#E5E5E5] text-sm">
+                                        <p className="font-bold text-foreground text-sm">
                                             {mockReservation.guests[0].primerNombre} {mockReservation.guests[0].primerApellido}
                                         </p>
                                         <p className="text-xs text-[#737373]">ID: {mockReservation.guests[0].numeroId}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-3 text-sm">
-                                    <div className="flex items-center gap-3 text-[#A3A3A3] cursor-pointer hover:text-white" onClick={() => handleCopy(mockReservation.guests[0].correo, "Email")}>
+                                    <div className="flex items-center gap-3 text-muted-foreground cursor-pointer hover:text-white" onClick={() => handleCopy(mockReservation.guests[0].correo, "Email")}>
                                         <Mail className="h-4 w-4" /> <span className="truncate">{mockReservation.guests[0].correo}</span>
                                     </div>
-                                    <div className="flex items-center gap-3 text-[#A3A3A3]">
+                                    <div className="flex items-center gap-3 text-muted-foreground">
                                         <Phone className="h-4 w-4" /> <span>{mockReservation.guests[0].telefono}</span>
                                     </div>
                                 </div>
                                 <Separator className="bg-[#333333] my-4" />
-                                <Button size="sm" variant="outline" className="w-full border-[#333333] text-xs text-[#E5E5E5]" onClick={handleWhatsApp}>
+                                <Button size="sm" variant="outline" className="w-full border-border text-xs text-foreground" onClick={handleWhatsApp}>
                                     WhatsApp
                                 </Button>
                             </CardContent>

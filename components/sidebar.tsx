@@ -80,7 +80,7 @@ export function Sidebar() {
   return (
       <div
           className={cn(
-              // CAMBIO: bg-[#1A1A1A] -> bg-sidebar, border-[#333333] -> border-sidebar-border
+              // CAMBIO: bg-card -> bg-sidebar, border-border -> border-sidebar-border
               "fixed left-0 top-0 z-40 h-screen border-r border-sidebar-border bg-sidebar transition-all duration-300",
               isCollapsed ? "w-[70px]" : "w-[240px]",
           )}

@@ -36,7 +36,7 @@ export function AppShell({ children }: AppShellProps) {
   }, [setUser, openShift])
 
   return (
-    <div className="min-h-screen bg-[#0F0F0F]">
+    <div className="min-h-screen bg-background">
       <Sidebar />
       <Topbar />
       <main className={cn("min-h-screen pt-16 transition-all duration-300", isCollapsed ? "pl-[70px]" : "pl-[240px]")}>

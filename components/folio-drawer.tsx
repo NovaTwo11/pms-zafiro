@@ -251,18 +251,18 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
   return (
       <>
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-          <SheetContent className="w-full sm:max-w-[500px] bg-[#1A1A1A] border-l border-[#333333] p-0 flex flex-col">
+          <SheetContent className="w-full sm:max-w-[500px] bg-card border-l border-border p-0 flex flex-col">
 
             {/* Header */}
-            <SheetHeader className="p-6 border-b border-[#333333]">
+            <SheetHeader className="p-6 border-b border-border">
               <div className="flex items-start justify-between">
                 <div>
-                  <SheetTitle className="font-[family-name:var(--font-heading)] text-2xl text-[#E5E5E5]">
+                  <SheetTitle className="font-[family-name:var(--font-heading)] text-2xl text-foreground">
                     {title}
                   </SheetTitle>
-                  <p className="text-sm text-[#A3A3A3] mt-1">{subtitle}</p>
+                  <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
                   {isGuest && (
-                      <p className="text-xs text-[#A3A3A3] mt-2">
+                      <p className="text-xs text-muted-foreground mt-2">
                         {format(folio.checkIn, "dd MMM", { locale: es })} -{" "}
                         {format(folio.checkOut, "dd MMM", { locale: es })} • {folio.nights} noches
                       </p>
@@ -284,7 +284,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                         Check-out
                       </Button>
                   )}
-                  <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-[#A3A3A3] hover:text-[#E5E5E5]">
+                  <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-muted-foreground hover:text-foreground">
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -302,18 +302,18 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
             </SheetHeader>
 
             {/* Resumen Financiero */}
-            <div className="px-6 py-4 border-b border-[#333333] bg-[#0F0F0F]">
+            <div className="px-6 py-4 border-b border-border bg-background">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <p className="text-xs text-[#A3A3A3]">Cargos</p>
-                  <p className="text-lg font-semibold text-[#E5E5E5]">{formatCurrency(summary.totalCharges)}</p>
+                  <p className="text-xs text-muted-foreground">Cargos</p>
+                  <p className="text-lg font-semibold text-foreground">{formatCurrency(summary.totalCharges)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-[#A3A3A3]">Abonos</p>
+                  <p className="text-xs text-muted-foreground">Abonos</p>
                   <p className="text-lg font-semibold text-[#059669]">{formatCurrency(summary.totalPayments)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-[#A3A3A3]">Saldo</p>
+                  <p className="text-xs text-muted-foreground">Saldo</p>
                   <p className={cn("text-lg font-semibold", currentBalance > 0 ? "text-[#CF6679]" : "text-[#059669]")}>
                     {formatCurrency(currentBalance)}
                   </p>
@@ -323,7 +323,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
 
             {/* Lista Agrupada */}
             <div className="flex-1 overflow-y-auto p-6">
-              <h4 className="text-sm font-medium text-[#A3A3A3] mb-4">Resumen de Consumos</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-4">Resumen de Consumos</h4>
               {groupedItems.length === 0 ? (
                   <div className="text-center py-8 text-[#666666]">
                     <p>No hay consumos registrados</p>
@@ -338,20 +338,20 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                           <button
                               key={group.id}
                               onClick={() => { setSelectedGroup(group); setDetailModalOpen(true); }}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg bg-[#0F0F0F] border border-[#333333] transition-all duration-300 hover:border-[#D4AF37]/50 hover:bg-[#151515] group"
+                              className="w-full flex items-center gap-3 p-3 rounded-lg bg-background border border-border transition-all duration-300 hover:border-[#D4AF37]/50 hover:bg-[#151515] group"
                           >
                             <div className={cn(
                                 "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                                isPayment ? "bg-[#059669]/10" : "bg-[#252525] group-hover:bg-[#2A2A2A]",
+                                isPayment ? "bg-[#059669]/10" : "bg-accent group-hover:bg-[#2A2A2A]",
                             )}>
-                              <Icon className={cn("h-5 w-5", isPayment ? "text-[#059669]" : "text-[#A3A3A3]")} />
+                              <Icon className={cn("h-5 w-5", isPayment ? "text-[#059669]" : "text-muted-foreground")} />
                             </div>
 
                             <div className="flex-1 min-w-0 text-left">
                               <div className="flex items-center gap-2">
-                                <p className="text-sm font-medium text-[#E5E5E5] truncate">{group.description}</p>
+                                <p className="text-sm font-medium text-foreground truncate">{group.description}</p>
                                 {group.totalQuantity > 1 && (
-                                    <span className="text-[10px] bg-[#333333] text-[#A3A3A3] px-1.5 py-0.5 rounded-full">
+                                    <span className="text-[10px] bg-[#333333] text-muted-foreground px-1.5 py-0.5 rounded-full">
                                 x{group.totalQuantity}
                             </span>
                                 )}
@@ -362,7 +362,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                             </div>
 
                             <div className="flex items-center gap-3">
-                              <p className={cn("text-sm font-semibold", isPayment ? "text-[#059669]" : "text-[#E5E5E5]")}>
+                              <p className={cn("text-sm font-semibold", isPayment ? "text-[#059669]" : "text-foreground")}>
                                 {isPayment ? "-" : ""}
                                 {formatCurrency(group.totalAmount)}
                               </p>
@@ -376,7 +376,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
             </div>
 
             {/* Footer de Acciones */}
-            <div className="p-4 border-t border-[#333333] bg-[#1A1A1A] flex flex-col gap-3">
+            <div className="p-4 border-t border-border bg-card flex flex-col gap-3">
               <div className="flex gap-3">
                 <Button
                     onClick={() => setPaymentModalOpen(true)}
@@ -391,7 +391,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                 </Button>
                 <Button
                     onClick={() => router.push('/pos')}
-                    className="flex-1 bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all duration-300"
+                    className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all duration-300"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Cargar
@@ -415,12 +415,12 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
 
         {/* --- Ventana Emergente: Historial Detallado del Producto --- */}
         <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
-          <DialogContent className="sm:max-w-[500px] bg-[#1A1A1A] border-[#333333]">
+          <DialogContent className="sm:max-w-[500px] bg-card border-border">
             <DialogHeader>
-              <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-[#E5E5E5] flex items-center gap-2">
+              <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground flex items-center gap-2">
                 {selectedGroup && (
                     <>
-                      <div className="p-2 bg-[#252525] rounded-md">
+                      <div className="p-2 bg-accent rounded-md">
                         {(() => {
                           const Icon = getCategoryIcon(selectedGroup.category)
                           return <Icon className="h-5 w-5 text-[#D4AF37]" />
@@ -430,7 +430,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                     </>
                 )}
               </DialogTitle>
-              <DialogDescription className="text-[#A3A3A3]">
+              <DialogDescription className="text-muted-foreground">
                 Historial detallado. Puedes editar o eliminar registros individuales aquí.
               </DialogDescription>
             </DialogHeader>
@@ -438,14 +438,14 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
             {selectedGroup && (
                 <div className="mt-4">
                   {/* Header Resumen Grupo */}
-                  <div className="flex justify-between items-center mb-6 bg-[#0F0F0F] p-3 rounded-lg border border-[#333333]">
+                  <div className="flex justify-between items-center mb-6 bg-background p-3 rounded-lg border border-border">
                     <div>
-                      <p className="text-xs text-[#A3A3A3] mb-1">Total Unidades</p>
-                      <p className="text-xl font-bold text-[#E5E5E5]">{selectedGroup.totalQuantity}</p>
+                      <p className="text-xs text-muted-foreground mb-1">Total Unidades</p>
+                      <p className="text-xl font-bold text-foreground">{selectedGroup.totalQuantity}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-[#A3A3A3] mb-1">Valor Acumulado</p>
-                      <p className={cn("text-xl font-bold", selectedGroup.category === 'payment' ? "text-[#059669]" : "text-[#E5E5E5]")}>
+                      <p className="text-xs text-muted-foreground mb-1">Valor Acumulado</p>
+                      <p className={cn("text-xl font-bold", selectedGroup.category === 'payment' ? "text-[#059669]" : "text-foreground")}>
                         {formatCurrency(selectedGroup.totalAmount)}
                       </p>
                     </div>
@@ -454,17 +454,17 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                   {/* Lista de Transacciones Individuales con Acciones */}
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                     {selectedGroup.history.sort((a,b) => b.date.getTime() - a.date.getTime()).map((item) => (
-                        <div key={item.id} className="relative pl-6 pb-2 last:pb-0 border-l border-[#333333] group">
+                        <div key={item.id} className="relative pl-6 pb-2 last:pb-0 border-l border-border group">
                           {/* Indicador visual de tiempo */}
-                          <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-[#D4AF37]" />
+                          <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-primary" />
 
                           <div className="flex justify-between items-start bg-[#151515]/50 p-2 rounded-md hover:bg-[#151515] transition-colors">
                             <div className="flex flex-col">
-                        <span className="text-sm text-[#E5E5E5] font-medium flex items-center gap-2">
+                        <span className="text-sm text-foreground font-medium flex items-center gap-2">
                            <Calendar className="h-3 w-3 text-[#666666]" />
                           {format(item.date, "dd MMM yyyy", { locale: es })}
                         </span>
-                              <span className="text-xs text-[#A3A3A3] flex items-center gap-2 mt-1">
+                              <span className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                            <Clock className="h-3 w-3 text-[#666666]" />
                                 {format(item.date, "hh:mm a", { locale: es })}
                         </span>
@@ -472,11 +472,11 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
 
                             <div className="flex items-center gap-3">
                               <div className="text-right">
-                            <span className="text-sm font-semibold text-[#E5E5E5]">
+                            <span className="text-sm font-semibold text-foreground">
                                 {formatCurrency(item.amount)}
                             </span>
                                 {item.quantity > 0 && (
-                                    <p className="text-xs text-[#A3A3A3]">
+                                    <p className="text-xs text-muted-foreground">
                                       {item.quantity} x {formatCurrency(item.unitPrice)}
                                     </p>
                                 )}
@@ -486,11 +486,11 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#2A2A2A]">
-                                    <MoreVertical className="h-4 w-4 text-[#A3A3A3]" />
+                                    <MoreVertical className="h-4 w-4 text-muted-foreground" />
                                   </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-[#1A1A1A] border-[#333333]">
-                                  <DropdownMenuItem onClick={() => handleEditClick(item)} className="text-[#E5E5E5] focus:bg-[#252525] cursor-pointer">
+                                <DropdownMenuContent align="end" className="bg-card border-border">
+                                  <DropdownMenuItem onClick={() => handleEditClick(item)} className="text-foreground focus:bg-accent cursor-pointer">
                                     <Pencil className="mr-2 h-4 w-4 text-[#D4AF37]" />
                                     <span>Editar</span>
                                   </DropdownMenuItem>
@@ -512,17 +512,17 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
 
         {/* --- Modal de Edición de Transacción --- */}
         <Dialog open={editTransactionModalOpen} onOpenChange={setEditTransactionModalOpen}>
-          <DialogContent className="sm:max-w-[400px] bg-[#1A1A1A] border-[#333333]">
+          <DialogContent className="sm:max-w-[400px] bg-card border-border">
             <DialogHeader>
-              <DialogTitle className="text-[#E5E5E5]">Editar Consumo</DialogTitle>
-              <DialogDescription className="text-[#A3A3A3]">
+              <DialogTitle className="text-foreground">Editar Consumo</DialogTitle>
+              <DialogDescription className="text-muted-foreground">
                 Modifica la cantidad o el precio unitario.
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="quantity" className="text-right text-[#A3A3A3]">
+                <Label htmlFor="quantity" className="text-right text-muted-foreground">
                   Cantidad
                 </Label>
                 <Input
@@ -530,11 +530,11 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                     type="number"
                     value={editForm.quantity}
                     onChange={(e) => setEditForm({...editForm, quantity: parseFloat(e.target.value) || 0})}
-                    className="col-span-3 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                    className="col-span-3 bg-background border-border text-foreground"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="price" className="text-right text-[#A3A3A3]">
+                <Label htmlFor="price" className="text-right text-muted-foreground">
                   Precio Unit.
                 </Label>
                 <Input
@@ -542,11 +542,11 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                     type="number"
                     value={editForm.unitPrice}
                     onChange={(e) => setEditForm({...editForm, unitPrice: parseFloat(e.target.value) || 0})}
-                    className="col-span-3 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                    className="col-span-3 bg-background border-border text-foreground"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right text-[#A3A3A3]">Total Nuevo</Label>
+                <Label className="text-right text-muted-foreground">Total Nuevo</Label>
                 <div className="col-span-3 font-semibold text-[#D4AF37]">
                   {formatCurrency(editForm.quantity * editForm.unitPrice)}
                 </div>
@@ -554,10 +554,10 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setEditTransactionModalOpen(false)} className="border-[#333333] text-[#E5E5E5] bg-transparent hover:bg-[#252525]">
+              <Button variant="outline" onClick={() => setEditTransactionModalOpen(false)} className="border-border text-foreground bg-transparent hover:bg-accent">
                 Cancelar
               </Button>
-              <Button onClick={saveTransactionChanges} className="bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90">
+              <Button onClick={saveTransactionChanges} className="bg-primary text-[#0F0F0F] hover:bg-primary/90">
                 Guardar Cambios
               </Button>
             </DialogFooter>
@@ -566,46 +566,46 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
 
         {/* --- Modal de Pagos (Existente) --- */}
         <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
-          <DialogContent className="sm:max-w-[400px] bg-[#1A1A1A] border-[#333333]">
+          <DialogContent className="sm:max-w-[400px] bg-card border-border">
             <DialogHeader>
-              <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-[#E5E5E5]">
+              <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground">
                 Agregar Abono
               </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Monto *</Label>
+                <Label className="text-muted-foreground">Monto *</Label>
                 <Input
                     type="number"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
                     placeholder="0"
-                    className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] text-lg transition-all duration-300"
+                    className="bg-background border-border text-foreground focus:border-[#D4AF37] text-lg transition-all duration-300"
                 />
-                <p className="text-xs text-[#A3A3A3]">Saldo pendiente: {formatCurrency(currentBalance)}</p>
+                <p className="text-xs text-muted-foreground">Saldo pendiente: {formatCurrency(currentBalance)}</p>
               </div>
 
               <div className="space-y-2">
-                <Label className="text-[#A3A3A3]">Método de Pago *</Label>
+                <Label className="text-muted-foreground">Método de Pago *</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] focus:border-[#D4AF37] transition-all duration-300">
+                  <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
                     <SelectValue placeholder="Seleccionar método" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                    <SelectItem value="cash" className="text-[#E5E5E5] focus:bg-[#252525]">
+                  <SelectContent className="bg-card border-border">
+                    <SelectItem value="cash" className="text-foreground focus:bg-accent">
                       <div className="flex items-center gap-2">
                         <Banknote className="h-4 w-4 text-[#059669]" />
                         Efectivo
                       </div>
                     </SelectItem>
-                    <SelectItem value="card" className="text-[#E5E5E5] focus:bg-[#252525]">
+                    <SelectItem value="card" className="text-foreground focus:bg-accent">
                       <div className="flex items-center gap-2">
                         <CreditCard className="h-4 w-4 text-[#3B82F6]" />
                         Tarjeta
                       </div>
                     </SelectItem>
-                    <SelectItem value="transfer" className="text-[#E5E5E5] focus:bg-[#252525]">
+                    <SelectItem value="transfer" className="text-foreground focus:bg-accent">
                       <div className="flex items-center gap-2">
                         <Building2 className="h-4 w-4 text-[#8B5CF6]" />
                         Transferencia
@@ -619,7 +619,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                 <Button
                     variant="outline"
                     onClick={() => setPaymentModalOpen(false)}
-                    className="flex-1 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
+                    className="flex-1 border-border text-foreground hover:bg-accent bg-transparent transition-all duration-300"
                 >
                   Cancelar
                 </Button>

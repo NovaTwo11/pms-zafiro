@@ -112,7 +112,7 @@ export function ReservationPopover({
       case "check_in_debt":
         return "text-red-500 bg-red-500/10"
       case "checked-out":
-        return "text-[#A3A3A3] bg-[#A3A3A3]/10"
+        return "text-muted-foreground bg-[#A3A3A3]/10"
       case "cancelled":
         return "text-[#666666] bg-[#666666]/10"
       case "blocked":
@@ -183,15 +183,15 @@ export function ReservationPopover({
   return (
       <Popover open={isOpen} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>{children}</PopoverTrigger>
-        <PopoverContent className="w-80 bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] p-0 shadow-2xl z-50" align="start" side="bottom">
+        <PopoverContent className="w-80 bg-card border-border text-foreground p-0 shadow-2xl z-50" align="start" side="bottom">
           {/* Header */}
-          <div className="border-b border-[#333333] p-4">
+          <div className="border-b border-border p-4">
             <div className="flex items-start justify-between">
               <div>
-                <h4 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-[#E5E5E5]">
+                <h4 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-foreground">
                   Hab. {segment.roomId}
                 </h4>
-                <p className="text-sm text-[#A3A3A3]">Sr./Sra. {reservation.guestName}</p>
+                <p className="text-sm text-muted-foreground">Sr./Sra. {reservation.guestName}</p>
               </div>
               <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor()}`}>{getStatusLabel()}</span>
             </div>
@@ -199,22 +199,22 @@ export function ReservationPopover({
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="w-full bg-[#0F0F0F] border-b border-[#333333] rounded-none p-0 h-auto">
+            <TabsList className="w-full bg-background border-b border-border rounded-none p-0 h-auto">
               <TabsTrigger
                   value="detalle"
-                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
+                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-muted-foreground"
               >
                 Detalle
               </TabsTrigger>
               <TabsTrigger
                   value="huesped"
-                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
+                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-muted-foreground"
               >
                 Huésped
               </TabsTrigger>
               <TabsTrigger
                   value="acciones"
-                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-[#A3A3A3]"
+                  className="flex-1 rounded-none py-2.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-muted-foreground"
               >
                 Acciones
               </TabsTrigger>
@@ -223,20 +223,20 @@ export function ReservationPopover({
             {/* Detalle Tab */}
             <TabsContent value="detalle" className="p-4 space-y-3 mt-0">
               <div className="flex items-center gap-3 text-sm">
-                <CalendarDays className="h-4 w-4 text-[#A3A3A3]" />
-                <span className="text-[#A3A3A3]">
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">
               {format(segment.startDate, "dd MMM", { locale: es })} -{" "}
                   {format(segment.endDate, "dd MMM", { locale: es })}
             </span>
               </div>
 
               <div className="flex items-center gap-3 text-sm">
-                <DollarSign className="h-4 w-4 text-[#A3A3A3]" />
-                <span className="text-[#E5E5E5]">Total: {formatCurrency(reservation.totalValue)}</span>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <span className="text-foreground">Total: {formatCurrency(reservation.totalValue)}</span>
               </div>
 
               <div className="flex items-center gap-3 text-sm">
-                <CreditCard className="h-4 w-4 text-[#A3A3A3]" />
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
                 <span className={hasBalance ? "text-[#CF6679]" : "text-[#059669]"}>
               {hasBalance ? `Pendiente: ${formatCurrency(balance)}` : "Pagado completo"}
             </span>
@@ -254,23 +254,23 @@ export function ReservationPopover({
             {/* Huésped Tab */}
             <TabsContent value="huesped" className="p-4 space-y-3 mt-0">
               <div className="flex items-center gap-3 text-sm">
-                <User className="h-4 w-4 text-[#A3A3A3]" />
-                <span className="text-[#E5E5E5]">Sr./Sra. {reservation.guestName}</span>
+                <User className="h-4 w-4 text-muted-foreground" />
+                <span className="text-foreground">Sr./Sra. {reservation.guestName}</span>
               </div>
 
               {guest && (
                   <>
                     <div className="flex items-center gap-3 text-sm">
-                      <Phone className="h-4 w-4 text-[#A3A3A3]" />
-                      <span className="text-[#A3A3A3]">{guest.phone}</span>
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{guest.phone}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <Mail className="h-4 w-4 text-[#A3A3A3]" />
-                      <span className="text-[#A3A3A3]">{guest.email}</span>
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{guest.email}</span>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
-                      <CreditCard className="h-4 w-4 text-[#A3A3A3]" />
-                      <span className="text-[#A3A3A3]">{guest.document}</span>
+                      <CreditCard className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{guest.document}</span>
                     </div>
                   </>
               )}
@@ -279,7 +279,7 @@ export function ReservationPopover({
                 <Button
                     variant="outline"
                     size="sm"
-                    className="w-full mt-2 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
+                    className="w-full mt-2 border-border text-foreground hover:bg-accent bg-transparent transition-all duration-300"
                 >
                   Ver Perfil Completo
                 </Button>
@@ -295,7 +295,7 @@ export function ReservationPopover({
                     onClick={handleSendEmail}
                     variant="outline"
                     size="sm"
-                    className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent text-xs px-2"
+                    className="border-border text-foreground hover:bg-accent bg-transparent text-xs px-2"
                 >
                   <FileText className="h-3 w-3 mr-1.5" />
                   Enviar Info
@@ -304,7 +304,7 @@ export function ReservationPopover({
                     onClick={handleSendCheckinLink}
                     variant="outline"
                     size="sm"
-                    className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent text-xs px-2"
+                    className="border-border text-foreground hover:bg-accent bg-transparent text-xs px-2"
                 >
                   <Send className="h-3 w-3 mr-1.5" />
                   Link Check-in
@@ -316,7 +316,7 @@ export function ReservationPopover({
 
               <Link href={`/reservas/${reservation.id}`} className="block w-full">
                 <Button
-                    className="w-full bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all font-bold"
+                    className="w-full bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all font-bold"
                 >
                   <Eye className="h-4 w-4 mr-2" />
                   Ver Reserva Completa
@@ -385,7 +385,7 @@ export function ReservationPopover({
               <Link href={`/folios?id=${reservation.id}`} className="block">
                 <Button
                     variant="outline"
-                    className="w-full border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10 bg-transparent transition-all duration-300"
+                    className="w-full border-[#D4AF37] text-[#D4AF37] hover:bg-primary/10 bg-transparent transition-all duration-300"
                 >
                   Ver Folio Completo
                 </Button>

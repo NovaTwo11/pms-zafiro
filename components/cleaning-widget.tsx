@@ -18,9 +18,9 @@ const rooms = [
 
 export function CleaningWidget() {
   return (
-    <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6">
-      <h3 className="font-serif text-lg font-semibold text-[#E5E5E5]">Estado de Limpieza</h3>
-      <p className="text-sm text-[#A3A3A3]">Resumen del housekeeping</p>
+    <div className="rounded-lg border border-border bg-card p-6">
+      <h3 className="font-serif text-lg font-semibold text-foreground">Estado de Limpieza</h3>
+      <p className="text-sm text-muted-foreground">Resumen del housekeeping</p>
 
       {/* Summary */}
       <div className="mt-4 grid grid-cols-3 gap-4">
@@ -28,28 +28,28 @@ export function CleaningWidget() {
           <CheckCircle2 className="h-5 w-5 text-[#059669]" />
           <div>
             <p className="text-2xl font-semibold text-[#059669]">{cleaningData.clean}</p>
-            <p className="text-xs text-[#A3A3A3]">Limpias</p>
+            <p className="text-xs text-muted-foreground">Limpias</p>
           </div>
         </div>
         <div className="flex items-center gap-3 rounded-lg bg-[#F59E0B]/10 p-3">
           <AlertCircle className="h-5 w-5 text-[#F59E0B]" />
           <div>
             <p className="text-2xl font-semibold text-[#F59E0B]">{cleaningData.dirty}</p>
-            <p className="text-xs text-[#A3A3A3]">Sucias</p>
+            <p className="text-xs text-muted-foreground">Sucias</p>
           </div>
         </div>
         <div className="flex items-center gap-3 rounded-lg bg-[#CF6679]/10 p-3">
           <Wrench className="h-5 w-5 text-[#CF6679]" />
           <div>
             <p className="text-2xl font-semibold text-[#CF6679]">{cleaningData.maintenance}</p>
-            <p className="text-xs text-[#A3A3A3]">Manten.</p>
+            <p className="text-xs text-muted-foreground">Manten.</p>
           </div>
         </div>
       </div>
 
       {/* Pending Rooms */}
       <div className="mt-4">
-        <p className="text-sm font-medium text-[#E5E5E5] mb-2">Pendientes de atención</p>
+        <p className="text-sm font-medium text-foreground mb-2">Pendientes de atención</p>
         <div className="flex flex-wrap gap-2">
           {rooms.map((room) => (
             <span

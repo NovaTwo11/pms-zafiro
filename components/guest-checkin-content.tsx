@@ -141,31 +141,31 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
         <div className="space-y-6">
             {/* IDENTIFICACIÓN */}
             <div className="space-y-4">
-                <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 border-b border-[#333333] pb-1">
+                <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 border-b border-border pb-1">
                     Identificación
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Primer Nombre *</Label>
-                        <Input className="bg-[#0F0F0F] border-[#333333]" required value={data.primerNombre} onChange={(e) => onChange("primerNombre", e.target.value)} />
+                        <Label className="text-muted-foreground">Primer Nombre *</Label>
+                        <Input className="bg-background border-border" required value={data.primerNombre} onChange={(e) => onChange("primerNombre", e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Segundo Nombre</Label>
-                        <Input className="bg-[#0F0F0F] border-[#333333]" value={data.segundoNombre} onChange={(e) => onChange("segundoNombre", e.target.value)} />
+                        <Label className="text-muted-foreground">Segundo Nombre</Label>
+                        <Input className="bg-background border-border" value={data.segundoNombre} onChange={(e) => onChange("segundoNombre", e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Primer Apellido *</Label>
-                        <Input className="bg-[#0F0F0F] border-[#333333]" required value={data.primerApellido} onChange={(e) => onChange("primerApellido", e.target.value)} />
+                        <Label className="text-muted-foreground">Primer Apellido *</Label>
+                        <Input className="bg-background border-border" required value={data.primerApellido} onChange={(e) => onChange("primerApellido", e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Segundo Apellido</Label>
-                        <Input className="bg-[#0F0F0F] border-[#333333]" value={data.segundoApellido} onChange={(e) => onChange("segundoApellido", e.target.value)} />
+                        <Label className="text-muted-foreground">Segundo Apellido</Label>
+                        <Input className="bg-background border-border" value={data.segundoApellido} onChange={(e) => onChange("segundoApellido", e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Tipo Documento *</Label>
+                        <Label className="text-muted-foreground">Tipo Documento *</Label>
                         <Select value={data.tipoId} onValueChange={(v) => onChange("tipoId", v)}>
-                            <SelectTrigger className="bg-[#0F0F0F] border-[#333333]"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-[#1A1A1A] border-[#333333] text-white">
+                            <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                            <SelectContent className="bg-card border-border text-white">
                                 <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
                                 <SelectItem value="CE">Cédula de Extranjería</SelectItem>
                                 <SelectItem value="PA">Pasaporte</SelectItem>
@@ -174,19 +174,19 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                         </Select>
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Número Documento *</Label>
-                        <Input className="bg-[#0F0F0F] border-[#333333]" required value={data.numeroId} onChange={(e) => onChange("numeroId", e.target.value)} />
+                        <Label className="text-muted-foreground">Número Documento *</Label>
+                        <Input className="bg-background border-border" required value={data.numeroId} onChange={(e) => onChange("numeroId", e.target.value)} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-[#A3A3A3]">Fecha Nacimiento</Label>
-                            <Input type="date" className="bg-[#0F0F0F] border-[#333333]" value={data.fechaCumpleanos} onChange={(e) => onChange("fechaCumpleanos", e.target.value)} />
+                            <Label className="text-muted-foreground">Fecha Nacimiento</Label>
+                            <Input type="date" className="bg-background border-border" value={data.fechaCumpleanos} onChange={(e) => onChange("fechaCumpleanos", e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[#A3A3A3]">Género</Label>
+                            <Label className="text-muted-foreground">Género</Label>
                             <Select value={data.genero} onValueChange={(v) => onChange("genero", v)}>
-                                <SelectTrigger className="bg-[#0F0F0F] border-[#333333]"><SelectValue /></SelectTrigger>
-                                <SelectContent className="bg-[#1A1A1A] border-[#333333] text-white">
+                                <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-card border-border text-white">
                                     <SelectItem value="M">Masculino</SelectItem>
                                     <SelectItem value="F">Femenino</SelectItem>
                                     <SelectItem value="O">Otro</SelectItem>
@@ -195,25 +195,25 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Nacionalidad</Label>
-                        <Input className="bg-[#0F0F0F] border-[#333333]" value={data.nacionalidad} onChange={(e) => onChange("nacionalidad", e.target.value)} />
+                        <Label className="text-muted-foreground">Nacionalidad</Label>
+                        <Input className="bg-background border-border" value={data.nacionalidad} onChange={(e) => onChange("nacionalidad", e.target.value)} />
                     </div>
                 </div>
             </div>
 
             {/* CONTACTO - Opcional para acompañantes */}
             <div className="space-y-4 pt-4">
-                <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 border-b border-[#333333] pb-1">
+                <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 border-b border-border pb-1">
                     Contacto y Perfil
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Email {isCompanion ? '(Opcional)' : '*'}</Label>
-                        <Input type="email" className="bg-[#0F0F0F] border-[#333333]" required={!isCompanion} value={data.correo} onChange={(e) => onChange("correo", e.target.value)} />
+                        <Label className="text-muted-foreground">Email {isCompanion ? '(Opcional)' : '*'}</Label>
+                        <Input type="email" className="bg-background border-border" required={!isCompanion} value={data.correo} onChange={(e) => onChange("correo", e.target.value)} />
                     </div>
                     <div className="space-y-2">
-                        <Label className="text-[#A3A3A3]">Teléfono {isCompanion ? '(Opcional)' : '*'}</Label>
-                        <Input className="bg-[#0F0F0F] border-[#333333]" required={!isCompanion} value={data.telefono} onChange={(e) => onChange("telefono", e.target.value)} />
+                        <Label className="text-muted-foreground">Teléfono {isCompanion ? '(Opcional)' : '*'}</Label>
+                        <Input className="bg-background border-border" required={!isCompanion} value={data.telefono} onChange={(e) => onChange("telefono", e.target.value)} />
                     </div>
                 </div>
             </div>
@@ -221,25 +221,25 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
             {/* UBICACIÓN - Simplificado para acompañantes si se desea, aquí lo dejo completo */}
             {!isCompanion && (
                 <div className="space-y-4 pt-4">
-                    <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 border-b border-[#333333] pb-1">
+                    <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 border-b border-border pb-1">
                         Ubicación
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label className="text-[#A3A3A3]">País Residencia *</Label>
-                            <Input className="bg-[#0F0F0F] border-[#333333]" required value={data.paisResidencia} onChange={(e) => onChange("paisResidencia", e.target.value)} />
+                            <Label className="text-muted-foreground">País Residencia *</Label>
+                            <Input className="bg-background border-border" required value={data.paisResidencia} onChange={(e) => onChange("paisResidencia", e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[#A3A3A3]">Ciudad Residencia *</Label>
-                            <Input className="bg-[#0F0F0F] border-[#333333]" required value={data.ciudadResidencia} onChange={(e) => onChange("ciudadResidencia", e.target.value)} />
+                            <Label className="text-muted-foreground">Ciudad Residencia *</Label>
+                            <Input className="bg-background border-border" required value={data.ciudadResidencia} onChange={(e) => onChange("ciudadResidencia", e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[#A3A3A3]">País Origen *</Label>
-                            <Input className="bg-[#0F0F0F] border-[#333333]" required value={data.paisOrigen} onChange={(e) => onChange("paisOrigen", e.target.value)} />
+                            <Label className="text-muted-foreground">País Origen *</Label>
+                            <Input className="bg-background border-border" required value={data.paisOrigen} onChange={(e) => onChange("paisOrigen", e.target.value)} />
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-[#A3A3A3]">Ciudad Origen *</Label>
-                            <Input className="bg-[#0F0F0F] border-[#333333]" required value={data.ciudadOrigen} onChange={(e) => onChange("ciudadOrigen", e.target.value)} />
+                            <Label className="text-muted-foreground">Ciudad Origen *</Label>
+                            <Input className="bg-background border-border" required value={data.ciudadOrigen} onChange={(e) => onChange("ciudadOrigen", e.target.value)} />
                         </div>
                     </div>
                 </div>
@@ -248,13 +248,13 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
     )
 
     return (
-        <div className="min-h-screen bg-[#0F0F0F] text-[#E5E5E5] flex flex-col items-center py-10 px-4 animate-in fade-in duration-500">
+        <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-10 px-4 animate-in fade-in duration-500">
 
             {/* Header */}
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-[#D4AF37] mb-2 font-[family-name:var(--font-heading)]">Hotel Zafiro</h1>
-                <p className="text-[#A3A3A3]">Registro de Huéspedes</p>
-                <div className="mt-2 inline-block px-3 py-1 rounded-full bg-[#333333] text-xs font-mono text-[#E5E5E5]">
+                <p className="text-muted-foreground">Registro de Huéspedes</p>
+                <div className="mt-2 inline-block px-3 py-1 rounded-full bg-[#333333] text-xs font-mono text-foreground">
                     Reserva: {reservationCode}
                 </div>
             </div>
@@ -263,10 +263,10 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
 
                 {/* --- PASO 1: FORMULARIO TITULAR --- */}
                 {step === 1 && (
-                    <Card className="bg-[#1A1A1A] border-[#333333] shadow-lg">
+                    <Card className="bg-card border-border shadow-lg">
                         <CardHeader>
-                            <CardTitle className="text-[#E5E5E5] flex items-center gap-2">
-                                <Badge className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]">1</Badge>
+                            <CardTitle className="text-foreground flex items-center gap-2">
+                                <Badge className="bg-primary text-black hover:bg-primary">1</Badge>
                                 Datos del Titular
                             </CardTitle>
                             <CardDescription>
@@ -278,7 +278,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                 {renderFormFields(mainGuest, handleMainGuestChange)}
                             </CardContent>
                             <CardFooter>
-                                <Button type="submit" className="w-full bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90 font-bold h-12">
+                                <Button type="submit" className="w-full bg-primary text-black hover:bg-primary/90 font-bold h-12">
                                     Guardar y Continuar <ArrowRight className="h-4 w-4 ml-2" />
                                 </Button>
                             </CardFooter>
@@ -289,12 +289,12 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                 {/* --- PASO 2: ACOMPAÑANTES --- */}
                 {step === 2 && (
                     <div className="space-y-6">
-                        <Card className="bg-[#1A1A1A] border-[#333333] shadow-lg">
+                        <Card className="bg-card border-border shadow-lg">
                             <CardHeader>
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <CardTitle className="text-[#E5E5E5] flex items-center gap-2">
-                                            <Badge className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]">2</Badge>
+                                        <CardTitle className="text-foreground flex items-center gap-2">
+                                            <Badge className="bg-primary text-black hover:bg-primary">2</Badge>
                                             Acompañantes
                                         </CardTitle>
                                         <CardDescription>
@@ -306,7 +306,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                                            className="border-[#D4AF37] text-[#D4AF37] hover:bg-primary/10"
                                             onClick={() => setIsAddingCompanion(true)}
                                         >
                                             <Plus className="h-4 w-4 mr-2" /> Agregar Otro
@@ -320,16 +320,16 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                 {companions.length > 0 && (
                                     <div className="grid grid-cols-1 gap-3 mb-6">
                                         {companions.map((comp, idx) => (
-                                            <div key={comp.id || idx} className="flex items-center justify-between p-3 rounded bg-[#0F0F0F] border border-[#333333]">
+                                            <div key={comp.id || idx} className="flex items-center justify-between p-3 rounded bg-background border border-border">
                                                 <div className="flex items-center gap-3">
                                                     <div className="h-8 w-8 rounded-full bg-[#333333] flex items-center justify-center">
-                                                        <User className="h-4 w-4 text-[#A3A3A3]" />
+                                                        <User className="h-4 w-4 text-muted-foreground" />
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-medium text-[#E5E5E5]">
+                                                        <p className="text-sm font-medium text-foreground">
                                                             {comp.primerNombre} {comp.primerApellido}
                                                         </p>
-                                                        <p className="text-xs text-[#A3A3A3]">
+                                                        <p className="text-xs text-muted-foreground">
                                                             {comp.tipoId}: {comp.numeroId}
                                                         </p>
                                                     </div>
@@ -349,13 +349,13 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
 
                                 {/* ESTADO VACÍO (Sin acompañantes y sin estar agregando) */}
                                 {companions.length === 0 && !isAddingCompanion && (
-                                    <div className="text-center py-10 border-2 border-dashed border-[#333333] rounded-lg bg-[#0F0F0F]">
+                                    <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background">
                                         <Users className="h-10 w-10 text-[#333333] mx-auto mb-3" />
-                                        <p className="text-[#A3A3A3] mb-4">No hay acompañantes registrados aún.</p>
+                                        <p className="text-muted-foreground mb-4">No hay acompañantes registrados aún.</p>
                                         <Button
                                             variant="outline"
                                             onClick={() => setIsAddingCompanion(true)}
-                                            className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10"
+                                            className="border-[#D4AF37] text-[#D4AF37] hover:bg-primary/10"
                                         >
                                             <Plus className="h-4 w-4 mr-2" />
                                             Agregar Acompañante
@@ -365,8 +365,8 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
 
                                 {/* FORMULARIO DE AGREGAR ACOMPAÑANTE */}
                                 {isAddingCompanion && (
-                                    <div className="border border-[#D4AF37]/30 rounded-lg p-4 bg-[#0F0F0F] animate-in slide-in-from-top-4">
-                                        <div className="flex justify-between items-center mb-4 border-b border-[#333333] pb-2">
+                                    <div className="border border-[#D4AF37]/30 rounded-lg p-4 bg-background animate-in slide-in-from-top-4">
+                                        <div className="flex justify-between items-center mb-4 border-b border-border pb-2">
                                             <h4 className="text-[#D4AF37] font-medium">Nuevo Acompañante</h4>
                                             <Button variant="ghost" size="sm" onClick={() => setIsAddingCompanion(false)}>
                                                 <X className="h-4 w-4" />
@@ -375,10 +375,10 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                         <form onSubmit={saveCompanion}>
                                             {renderFormFields(newCompanion, handleNewCompanionChange, true)}
                                             <div className="flex justify-end gap-2 mt-6">
-                                                <Button type="button" variant="ghost" onClick={() => setIsAddingCompanion(false)} className="text-[#A3A3A3]">
+                                                <Button type="button" variant="ghost" onClick={() => setIsAddingCompanion(false)} className="text-muted-foreground">
                                                     Cancelar
                                                 </Button>
-                                                <Button type="submit" className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90">
+                                                <Button type="submit" className="bg-primary text-black hover:bg-primary/90">
                                                     Guardar Acompañante
                                                 </Button>
                                             </div>
@@ -390,8 +390,8 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
 
                             {/* Footer de navegación */}
                             {!isAddingCompanion && (
-                                <CardFooter className="flex justify-between border-t border-[#333333] pt-6">
-                                    <Button variant="ghost" onClick={() => setStep(1)} className="text-[#A3A3A3] hover:text-white">
+                                <CardFooter className="flex justify-between border-t border-border pt-6">
+                                    <Button variant="ghost" onClick={() => setStep(1)} className="text-muted-foreground hover:text-white">
                                         Atrás (Editar Titular)
                                     </Button>
                                     <Button onClick={handleFinalize} className="bg-[#059669] text-white hover:bg-[#059669]/90 font-bold px-8">
@@ -405,18 +405,18 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
 
                 {/* --- PASO 3: ÉXITO --- */}
                 {step === 3 && (
-                    <Card className="bg-[#1A1A1A] border-[#333333] text-center py-12 shadow-2xl">
+                    <Card className="bg-card border-border text-center py-12 shadow-2xl">
                         <CardContent className="flex flex-col items-center">
                             <div className="h-24 w-24 bg-green-500/10 rounded-full flex items-center justify-center mb-6 animate-in zoom-in duration-300">
                                 <CheckCircle className="h-12 w-12 text-green-500" />
                             </div>
-                            <h2 className="text-3xl font-bold text-[#E5E5E5] mb-4">¡Registro Completado!</h2>
-                            <p className="text-[#A3A3A3] max-w-md mx-auto mb-8 leading-relaxed">
+                            <h2 className="text-3xl font-bold text-foreground mb-4">¡Registro Completado!</h2>
+                            <p className="text-muted-foreground max-w-md mx-auto mb-8 leading-relaxed">
                                 Sus datos y los de sus {companions.length} acompañante(s) han sido recibidos correctamente por el Hotel Zafiro.
                                 <br /><br />
                                 <span className="text-[#D4AF37] font-medium">¡Bienvenido!</span>
                             </p>
-                            <Button variant="outline" className="border-[#333333] text-[#A3A3A3]" onClick={() => window.close()}>
+                            <Button variant="outline" className="border-border text-muted-foreground" onClick={() => window.close()}>
                                 Cerrar Ventana
                             </Button>
                         </CardContent>

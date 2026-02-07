@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function ReservationGuestCard({ guest }: { guest: any }) {
     return (
-        <Card className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
+        <Card className="bg-card border-border text-foreground">
             <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-[#A3A3A3] uppercase tracking-wider">Titular Principal</CardTitle>
+                <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Titular Principal</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="flex items-center gap-4 mb-4">
@@ -15,20 +15,20 @@ export function ReservationGuestCard({ guest }: { guest: any }) {
                     </Avatar>
                     <div>
                         <h3 className="font-bold text-lg">{guest.name}</h3>
-                        <p className="text-xs text-[#A3A3A3]">{guest.nationality}</p>
+                        <p className="text-xs text-muted-foreground">{guest.nationality}</p>
                     </div>
                 </div>
                 <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                        <span className="text-[#A3A3A3]">Documento:</span>
+                        <span className="text-muted-foreground">Documento:</span>
                         <span>{guest.docType} {guest.docNumber}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-[#A3A3A3]">Teléfono:</span>
+                        <span className="text-muted-foreground">Teléfono:</span>
                         <span>{guest.phone}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span className="text-[#A3A3A3]">Email:</span>
+                        <span className="text-muted-foreground">Email:</span>
                         <span className="text-[#D4AF37] truncate max-w-[150px]">{guest.email}</span>
                     </div>
                 </div>

@@ -86,24 +86,24 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-[500px] bg-[#1A1A1A] border-[#333333] p-0 [&>button]:hidden">
-        <DialogHeader className="p-6 pb-4 border-b border-[#333333]">
+      <DialogContent className="sm:max-w-[500px] bg-card border-border p-0 [&>button]:hidden">
+        <DialogHeader className="p-6 pb-4 border-b border-border">
           <div className="flex items-center justify-between">
-            <DialogTitle className="font-[family-name:var(--font-heading)] text-2xl text-[#E5E5E5]">Cobrar</DialogTitle>
+            <DialogTitle className="font-[family-name:var(--font-heading)] text-2xl text-foreground">Cobrar</DialogTitle>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleClose}
-              className="h-8 w-8 text-[#A3A3A3] hover:text-[#E5E5E5] hover:bg-[#252525]"
+              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
           <div className="text-center pt-2">
-            <p className="text-[#A3A3A3]">Total a cobrar</p>
+            <p className="text-muted-foreground">Total a cobrar</p>
             {discountAmount > 0 ? (
               <>
-                <p className="text-lg text-[#A3A3A3] line-through">{formatCurrency(total)}</p>
+                <p className="text-lg text-muted-foreground line-through">{formatCurrency(total)}</p>
                 <p className="text-3xl font-bold text-[#D4AF37]">{formatCurrency(finalTotal)}</p>
                 <p className="text-sm text-[#059669]">Descuento: -{formatCurrency(discountAmount)}</p>
               </>
@@ -137,7 +137,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                               setShowDiscount(false)
                               setDiscountValue("")
                             }}
-                            className="h-6 w-6 p-0 text-[#A3A3A3] hover:text-[#E5E5E5]"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                         >
                           <X className="h-4 w-4"/>
                         </Button>
@@ -148,10 +148,10 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                             size="sm"
                             onClick={() => setDiscountType("percent")}
                             className={cn(
-                                "flex-1 border-[#333333]",
+                                "flex-1 border-border",
                                 discountType === "percent"
                                     ? "bg-[#059669]/20 text-[#059669] border-[#059669]"
-                                    : "text-[#A3A3A3] hover:text-[#E5E5E5] bg-transparent",
+                                    : "text-muted-foreground hover:text-foreground bg-transparent",
                             )}
                         >
                           <Percent className="h-4 w-4 mr-1"/>
@@ -162,10 +162,10 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                             size="sm"
                             onClick={() => setDiscountType("fixed")}
                             className={cn(
-                                "flex-1 border-[#333333]",
+                                "flex-1 border-border",
                                 discountType === "fixed"
                                     ? "bg-[#059669]/20 text-[#059669] border-[#059669]"
-                                    : "text-[#A3A3A3] hover:text-[#E5E5E5] bg-transparent",
+                                    : "text-muted-foreground hover:text-foreground bg-transparent",
                             )}
                         >
                           <DollarSign className="h-4 w-4 mr-1"/>
@@ -177,7 +177,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                           placeholder={discountType === "percent" ? "Ej: 10" : "Ej: 5000"}
                           value={discountValue}
                           onChange={(e) => setDiscountValue(e.target.value)}
-                          className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
+                          className="bg-background border-border text-foreground"
                       />
                     </div>
                 )}
@@ -185,46 +185,46 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                 <div className="grid grid-cols-3 gap-4">
                   <button
                       onClick={() => setPaymentMethod("cash")}
-                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] transition-all duration-300"
                   >
                     <Banknote className="h-8 w-8 text-[#059669] mb-2"/>
-                    <span className="text-sm font-medium text-[#E5E5E5]">Efectivo</span>
+                    <span className="text-sm font-medium text-foreground">Efectivo</span>
                   </button>
                   <button
                       onClick={() => setPaymentMethod("card")}
-                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] transition-all duration-300"
                   >
                     <CreditCard className="h-8 w-8 text-[#3B82F6] mb-2"/>
-                    <span className="text-sm font-medium text-[#E5E5E5]">Tarjeta</span>
+                    <span className="text-sm font-medium text-foreground">Tarjeta</span>
                   </button>
                   <button
                       onClick={() => setPaymentMethod("transfer")}
-                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                      className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] transition-all duration-300"
                   >
                     <Building2 className="h-8 w-8 text-[#8B5CF6] mb-2"/>
-                    <span className="text-sm font-medium text-[#E5E5E5]">Transferencia</span>
+                    <span className="text-sm font-medium text-foreground">Transferencia</span>
                   </button>
                 </div>
                 <button
                     onClick={() => setPaymentMethod("room")}
-                    className="w-full flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                    className="w-full flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] transition-all duration-300"
                 >
                   <BedDouble className="h-8 w-8 text-[#D4AF37] mb-2"/>
-                  <span className="text-sm font-medium text-[#E5E5E5]">Cargar a Habitación</span>
+                  <span className="text-sm font-medium text-foreground">Cargar a Habitación</span>
                 </button>
 
                 <button
                     onClick={() => setPaymentMethod("daypass")}
-                    className="w-full flex flex-col items-center justify-center h-28 rounded-xl border-2 border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300"
+                    className="w-full flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] transition-all duration-300"
                 >
                   <Users className="h-8 w-8 text-[#D4AF37] mb-2"/>
-                  <span className="text-sm font-medium text-[#E5E5E5]">Cargar a Pasadía</span>
+                  <span className="text-sm font-medium text-foreground">Cargar a Pasadía</span>
                 </button>
 
                 <Button
                     variant="outline"
                     onClick={handleClose}
-                    className="w-full mt-4 border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent transition-all duration-300"
+                    className="w-full mt-4 border-border text-foreground hover:bg-accent bg-transparent transition-all duration-300"
                 >
                   Cancelar
                 </Button>
@@ -235,18 +235,18 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                 <Button
                     variant="ghost"
                     onClick={() => setPaymentMethod(null)}
-                    className="text-[#A3A3A3] hover:text-[#E5E5E5] px-0"
+                    className="text-muted-foreground hover:text-foreground px-0"
                 >
                   ← Volver
                 </Button>
 
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A3A3A3]" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por número o huésped..."
                   value={roomSearch}
                   onChange={(e) => setRoomSearch(e.target.value)}
-                  className="pl-9 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
+                  className="pl-9 bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
                   autoFocus
                 />
               </div>
@@ -256,19 +256,19 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                   <button
                     key={room.number}
                     onClick={() => setSelectedRoom(room)}
-                    className="w-full flex items-center gap-3 p-4 rounded-lg border border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300 text-left"
+                    className="w-full flex items-center gap-3 p-4 rounded-lg border border-border bg-background hover:border-[#D4AF37] transition-all duration-300 text-left"
                   >
-                    <div className="h-12 w-12 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
                       <span className="text-lg font-bold text-[#D4AF37]">{room.number}</span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-[#E5E5E5]">{room.guest}</p>
-                      <p className="text-xs text-[#A3A3A3]">Habitación {room.number}</p>
+                      <p className="text-sm font-medium text-foreground">{room.guest}</p>
+                      <p className="text-xs text-muted-foreground">Habitación {room.number}</p>
                     </div>
                   </button>
                 ))}
                 {filteredRooms.length === 0 && (
-                  <p className="text-center text-[#A3A3A3] py-4">No se encontraron habitaciones</p>
+                  <p className="text-center text-muted-foreground py-4">No se encontraron habitaciones</p>
                 )}
               </div>
             </div>
@@ -277,18 +277,18 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                     <Button
                         variant="ghost"
                         onClick={() => setPaymentMethod(null)}
-                        className="text-[#A3A3A3] hover:text-[#E5E5E5] px-0"
+                        className="text-muted-foreground hover:text-foreground px-0"
                     >
                       ← Volver
                     </Button>
 
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A3A3A3]" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                           placeholder="Buscar pasadía o cliente externo..."
                           value={roomSearch} // Reutilizamos el estado de búsqueda
                           onChange={(e) => setRoomSearch(e.target.value)}
-                          className="pl-9 bg-[#0F0F0F] border-[#333333] text-[#E5E5E5] placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
+                          className="pl-9 bg-background border-border text-foreground placeholder:text-[#666666] focus:border-[#D4AF37] transition-all duration-300"
                           autoFocus
                       />
                     </div>
@@ -300,19 +300,19 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                               <button
                                   key={pasadia.id}
                                   onClick={() => setSelectedPasadia(pasadia)}
-                                  className="w-full flex items-center gap-3 p-4 rounded-lg border border-[#333333] bg-[#0F0F0F] hover:border-[#D4AF37] transition-all duration-300 text-left"
+                                  className="w-full flex items-center gap-3 p-4 rounded-lg border border-border bg-background hover:border-[#D4AF37] transition-all duration-300 text-left"
                               >
-                                <div className="h-12 w-12 rounded-lg bg-[#D4AF37]/10 flex items-center justify-center">
+                                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
                                   <Users className="h-6 w-6 text-[#D4AF37]" />
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium text-[#E5E5E5]">{pasadia.alias}</p>
-                                  <p className="text-xs text-[#A3A3A3]">{pasadia.description}</p>
+                                  <p className="text-sm font-medium text-foreground">{pasadia.alias}</p>
+                                  <p className="text-xs text-muted-foreground">{pasadia.description}</p>
                                 </div>
                               </button>
                           ))}
                       {availablePasadias.filter(p => p.alias.toLowerCase().includes(roomSearch.toLowerCase())).length === 0 && (
-                          <p className="text-center text-[#A3A3A3] py-4">No se encontraron folios externos</p>
+                          <p className="text-center text-muted-foreground py-4">No se encontraron folios externos</p>
                       )}
                     </div>
                   </div>
@@ -331,7 +331,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                   }
                 }
               }
-                className="text-[#A3A3A3] hover:text-[#E5E5E5] px-0"
+                className="text-muted-foreground hover:text-foreground px-0"
               >
                 ← Volver
               </Button>
@@ -340,40 +340,40 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                 {paymentMethod === "cash" && (
                   <>
                     <Banknote className="h-16 w-16 text-[#059669] mx-auto mb-4" />
-                    <p className="text-lg text-[#E5E5E5]">Pago en Efectivo</p>
-                    <p className="text-[#A3A3A3]">Confirme que recibió el pago</p>
+                    <p className="text-lg text-foreground">Pago en Efectivo</p>
+                    <p className="text-muted-foreground">Confirme que recibió el pago</p>
                   </>
                 )}
                 {paymentMethod === "card" && (
                   <>
                     <CreditCard className="h-16 w-16 text-[#3B82F6] mx-auto mb-4" />
-                    <p className="text-lg text-[#E5E5E5]">Pago con Tarjeta</p>
-                    <p className="text-[#A3A3A3]">Procese el pago en el datáfono</p>
+                    <p className="text-lg text-foreground">Pago con Tarjeta</p>
+                    <p className="text-muted-foreground">Procese el pago en el datáfono</p>
                   </>
                 )}
                 {paymentMethod === "transfer" && (
                   <>
                     <Building2 className="h-16 w-16 text-[#8B5CF6] mx-auto mb-4" />
-                    <p className="text-lg text-[#E5E5E5]">Pago por Transferencia</p>
-                    <p className="text-[#A3A3A3]">Verifique el comprobante de transferencia</p>
+                    <p className="text-lg text-foreground">Pago por Transferencia</p>
+                    <p className="text-muted-foreground">Verifique el comprobante de transferencia</p>
                   </>
                 )}
                 {paymentMethod === "room" && selectedRoom && (
                   <>
-                    <div className="h-16 w-16 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto mb-4">
+                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                       <span className="text-2xl font-bold text-[#D4AF37]">{selectedRoom.number}</span>
                     </div>
-                    <p className="text-lg text-[#E5E5E5]">Cargar a Habitación {selectedRoom.number}</p>
-                    <p className="text-[#A3A3A3]">{selectedRoom.guest}</p>
+                    <p className="text-lg text-foreground">Cargar a Habitación {selectedRoom.number}</p>
+                    <p className="text-muted-foreground">{selectedRoom.guest}</p>
                   </>
                 )}
                 {paymentMethod === "daypass" && selectedPasadia && (
                     <>
-                      <div className="h-16 w-16 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto mb-4">
+                      <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                         <Users className="h-8 w-8 text-[#D4AF37]" />
                       </div>
-                      <p className="text-lg text-[#E5E5E5]">Cargar a Pasadía</p>
-                      <p className="text-[#A3A3A3] font-medium">{selectedPasadia.alias}</p>
+                      <p className="text-lg text-foreground">Cargar a Pasadía</p>
+                      <p className="text-muted-foreground font-medium">{selectedPasadia.alias}</p>
                       <p className="text-xs text-[#666666]">{selectedPasadia.description}</p>
                     </>
                 )}
@@ -389,7 +389,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                       ? "bg-[#3B82F6] hover:bg-[#3B82F6]/90 text-white"
                       : paymentMethod === "transfer"
                         ? "bg-[#8B5CF6] hover:bg-[#8B5CF6]/90 text-white"
-                        : "bg-[#D4AF37] hover:bg-[#D4AF37]/90 text-[#0F0F0F]",
+                        : "bg-primary hover:bg-primary/90 text-[#0F0F0F]",
                 )}
               >
                 Confirmar {formatCurrency(finalTotal)}

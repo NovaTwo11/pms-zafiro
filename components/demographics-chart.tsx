@@ -11,14 +11,14 @@ const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload
         return (
-            <div className="rounded-lg border border-[#333333] bg-[#0F0F0F] p-2 shadow-xl">
+            <div className="rounded-lg border border-border bg-background p-2 shadow-xl">
                 <div className="flex items-center gap-2 text-xs">
                     <div
                         className="w-2 h-2 rounded-full"
                         style={{ backgroundColor: data.color }}
                     />
-                    <span className="text-[#A3A3A3]">{data.name}:</span>
-                    <span className="font-bold text-[#E5E5E5]">{data.value}%</span>
+                    <span className="text-muted-foreground">{data.name}:</span>
+                    <span className="font-bold text-foreground">{data.value}%</span>
                 </div>
             </div>
         )
@@ -28,8 +28,8 @@ const CustomTooltip = ({ active, payload }: any) => {
 
 export function DemographicsChart() {
     return (
-        <div className="rounded-lg border border-[#333333] bg-[#1A1A1A] p-6 h-[300px] flex flex-col">
-            <h3 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-[#E5E5E5] mb-2">
+        <div className="rounded-lg border border-border bg-card p-6 h-[300px] flex flex-col">
+            <h3 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-foreground mb-2">
                 Procedencia
             </h3>
 
@@ -62,8 +62,8 @@ export function DemographicsChart() {
 
                 {/* Texto central */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-8">
-                    <span className="text-3xl font-bold text-[#E5E5E5]">{data[0].value}%</span>
-                    <span className="text-[10px] text-[#A3A3A3] uppercase tracking-wider">Nacionales</span>
+                    <span className="text-3xl font-bold text-foreground">{data[0].value}%</span>
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Nacionales</span>
                 </div>
             </div>
         </div>
