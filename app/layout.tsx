@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter, Outfit, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -35,18 +36,25 @@ export const viewport: Viewport = {
 }
 
 export default function RootLayout({
-  children,
-}: Readonly<{
+                                     children,
+                                   }: Readonly<{
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es">
+      <html lang="es" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${outfit.variable} ${plusJakarta.variable} ${geistMono.variable} font-sans antialiased bg-[#0F0F0F]`}
+          className={`${inter.variable} ${outfit.variable} ${plusJakarta.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}
+      >
+      <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
       >
         {children}
         <Analytics />
+      </ThemeProvider>
       </body>
-    </html>
+      </html>
   )
 }

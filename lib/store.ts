@@ -1,5 +1,6 @@
 import { create } from "zustand"
 
+// --- SESSION STORE (Mantenemos tu lógica original) ---
 interface User {
   id: string
   name: string
@@ -14,6 +15,9 @@ interface SessionState {
   setUser: (user: User | null) => void
   openShift: () => void
   closeShift: () => void
+  // Agregué este helper por si lo necesitas en el futuro,
+  // pero con openShift/closeShift ya cubres la lógica.
+  setShiftOpen: (isOpen: boolean) => void
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
@@ -23,8 +27,10 @@ export const useSessionStore = create<SessionState>((set) => ({
   setUser: (user) => set({ user }),
   openShift: () => set({ isShiftOpen: true, shiftStartTime: new Date() }),
   closeShift: () => set({ isShiftOpen: false, shiftStartTime: null }),
+  setShiftOpen: (isOpen) => set({ isShiftOpen: isOpen }),
 }))
 
+// --- POS STORE (Mantenemos tu lógica original intacta) ---
 interface CartItem {
   id: string
   name: string
@@ -45,38 +51,39 @@ interface POSState {
 export const usePOSStore = create<POSState>((set, get) => ({
   items: [],
   addItem: (item) =>
-    set((state) => {
-      const existing = state.items.find((i) => i.id === item.id)
-      if (existing) {
-        return {
-          items: state.items.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)),
+      set((state) => {
+        const existing = state.items.find((i) => i.id === item.id)
+        if (existing) {
+          return {
+            items: state.items.map((i) => (i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i)),
+          }
         }
-      }
-      return { items: [...state.items, { ...item, quantity: 1 }] }
-    }),
+        return { items: [...state.items, { ...item, quantity: 1 }] }
+      }),
   removeItem: (id) =>
-    set((state) => ({
-      items: state.items.filter((i) => i.id !== id),
-    })),
+      set((state) => ({
+        items: state.items.filter((i) => i.id !== id),
+      })),
   updateQuantity: (id, quantity) =>
-    set((state) => ({
-      items:
-        quantity <= 0
-          ? state.items.filter((i) => i.id !== id)
-          : state.items.map((i) => (i.id === id ? { ...i, quantity } : i)),
-    })),
+      set((state) => ({
+        items:
+            quantity <= 0
+                ? state.items.filter((i) => i.id !== id)
+                : state.items.map((i) => (i.id === id ? { ...i, quantity } : i)),
+      })),
   clearCart: () => set({ items: [] }),
   total: () => get().items.reduce((sum, item) => sum + item.price * item.quantity, 0),
 }))
 
+// --- SIDEBAR STORE (Aquí está la corrección) ---
 interface SidebarState {
   isCollapsed: boolean
-  toggleCollapsed: () => void
+  toggleSidebar: () => void // CAMBIO: De toggleCollapsed a toggleSidebar
   setCollapsed: (collapsed: boolean) => void
 }
 
 export const useSidebarStore = create<SidebarState>((set) => ({
   isCollapsed: false,
-  toggleCollapsed: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
+  toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })), // CAMBIO: De toggleCollapsed a toggleSidebar
   setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
 }))

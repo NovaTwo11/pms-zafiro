@@ -3,8 +3,76 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Zafiro Dark Design System - Single dark theme */
+/* MODO CLARO (Default - Elegancia Luminosa) */
 :root {
+  /* Canvas & Surfaces - Tonos blancos y grises muy suaves */
+  --background: #fafafa;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+
+  /* Primary - Gold Accent (Mantenido) */
+  --primary: #d4af37;
+  --primary-foreground: #ffffff; /* Texto blanco sobre dorado para contraste en luz */
+
+  /* Secondary - Grises claros para elementos secundarios */
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+
+  /* Muted - Para textos secundarios y fondos desactivados */
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+
+  /* Accent - Para hovers y selecciones */
+  --accent: #f4f4f5;
+  --accent-foreground: #18181b;
+
+  /* Semantic Colors - Ajustados para fondo claro */
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --success: #10b981;
+  --success-foreground: #ffffff;
+  --info: #3b82f6;
+  --info-foreground: #ffffff;
+  --warning: #f59e0b;
+  --warning-foreground: #ffffff;
+
+  /* Borders & Input - Líneas sutiles */
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #d4af37;
+
+  /* Charts */
+  --chart-1: #d4af37;
+  --chart-2: #10b981;
+  --chart-3: #3b82f6;
+  --chart-4: #ef4444;
+  --chart-5: #71717a;
+
+  --radius: 0.5rem;
+
+  /* Sidebar - Blanco puro para limpieza visual */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #d4af37;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #1a1a1a;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #d4af37;
+
+  /* Zafiro Custom */
+  --zafiro-gold: #d4af37;
+  --zafiro-canvas: #fafafa;
+  --zafiro-surface: #ffffff;
+  --zafiro-text-primary: #1a1a1a;
+  --zafiro-text-secondary: #71717a;
+}
+
+/* MODO OSCURO (Tu configuración original preservada) */
+.dark {
   /* Canvas & Surfaces */
   --background: #0f0f0f;
   --foreground: #e5e5e5;
@@ -13,7 +81,7 @@
   --popover: #1a1a1a;
   --popover-foreground: #e5e5e5;
 
-  /* Primary - Gold Accent */
+  /* Primary */
   --primary: #d4af37;
   --primary-foreground: #0f0f0f;
 
@@ -51,8 +119,6 @@
   --chart-4: #cf6679;
   --chart-5: #a3a3a3;
 
-  --radius: 0.5rem;
-
   /* Sidebar */
   --sidebar: #1a1a1a;
   --sidebar-foreground: #e5e5e5;
@@ -72,11 +138,13 @@
 }
 
 @theme inline {
-  /* Updated font families to Outfit for headings (modern rounded tech style) */
+  /* Updated font families */
   --font-sans: "Inter", "Inter Fallback", sans-serif;
   --font-heading: "Outfit", "Outfit Fallback", sans-serif;
   --font-logo: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback", sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback", monospace;
+
+  /* Color mappings */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -107,10 +175,12 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -119,6 +189,7 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
   --color-zafiro-gold: var(--zafiro-gold);
   --color-zafiro-canvas: var(--zafiro-canvas);
   --color-zafiro-surface: var(--zafiro-surface);
@@ -129,11 +200,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors duration-300;
   }
 }
 
-/* Added login animations */
 @layer utilities {
   .transition-smooth {
     @apply transition-all duration-300 ease-out;
@@ -171,21 +241,20 @@
   }
 }
 
-/* Custom scrollbar for dark theme */
+/* Custom scrollbar adaptative */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #0f0f0f;
+  @apply bg-background;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #333333;
-  border-radius: 4px;
+  @apply bg-border rounded-[4px];
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #444444;
+  @apply bg-muted-foreground/50;
 }
