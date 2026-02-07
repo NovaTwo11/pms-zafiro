@@ -88,12 +88,12 @@ const floors: Floor[] = [
 
 // "Quemando" datos para Febrero 2026
 const initialReservations: Reservation[] = [
-  // --- PASADAS (Finales de Enero / Principios de Febrero) ---
+  // --- PASADAS ---
   {
     id: "hist1",
     guestName: "Juan Pérez",
     segments: [{ roomId: "101", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 1, 2) }],
-    status: "check_in_paid", // Ya salió (en historial sería checked_out, pero visualmente verde está bien)
+    status: "check_in_paid",
     totalValue: 750000,
     paidAmount: 750000,
   },
@@ -105,21 +105,20 @@ const initialReservations: Reservation[] = [
     totalValue: 660000,
     paidAmount: 660000,
   },
-
-  // --- ACTUALES (Huéspedes en casa alrededor del 7 de Feb) ---
+  // --- ACTUALES ---
   {
     id: "curr1",
     guestName: "Carlos Ruiz",
     segments: [{ roomId: "102", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 10) }],
-    status: "check_in_debt", // Rojo: Debe dinero
+    status: "check_in_debt",
     totalValue: 750000,
-    paidAmount: 300000, // Abonó parcial
+    paidAmount: 300000,
   },
   {
     id: "curr2",
     guestName: "Familia Gómez",
     segments: [{ roomId: "105", startDate: new Date(2026, 1, 6), endDate: new Date(2026, 1, 9) }],
-    status: "check_in_paid", // Verde: Todo pago
+    status: "check_in_paid",
     totalValue: 1050000,
     paidAmount: 1050000,
   },
@@ -135,17 +134,16 @@ const initialReservations: Reservation[] = [
     id: "curr4",
     guestName: "Grupo Empresarial",
     segments: [{ roomId: "304", startDate: new Date(2026, 1, 7), endDate: new Date(2026, 1, 12) }],
-    status: "check_in_debt", // Acaban de llegar
+    status: "check_in_debt",
     totalValue: 2000000,
     paidAmount: 0,
   },
-
-  // --- PRÓXIMAS (Futuras en Febrero) ---
+  // --- PRÓXIMAS ---
   {
     id: "fut1",
     guestName: "Roberto Díaz",
     segments: [{ roomId: "101", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 15) }],
-    status: "confirmed_deposit", // Azul
+    status: "confirmed_deposit",
     totalValue: 450000,
     paidAmount: 200000,
   },
@@ -153,7 +151,7 @@ const initialReservations: Reservation[] = [
     id: "fut2",
     guestName: "María Torres",
     segments: [{ roomId: "103", startDate: new Date(2026, 1, 14), endDate: new Date(2026, 1, 18) }],
-    status: "confirmed_no_deposit", // Naranja
+    status: "confirmed_no_deposit",
     totalValue: 880000,
     paidAmount: 0,
   },
@@ -167,13 +165,12 @@ const initialReservations: Reservation[] = [
     totalValue: 4000000,
     paidAmount: 1500000,
   },
-
   // --- BLOQUEOS ---
   {
     id: "blk1",
     guestName: "MANTENIMIENTO TV",
     segments: [{ roomId: "104", startDate: new Date(2026, 1, 6), endDate: new Date(2026, 1, 8) }],
-    status: "blocked", // Gris
+    status: "blocked",
     totalValue: 0,
     paidAmount: 0,
   },
@@ -194,43 +191,43 @@ const formatPriceShort = (price: number) => {
   return price.toString()
 }
 
+// CORREGIDO: Estilos adaptativos (Light/Dark)
 const getStatusStyles = (status: ReservationStatus) => {
   switch (status) {
     case "check_in_paid":
-      return "bg-emerald-500/15 border-l-4 border-l-emerald-500 text-emerald-100 hover:bg-emerald-500/25 ring-1 ring-emerald-500/20"
+      return "bg-emerald-100 text-emerald-800 border-l-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-l-emerald-500 border-l-4 hover:bg-emerald-200 dark:hover:bg-emerald-500/25 ring-1 ring-emerald-500/20"
     case "check_in_debt":
-      return "bg-rose-500/15 border-l-4 border-l-rose-500 text-rose-100 hover:bg-rose-500/25 ring-1 ring-rose-500/20"
+      return "bg-rose-100 text-rose-800 border-l-rose-600 dark:bg-rose-500/15 dark:text-rose-100 dark:border-l-rose-500 border-l-4 hover:bg-rose-200 dark:hover:bg-rose-500/25 ring-1 ring-rose-500/20"
     case "confirmed_deposit":
-      return "bg-blue-500/15 border-l-4 border-l-blue-500 text-blue-100 hover:bg-blue-500/25 ring-1 ring-blue-500/20"
+      return "bg-blue-100 text-blue-800 border-l-blue-600 dark:bg-blue-500/15 dark:text-blue-100 dark:border-l-blue-500 border-l-4 hover:bg-blue-200 dark:hover:bg-blue-500/25 ring-1 ring-blue-500/20"
     case "confirmed_no_deposit":
-      return "bg-orange-500/15 border-l-4 border-l-orange-500 text-orange-100 hover:bg-orange-500/25 ring-1 ring-orange-500/20"
+      return "bg-orange-100 text-orange-800 border-l-orange-600 dark:bg-orange-500/15 dark:text-orange-100 dark:border-l-orange-500 border-l-4 hover:bg-orange-200 dark:hover:bg-orange-500/25 ring-1 ring-orange-500/20"
     case "blocked":
-      return "bg-gray-700/40 border-l-4 border-l-gray-500 text-gray-400 hover:bg-gray-600/50 grayscale pattern-diagonal-lines"
+      return "bg-gray-200 text-gray-600 border-l-gray-500 dark:bg-gray-700/40 dark:text-gray-400 dark:border-l-gray-500 border-l-4 hover:bg-gray-300 dark:hover:bg-gray-600/50 grayscale pattern-diagonal-lines"
     default:
       return "bg-gray-500"
   }
 }
 
+// CORREGIDO: Colores de categoría legibles
 const getCategoryColor = (category: RoomCategory) => {
   switch (category) {
-    case "Estándar": return "text-blue-400 border-blue-400/20 bg-blue-400/5"
-    case "Superior": return "text-purple-400 border-purple-400/20 bg-purple-400/5"
-    case "Deluxe": return "text-amber-400 border-amber-400/20 bg-amber-400/5"
+    case "Estándar": return "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-400/20 dark:bg-blue-400/5"
+    case "Superior": return "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-400/20 dark:bg-purple-400/5"
+    case "Deluxe": return "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:border-amber-400/20 dark:bg-amber-400/5"
     case "Suite":
     case "Suite Junior":
-    case "Suite Presidencial": return "text-rose-400 border-rose-400/20 bg-rose-400/5"
+    case "Suite Presidencial": return "text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:border-rose-400/20 dark:bg-rose-400/5"
     default: return "text-gray-400"
   }
 }
 
 export function CronogramaContent() {
-  // Estado inicial: Fecha actual (Feb 7, 2026 según contexto)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>("month")
   const [selectedReservation, setSelectedReservation] = useState<string | null>(null)
   const [reservations, setReservations] = useState<Reservation[]>(initialReservations)
 
-  // DRAG AND DROP STATE
   const [draggedSegment, setDraggedSegment] = useState<{
     reservationId: string
     segmentIndex: number
@@ -238,14 +235,12 @@ export function CronogramaContent() {
   } | null>(null)
 
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({})
-
   const [checkinWizardData, setCheckinWizardData] = useState<{ isOpen: boolean; reservation: Reservation | null } | null>(null)
   const [newReservationModal, setNewReservationModal] = useState<{ isOpen: boolean; roomId: string; date: Date; type: "reservation" | "block" } | null>(null)
   const [rateModalOpen, setRateModalOpen] = useState(false)
 
   const gridRef = useRef<HTMLDivElement>(null)
 
-  // --- LÓGICA DE PRECIOS ---
   const getRoomPrice = (room: Room, date: Date) => {
     const key = `${room.id}-${format(date, "yyyy-MM-dd")}`
     return customPrices[key] || room.basePrice
@@ -266,20 +261,16 @@ export function CronogramaContent() {
     setCustomPrices(newCustomPrices)
   }
 
-  // --- LÓGICA DRAG & DROP ---
   const handleDragStart = (reservationId: string, segmentIndex: number, originalRoomId: string) => {
     setDraggedSegment({ reservationId, segmentIndex, originalRoomId })
   }
 
   const handleDrop = (targetRoomId: string) => {
     if (!draggedSegment) return
-
     setReservations((prev) =>
         prev.map((res) => {
           if (res.id === draggedSegment.reservationId) {
-            // Creamos una copia profunda de los segmentos para no mutar el estado directamente
             const newSegments = [...res.segments]
-            // Actualizamos solo el roomId del segmento arrastrado
             newSegments[draggedSegment.segmentIndex] = {
               ...newSegments[draggedSegment.segmentIndex],
               roomId: targetRoomId,
@@ -292,7 +283,6 @@ export function CronogramaContent() {
     setDraggedSegment(null)
   }
 
-  // --- NAVEGACIÓN ---
   const days = useMemo(() => {
     if (viewMode === "day") return [currentDate]
     if (viewMode === "week") {
@@ -308,7 +298,6 @@ export function CronogramaContent() {
   const navigateNext = () => setCurrentDate((d) => addDays(d, viewMode === "day" ? 1 : viewMode === "week" ? 7 : 30))
   const goToToday = () => setCurrentDate(new Date())
 
-  // --- POSICIONAMIENTO ---
   const getReservationStyle = (startDate: Date, endDate: Date) => {
     const startIndex = days.findIndex((d) => isSameDay(d, startDate))
     const endIndexRaw = days.findIndex((d) => isSameDay(d, endDate))
@@ -323,7 +312,6 @@ export function CronogramaContent() {
     return { width, left: actualStart, isHidden: false }
   }
 
-  // --- HANDLERS BASICOS ---
   const handleCheckIn = (reservationId: string) => {
     const res = reservations.find(r => r.id === reservationId)
     if (res) {
@@ -339,7 +327,8 @@ export function CronogramaContent() {
   }
 
   return (
-      <div className="space-y-4 h-full flex flex-col bg-[#09090b] text-foreground p-2">
+      // CORREGIDO: bg-background y text-foreground
+      <div className="space-y-4 h-full flex flex-col bg-background text-foreground p-2">
 
         {/* HEADER PRINCIPAL */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
@@ -352,14 +341,15 @@ export function CronogramaContent() {
             <Button
                 variant="outline"
                 size="sm"
-                className="border-[#333] bg-card text-foreground hover:bg-accent hover:text-[#D4AF37] transition-colors"
+                // CORREGIDO: colores de borde y hover
+                className="border-input bg-background text-foreground hover:bg-accent hover:text-amber-600 dark:hover:text-[#D4AF37] transition-colors"
                 onClick={() => setRateModalOpen(true)}
             >
               <DollarSign className="h-4 w-4 mr-2" />
               Tarifas
             </Button>
 
-            <div className="flex items-center rounded-lg border border-[#333] bg-card p-1">
+            <div className="flex items-center rounded-lg border border-input bg-card p-1">
               {(["day", "week", "month"] as ViewMode[]).map((mode) => (
                   <Button
                       key={mode}
@@ -368,7 +358,9 @@ export function CronogramaContent() {
                       onClick={() => setViewMode(mode)}
                       className={cn(
                           "h-7 px-3 text-xs capitalize transition-all",
-                          viewMode === mode ? "bg-primary text-black font-semibold shadow-sm" : "text-muted-foreground hover:text-white"
+                          viewMode === mode
+                              ? "bg-primary text-primary-foreground font-semibold shadow-sm"
+                              : "text-muted-foreground hover:text-foreground"
                       )}
                   >
                     {mode === "day" ? "Día" : mode === "week" ? "Semana" : "Mes"}
@@ -379,7 +371,8 @@ export function CronogramaContent() {
             <Button
                 size="sm"
                 onClick={() => setNewReservationModal({ isOpen: true, roomId: "", date: currentDate, type: "reservation" })}
-                className="bg-primary text-black hover:bg-[#c4a02e] font-medium"
+                // CORREGIDO: Hover dorado legible
+                className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
             >
               <Plus className="h-4 w-4 mr-1" /> Crear
             </Button>
@@ -387,31 +380,33 @@ export function CronogramaContent() {
         </div>
 
         {/* NAVEGACIÓN DE FECHAS */}
-        <div className="flex items-center justify-between shrink-0 bg-card p-2 rounded-md border border-[#333]">
-          <Button variant="ghost" size="icon" onClick={navigatePrevious} className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-[#333]">
+        {/* CORREGIDO: Clases semánticas */}
+        <div className="flex items-center justify-between shrink-0 bg-card p-2 rounded-md border border-border">
+          <Button variant="ghost" size="icon" onClick={navigatePrevious} className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent">
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <span className="text-sm font-bold text-foreground capitalize tracking-wide">
             {format(currentDate, "MMMM yyyy", { locale: es })}
         </span>
-          <Button variant="ghost" size="icon" onClick={navigateNext} className="h-8 w-8 text-muted-foreground hover:text-white hover:bg-[#333]">
+          <Button variant="ghost" size="icon" onClick={navigateNext} className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent">
             <ChevronRight className="h-4 w-4" />
           </Button>
-          <Button variant="link" size="sm" onClick={goToToday} className="text-[#D4AF37] text-xs h-8 ml-2">
+          <Button variant="link" size="sm" onClick={goToToday} className="text-amber-600 dark:text-[#D4AF37] text-xs h-8 ml-2">
             Hoy
           </Button>
         </div>
 
         {/* GRID DE RESERVAS */}
-        <div className="rounded-lg border border-[#333] bg-background flex-1 flex flex-col overflow-hidden shadow-2xl relative">
+        {/* CORREGIDO: bg-background y border-border */}
+        <div className="rounded-lg border border-border bg-background flex-1 flex flex-col overflow-hidden shadow-sm relative">
           <div ref={gridRef} className="flex-1 overflow-auto custom-scrollbar">
             <div className="min-w-max">
 
               {/* HEADER DE DÍAS */}
-              <div className="flex sticky top-0 z-20 bg-card shadow-md border-b border-[#333]">
-                <div className="w-[180px] shrink-0 border-r border-[#333] bg-card p-3 sticky left-0 z-30 flex items-center justify-between">
+              <div className="flex sticky top-0 z-20 bg-card shadow-sm border-b border-border">
+                <div className="w-[180px] shrink-0 border-r border-border bg-card p-3 sticky left-0 z-30 flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">Habitación</span>
-                  <span className="text-[10px] text-[#525252] font-mono">Tarifa Hoy</span>
+                  <span className="text-[10px] text-muted-foreground font-mono">Tarifa Hoy</span>
                 </div>
                 <div className="flex">
                   {days.map((day, idx) => {
@@ -420,15 +415,15 @@ export function CronogramaContent() {
                         <div
                             key={idx}
                             className={cn(
-                                "min-w-[48px] w-12 border-r border-[#333] py-2 text-center flex flex-col justify-center relative group",
+                                "min-w-[48px] w-12 border-r border-border/60 py-2 text-center flex flex-col justify-center relative group",
                                 isCurrent && "bg-primary/5"
                             )}
                         >
-                          <span className="text-[10px] text-[#737373] uppercase font-medium">{format(day, "EEE", { locale: es })}</span>
-                          <span className={cn("text-sm font-bold", isCurrent ? "text-[#D4AF37]" : "text-foreground")}>
+                          <span className="text-[10px] text-muted-foreground uppercase font-medium">{format(day, "EEE", { locale: es })}</span>
+                          <span className={cn("text-sm font-bold", isCurrent ? "text-amber-600 dark:text-[#D4AF37]" : "text-foreground")}>
                         {format(day, "d")}
                       </span>
-                          <div className="mt-1 h-[2px] w-3 mx-auto bg-[#333] group-hover:bg-primary transition-colors rounded-full" />
+                          <div className="mt-1 h-[2px] w-3 mx-auto bg-border group-hover:bg-primary transition-colors rounded-full" />
                         </div>
                     )
                   })}
@@ -440,8 +435,8 @@ export function CronogramaContent() {
                 {floors.map((floor) => (
                     <div key={floor.name}>
                       {/* Nombre Piso */}
-                      <div className="sticky left-0 w-full bg-[#151515] border-y border-[#333] px-4 py-1 z-10">
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#D4AF37]">{floor.name}</span>
+                      <div className="sticky left-0 w-full bg-secondary/80 dark:bg-muted/50 backdrop-blur-sm border-y border-border px-4 py-1 z-10">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-[#D4AF37]">{floor.name}</span>
                       </div>
 
                       {floor.rooms.map((room) => {
@@ -454,27 +449,27 @@ export function CronogramaContent() {
                         return (
                             <div
                                 key={room.id}
-                                // --- DROP ZONE LOGIC ---
                                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("bg-primary/10") }}
                                 onDragLeave={(e) => { e.currentTarget.classList.remove("bg-primary/10") }}
                                 onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("bg-primary/10"); handleDrop(room.id) }}
-                                className="flex border-b border-[#333]/50 h-[72px] relative hover:bg-accent/30 group transition-colors"
+                                // CORREGIDO: Bordes y Hover
+                                className="flex border-b border-border/50 h-[72px] relative hover:bg-accent/30 group transition-colors"
                             >
 
                               {/* COLUMNA INFO HABITACIÓN */}
-                              <div className="w-[180px] shrink-0 border-r border-[#333] px-4 flex flex-col justify-center sticky left-0 z-10 bg-background group-hover:bg-card transition-colors border-r-2 border-r-[#222]">
+                              <div className="w-[180px] shrink-0 border-r border-border px-4 flex flex-col justify-center sticky left-0 z-10 bg-background group-hover:bg-card transition-colors">
                                 <div className="flex items-center justify-between w-full mb-1">
                                   <span className="text-xl font-bold text-foreground">{room.number}</span>
-                                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 rounded-sm border-0", getCategoryColor(room.category))}>
+                                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 rounded-sm", getCategoryColor(room.category))}>
                                     {room.category}
                                   </Badge>
                                 </div>
                                 <div
-                                    className="flex items-center gap-1.5 cursor-pointer hover:bg-[#333] rounded px-1 -ml-1 py-0.5 transition-colors w-fit"
+                                    className="flex items-center gap-1.5 cursor-pointer hover:bg-accent rounded px-1 -ml-1 py-0.5 transition-colors w-fit"
                                     onClick={() => alert(`Gestionar tarifa habitación ${room.number}`)}
                                 >
                                   <span className="text-[10px] text-muted-foreground">Hoy:</span>
-                                  <span className="text-xs font-medium text-[#D4AF37]">${formatPriceShort(todayPrice)}</span>
+                                  <span className="text-xs font-medium text-amber-600 dark:text-[#D4AF37]">${formatPriceShort(todayPrice)}</span>
                                 </div>
                               </div>
 
@@ -486,11 +481,11 @@ export function CronogramaContent() {
                                         title={`Precio: $${getRoomPrice(room, day)}`}
                                         onClick={() => setNewReservationModal({ isOpen: true, roomId: room.id, date: day, type: "reservation" })}
                                         className={cn(
-                                            "min-w-[48px] w-12 border-r border-[#333]/30 cursor-pointer transition-all hover:bg-[#333]/40 flex items-end justify-center pb-1",
+                                            "min-w-[48px] w-12 border-r border-border/30 cursor-pointer transition-all hover:bg-accent/50 flex items-end justify-center pb-1",
                                             isToday(day) && "bg-primary/5"
                                         )}
                                     >
-                                <span className="text-[8px] text-[#555] opacity-0 group-hover:opacity-100 select-none transition-opacity">
+                                <span className="text-[8px] text-muted-foreground opacity-0 group-hover:opacity-100 select-none transition-opacity">
                                     {formatPriceShort(getRoomPrice(room, day))}
                                 </span>
                                     </div>
@@ -514,12 +509,10 @@ export function CronogramaContent() {
                                           onCancel={() => {}}
                                       >
                                         <div
-                                            // --- DRAG HANDLE LOGIC ---
                                             draggable
                                             onDragStart={() => handleDragStart(reservation.id, idx, segment.roomId)}
-                                            // -------------------------
                                             className={cn(
-                                                "absolute top-0 bottom-0 m-auto h-[90%] rounded-md shadow-md text-[10px] font-medium flex flex-col justify-center px-2 cursor-grab active:cursor-grabbing transition-all z-10 hover:z-20 hover:scale-[1.02] hover:shadow-lg backdrop-blur-sm overflow-hidden whitespace-nowrap",
+                                                "absolute top-0 bottom-0 m-auto h-[90%] rounded-md shadow-sm text-[10px] font-medium flex flex-col justify-center px-2 cursor-grab active:cursor-grabbing transition-all z-10 hover:z-20 hover:scale-[1.02] hover:shadow-md backdrop-blur-sm overflow-hidden whitespace-nowrap",
                                                 getStatusStyles(reservation.status)
                                             )}
                                             style={{
@@ -527,7 +520,7 @@ export function CronogramaContent() {
                                               width: `${style.width * 48}px`,
                                             }}
                                         >
-                                          <div className="flex items-center gap-1.5 font-bold tracking-tight text-white/90">
+                                          <div className="flex items-center gap-1.5 font-bold tracking-tight opacity-95">
                                             {reservation.status === "blocked" ? (
                                                 <><Lock className="h-3 w-3" /> <span>BLOQUEO</span></>
                                             ) : (
@@ -536,7 +529,7 @@ export function CronogramaContent() {
                                           </div>
 
                                           {style.width > 1 && reservation.status !== "blocked" && (
-                                              <div className="flex items-center justify-between opacity-80 mt-0.5 text-[9px] font-normal">
+                                              <div className="flex items-center justify-between opacity-85 mt-0.5 text-[9px] font-normal">
                                       <span>
                                         {reservation.paidAmount >= reservation.totalValue
                                             ? "Pagado"
@@ -560,7 +553,7 @@ export function CronogramaContent() {
         </div>
 
         {/* LEYENDA */}
-        <div className="flex flex-wrap items-center justify-center gap-6 text-xs bg-card py-3 px-6 rounded-full border border-[#333] w-fit mx-auto shadow-lg">
+        <div className="flex flex-wrap items-center justify-center gap-6 text-xs bg-card py-3 px-6 rounded-full border border-border w-fit mx-auto shadow-sm">
           {[
             { color: "bg-emerald-500", label: "Al día" },
             { color: "bg-rose-500", label: "Deuda" },
@@ -569,7 +562,7 @@ export function CronogramaContent() {
             { color: "bg-gray-500", label: "Bloqueado" },
           ].map((status) => (
               <div key={status.label} className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${status.color} shadow-[0_0_8px_rgba(0,0,0,0.5)]`}></div>
+                <div className={`w-2.5 h-2.5 rounded-full ${status.color}`}></div>
                 <span className="text-muted-foreground font-medium">{status.label}</span>
               </div>
           ))}
