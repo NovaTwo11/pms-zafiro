@@ -18,22 +18,25 @@ import {
   Scissors,
   Link2,
   Eye,
+  Send,     // Icono para Enviar Link
+  FileText  // Icono para Confirmación
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { toast } from "sonner" // Importamos toast para las notificaciones
 
 // Definimos la interfaz aquí o la importamos si la tienes centralizada
-// Ajusta esto según tus tipos reales en cronograma-content
 interface Reservation {
   id: string
+  code?: string // Agregamos code opcional para el link de check-in
   guestName: string
   guestId?: string
   status: string
   totalValue: number
   paidAmount: number
-  balance?: number // Opcional si lo calculas al vuelo
+  balance?: number
   segments: { roomId: string; startDate: Date; endDate: Date }[]
 }
 
@@ -57,7 +60,7 @@ interface ReservationPopoverProps {
   children: React.ReactNode
 }
 
-// Sample guest data (Mantenemos tu mock data para visualización)
+// Sample guest data
 const guestData: Record<string, { phone: string; email: string; document: string }> = {
   g1: { phone: "+57 300 123 4567", email: "garcia@email.com", document: "CC 123456789" },
   g2: { phone: "+57 301 234 5678", email: "martinez@email.com", document: "CC 987654321" },
@@ -88,7 +91,7 @@ export function ReservationPopover({
     switch (reservation.status) {
       case "check_in_paid":
       case "check_in_debt":
-      case "in-house": // Soporte legacy
+      case "in-house":
         return "En casa"
       case "checked-out":
         return "Finalizada"
@@ -115,7 +118,7 @@ export function ReservationPopover({
       case "blocked":
         return "text-gray-400 bg-gray-400/10"
       default:
-        return "text-[#059669] bg-[#059669]/10" // Verde para confirmadas
+        return "text-[#059669] bg-[#059669]/10"
     }
   }
 
@@ -129,9 +132,7 @@ export function ReservationPopover({
 
   const guest = reservation.guestId ? guestData[reservation.guestId] : null
 
-  // LÓGICA CORREGIDA PARA EL BOTÓN DE CHECK-IN
-  // Permitimos check-in si NO está ya en casa/finalizada/cancelada
-  // Y si el estado indica que es una reserva válida (confirmed_...)
+  // Lógica de estado
   const isCheckedIn = reservation.status.startsWith("check_in") || reservation.status === "in-house"
   const isCancelled = reservation.status === "cancelled"
   const isBlocked = reservation.status === "blocked"
@@ -148,6 +149,36 @@ export function ReservationPopover({
 
   const isSplitReservation = reservation.segments.length > 1
   const canMerge = isSplitReservation && segmentIndex > 0
+
+  // --- NUEVAS FUNCIONES DE ACCIÓN ---
+  const handleSendEmail = () => {
+    toast.promise(
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+        {
+          loading: 'Enviando detalles de la reserva por correo...',
+          success: `Correo enviado exitosamente a ${guest?.email || 'el cliente'}`,
+          error: 'Error al enviar el correo'
+        }
+    )
+  }
+
+  const handleSendCheckinLink = () => {
+    // Usamos el ID como fallback si no hay código, en producción usar el código real
+    const code = reservation.code || reservation.id
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const checkinLink = `${origin}/guest/check-in/${code}`
+
+    console.log("Link generado:", checkinLink)
+
+    toast.promise(
+        new Promise((resolve) => setTimeout(resolve, 1500)),
+        {
+          loading: 'Enviando link de Check-in al cliente...',
+          success: `Link de Check-in enviado a ${guest?.email || 'el cliente'}`,
+          error: 'Error al enviar el link'
+        }
+    )
+  }
 
   return (
       <Popover open={isOpen} onOpenChange={onOpenChange}>
@@ -194,9 +225,9 @@ export function ReservationPopover({
               <div className="flex items-center gap-3 text-sm">
                 <CalendarDays className="h-4 w-4 text-[#A3A3A3]" />
                 <span className="text-[#A3A3A3]">
-                {format(segment.startDate, "dd MMM", { locale: es })} -{" "}
+              {format(segment.startDate, "dd MMM", { locale: es })} -{" "}
                   {format(segment.endDate, "dd MMM", { locale: es })}
-              </span>
+            </span>
               </div>
 
               <div className="flex items-center gap-3 text-sm">
@@ -207,8 +238,8 @@ export function ReservationPopover({
               <div className="flex items-center gap-3 text-sm">
                 <CreditCard className="h-4 w-4 text-[#A3A3A3]" />
                 <span className={hasBalance ? "text-[#CF6679]" : "text-[#059669]"}>
-                {hasBalance ? `Pendiente: ${formatCurrency(balance)}` : "Pagado completo"}
-              </span>
+              {hasBalance ? `Pendiente: ${formatCurrency(balance)}` : "Pagado completo"}
+            </span>
               </div>
 
               {isSplitReservation && (
@@ -258,7 +289,31 @@ export function ReservationPopover({
             {/* Acciones Tab */}
             <TabsContent value="acciones" className="p-4 space-y-3 mt-0">
 
-              {/* Ver reserva completa Button */}
+              {/* --- NUEVAS ACCIONES: Correos --- */}
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <Button
+                    onClick={handleSendEmail}
+                    variant="outline"
+                    size="sm"
+                    className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent text-xs px-2"
+                >
+                  <FileText className="h-3 w-3 mr-1.5" />
+                  Enviar Info
+                </Button>
+                <Button
+                    onClick={handleSendCheckinLink}
+                    variant="outline"
+                    size="sm"
+                    className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent text-xs px-2"
+                >
+                  <Send className="h-3 w-3 mr-1.5" />
+                  Link Check-in
+                </Button>
+              </div>
+
+              <div className="h-px bg-[#333333] w-full my-2" />
+              {/* -------------------------------- */}
+
               <Link href={`/reservas/${reservation.id}`} className="block w-full">
                 <Button
                     className="w-full bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 transition-all font-bold"
@@ -268,7 +323,6 @@ export function ReservationPopover({
                 </Button>
               </Link>
 
-              {/* Check-in Button */}
               <Button
                   onClick={onCheckIn}
                   disabled={!canCheckIn}
@@ -278,7 +332,6 @@ export function ReservationPopover({
                 Check-in
               </Button>
 
-              {/* Check-out Button with Balance Warning */}
               <div className="space-y-1">
                 <Button
                     onClick={onCheckOut}
@@ -319,7 +372,6 @@ export function ReservationPopover({
                 )}
               </div>
 
-              {/* Cancel Button */}
               <Button
                   onClick={onCancel}
                   disabled={isCheckedIn || isCancelled}

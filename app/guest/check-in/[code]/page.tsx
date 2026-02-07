@@ -1,11 +1,18 @@
+import { Metadata } from "next"
 import { GuestCheckInContent } from "@/components/guest-checkin-content"
 
-interface PageProps {
-    params: {
-        code: string
-    }
+export const metadata: Metadata = {
+    title: "Check-in Online | Hotel Zafiro",
+    description: "Portal de registro de huéspedes",
 }
 
-export default function GuestCheckInPage({ params }: PageProps) {
-    return <GuestCheckInContent reservationCode={params.code} />
+interface PageProps {
+    params: Promise<{ code: string }>
+}
+
+export default async function GuestCheckInPage({ params }: PageProps) {
+    // Manejo de params asíncronos para Next.js 15+
+    const { code } = await params
+
+    return <GuestCheckInContent reservationCode={code} />
 }
