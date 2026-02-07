@@ -2,29 +2,39 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
 import {
   X, ChevronRight, ChevronLeft, User, Users,
   PenTool, Plus, Trash2, Check, AlertTriangle,
-  CreditCard, Plane
+  CreditCard, DollarSign, Wallet
 } from "lucide-react"
 
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 
 // --- INTERFACES ---
-interface Companion {
+interface GuestFormData {
   id: string
-  name: string
-  document: string
-  birthDate: string
+  nacionalidad: string
+  tipoId: string
+  numeroId: string
+  fechaCumpleanos: string
+  primerNombre: string
+  primerApellido: string
+  segundoNombre?: string
+  segundoApellido?: string
+  genero: string
+  telefono: string
+  correo?: string
+  ocupacion?: string
+  direccion?: string
+  ciudadOrigen?: string
+  ciudadDestino?: string
 }
 
 interface CheckinWizardProps {
@@ -36,85 +46,130 @@ interface CheckinWizardProps {
     roomNumber: string
     checkIn: Date
     checkOut: Date
-    totalAmount: number // Nuevo: Requerido para validación
-    paidAmount: number  // Nuevo: Requerido para validación
+    totalAmount: number
+    paidAmount: number
   }
   onComplete: (data: {
-    mainGuest: Record<string, string>
-    companions: Companion[]
+    mainGuest: GuestFormData
+    companions: GuestFormData[]
     signature: string
+    legalAccepted: boolean
+    newPaidAmount: number
   }) => void
 }
 
-const countries = [
-  "Colombia", "Argentina", "Brasil", "Chile", "Ecuador",
-  "Estados Unidos", "España", "Francia", "Alemania", "Italia", "México", "Perú", "Venezuela"
-]
-
+const countries = ["Colombia", "Estados Unidos", "España", "México", "Argentina", "Brasil", "Chile", "Perú", "Ecuador", "Venezuela"]
 const documentTypes = [
-  { value: "cc", label: "Cédula de Ciudadanía" },
-  { value: "ce", label: "Cédula de Extranjería" },
-  { value: "passport", label: "Pasaporte" },
-  { value: "ti", label: "Tarjeta de Identidad" },
+  { value: "CC", label: "Cédula de Ciudadanía" },
+  { value: "CE", label: "Cédula de Extranjería" },
+  { value: "PA", label: "Pasaporte" },
+  { value: "TI", label: "Tarjeta de Identidad" },
+  { value: "RC", label: "Registro Civil" },
 ]
-
-const occupations = ["Empleado", "Independiente", "Empresario", "Estudiante", "Jubilado", "Otro"]
+const occupations = ["Empleado", "Independiente", "Empresario", "Estudiante", "Jubilado", "Turista", "Otro"]
 
 export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: CheckinWizardProps) {
-  // --- CÁLCULOS FINANCIEROS ---
-  const pendingAmount = reservation.totalAmount - reservation.paidAmount
+  // --- ESTADOS FINANCIEROS ---
+  const [localPaidAmount, setLocalPaidAmount] = useState(reservation.paidAmount)
+  const pendingAmount = reservation.totalAmount - localPaidAmount
   const hasDebt = pendingAmount > 0
 
-  // Si hay deuda, iniciamos en el paso 0 (Validación), si no, en el 1 (Huésped)
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
+  const [paymentAmount, setPaymentAmount] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("efectivo")
+
+  // --- ESTADOS DEL WIZARD ---
   const [currentStep, setCurrentStep] = useState(hasDebt ? 0 : 1)
 
-  const [mainGuest, setMainGuest] = useState({
-    nationality: "Colombia", // Default
-    documentType: "",
-    documentNumber: "",
-    birthDate: "",
-    firstName: "",
-    lastName1: "",
-    lastName2: "",
-    gender: "",
-    phone: "",
-    email: "",
-    occupation: "",
-    address: "",
-    originCity: "",
-    destinationCity: "",
+  const [mainGuest, setMainGuest] = useState<GuestFormData>({
+    id: "main",
+    nacionalidad: "Colombia",
+    tipoId: "CC",
+    numeroId: "",
+    fechaCumpleanos: "",
+    primerNombre: "",
+    primerApellido: "",
+    segundoNombre: "",
+    segundoApellido: "",
+    genero: "",
+    telefono: "",
+    correo: "",
+    ocupacion: "",
+    direccion: "",
+    ciudadOrigen: "",
+    ciudadDestino: ""
   })
 
-  const [companions, setCompanions] = useState<Companion[]>([])
+  const [companions, setCompanions] = useState<GuestFormData[]>([])
   const [signature, setSignature] = useState<string>("")
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [dataPolicyAccepted, setDataPolicyAccepted] = useState(false)
 
-  // Detectar Extranjero
-  const isForeigner = mainGuest.nationality !== "Colombia"
-
-  // Signature canvas
+  // Canvas refs
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
 
   // --- VALIDACIONES ---
-  const isStep1Valid = () => {
+  const isMainGuestValid = () => {
     return (
-        mainGuest.nationality &&
-        mainGuest.documentType &&
-        mainGuest.documentNumber &&
-        mainGuest.birthDate &&
-        mainGuest.firstName &&
-        mainGuest.lastName1 &&
-        mainGuest.gender &&
-        mainGuest.phone &&
-        mainGuest.email &&
-        mainGuest.occupation &&
-        mainGuest.address &&
-        mainGuest.originCity &&
-        mainGuest.destinationCity
+        mainGuest.nacionalidad &&
+        mainGuest.tipoId &&
+        mainGuest.numeroId &&
+        mainGuest.fechaCumpleanos &&
+        mainGuest.primerNombre &&
+        mainGuest.primerApellido &&
+        mainGuest.genero &&
+        mainGuest.telefono &&
+        mainGuest.correo &&
+        mainGuest.ocupacion &&
+        mainGuest.direccion &&
+        mainGuest.ciudadOrigen &&
+        mainGuest.ciudadDestino
     )
   }
 
-  const isStep3Valid = () => signature.length > 0
+  const areCompanionsValid = () => {
+    if (companions.length === 0) return true;
+    return companions.every(c =>
+        c.nacionalidad && c.tipoId && c.numeroId && c.fechaCumpleanos &&
+        c.primerNombre && c.primerApellido && c.genero && c.telefono
+    )
+  }
+
+  const isStep3Valid = () => signature.length > 0 && termsAccepted && dataPolicyAccepted
+
+  // --- HANDLERS ---
+  const handleOpenPayment = () => {
+    setPaymentAmount(pendingAmount.toString())
+    setIsPaymentModalOpen(true)
+  }
+
+  const handleRegisterPayment = () => {
+    const amount = parseFloat(paymentAmount)
+    if (isNaN(amount) || amount <= 0) return
+    const newPaid = localPaidAmount + amount
+    setLocalPaidAmount(newPaid)
+    setIsPaymentModalOpen(false)
+    if (reservation.totalAmount - newPaid <= 0) setCurrentStep(1)
+  }
+
+  const addCompanion = () => {
+    setCompanions([...companions, {
+      id: Date.now().toString(),
+      nacionalidad: "Colombia",
+      tipoId: "CC",
+      numeroId: "",
+      fechaCumpleanos: "",
+      primerNombre: "",
+      primerApellido: "",
+      genero: "",
+      telefono: ""
+    }])
+  }
+
+  const updateCompanion = (id: string, field: keyof GuestFormData, value: string) => {
+    setCompanions(companions.map((c) => (c.id === id ? { ...c, [field]: value } : c)))
+  }
 
   // --- CANVAS HANDLERS ---
   useEffect(() => {
@@ -122,48 +177,44 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
       const canvas = canvasRef.current
       const ctx = canvas.getContext("2d")
       if (ctx) {
-        ctx.fillStyle = "#0F0F0F" // Fondo negro para coincidir con el tema
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
-        ctx.strokeStyle = "#D4AF37" // Color dorado para la firma
-        ctx.lineWidth = 2
-        ctx.lineCap = "round"
+        ctx.fillStyle = "#0F0F0F"; ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.strokeStyle = "#D4AF37"; ctx.lineWidth = 3; ctx.lineCap = "round" // LineWidth aumentado a 3 para mejor visibilidad
       }
     }
   }, [currentStep])
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+  const startDrawing = (e: any) => {
     setIsDrawing(true)
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
+    const canvas = canvasRef.current; if (!canvas) return
+    const ctx = canvas.getContext("2d"); if (!ctx) return
     const rect = canvas.getBoundingClientRect()
-    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
-    ctx.beginPath()
-    ctx.moveTo(x, y)
+    // Ajuste de escala por si el canvas visual no coincide con los píxeles internos
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+
+    const x = ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) * scaleX
+    const y = ((e.touches ? e.touches[0].clientY : e.clientY) - rect.top) * scaleY
+
+    ctx.beginPath(); ctx.moveTo(x, y)
   }
 
-  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+  const draw = (e: any) => {
     if (!isDrawing) return
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
+    const canvas = canvasRef.current; if (!canvas) return
+    const ctx = canvas.getContext("2d"); if (!ctx) return
     const rect = canvas.getBoundingClientRect()
-    const x = "touches" in e ? e.touches[0].clientX - rect.left : e.clientX - rect.left
-    const y = "touches" in e ? e.touches[0].clientY - rect.top : e.clientY - rect.top
-    ctx.lineTo(x, y)
-    ctx.stroke()
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+
+    const x = ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) * scaleX
+    const y = ((e.touches ? e.touches[0].clientY : e.clientY) - rect.top) * scaleY
+
+    ctx.lineTo(x, y); ctx.stroke()
   }
 
   const stopDrawing = () => {
     setIsDrawing(false)
-    if (canvasRef.current) {
-      setSignature(canvasRef.current.toDataURL())
-    }
+    if (canvasRef.current) setSignature(canvasRef.current.toDataURL())
   }
 
   const clearSignature = () => {
@@ -171,343 +222,158 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    ctx.fillStyle = "#0F0F0F"
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = "#0F0F0F"; ctx.fillRect(0, 0, canvas.width, canvas.height)
     setSignature("")
   }
 
-  // --- COMPANION HANDLERS ---
-  const addCompanion = () => {
-    setCompanions([...companions, { id: Date.now().toString(), name: "", document: "", birthDate: "" }])
-  }
-
-  const updateCompanion = (id: string, field: keyof Companion, value: string) => {
-    setCompanions(companions.map((c) => (c.id === id ? { ...c, [field]: value } : c)))
-  }
-
-  const removeCompanion = (id: string) => {
-    setCompanions(companions.filter((c) => c.id !== id))
-  }
-
   const handleComplete = () => {
-    onComplete({ mainGuest, companions, signature })
+    onComplete({ mainGuest, companions, signature, legalAccepted: true, newPaidAmount: localPaidAmount })
   }
 
-  // Definición de pasos (incluyendo el paso 0 de validación si aplica)
   const steps = [
-    { number: 0, title: "Validación", icon: CreditCard, hidden: !hasDebt },
-    { number: 1, title: "Huésped Principal", icon: User, hidden: false },
+    { number: 0, title: "Pagos", icon: CreditCard, hidden: !hasDebt },
+    { number: 1, title: "Titular", icon: User, hidden: false },
     { number: 2, title: "Acompañantes", icon: Users, hidden: false },
-    { number: 3, title: "Firma Digital", icon: PenTool, hidden: false },
+    { number: 3, title: "Firma", icon: PenTool, hidden: false },
   ].filter(s => !s.hidden)
 
   return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden bg-[#0F0F0F] border-[#333333] p-0 flex flex-col">
+        {/* MODIFICACIÓN: Ancho aumentado a max-w-[90vw] y altura máxima relajada */}
+        <DialogContent className="w-full max-w-[95vw] lg:max-w-7xl h-[95vh] flex flex-col p-0 bg-[#0F0F0F] border-[#333333] shadow-2xl">
+
           {/* Header */}
-          <div className="p-6 border-b border-[#333333] shrink-0">
-            <div className="flex items-center justify-between">
+          <div className="bg-[#141414] px-8 py-6 border-b border-[#333333] shrink-0">
+            <div className="flex justify-between items-start mb-6">
               <div>
-                <h2 className="font-[family-name:var(--font-heading)] text-2xl font-bold text-[#E5E5E5] flex items-center gap-2">
-                  Check-in Wizard
-                  {isForeigner && (
-                      <Badge variant="destructive" className="ml-2 bg-blue-900/50 text-blue-200 border-blue-700 hover:bg-blue-900/50">
-                        <Plane className="h-3 w-3 mr-1"/> Extranjero
-                      </Badge>
-                  )}
-                </h2>
-                <p className="text-sm text-[#A3A3A3] mt-1">
-                  Hab. {reservation.roomNumber} - {reservation.guestName} |
-                  {format(reservation.checkIn, " dd MMM", { locale: es })} -
-                  {format(reservation.checkOut, " dd MMM yyyy", { locale: es })}
-                </p>
+                <h2 className="text-3xl font-bold text-[#E5E5E5] font-[family-name:var(--font-heading)]">Check-in Digital</h2>
+                <p className="text-[#A3A3A3] text-lg">Habitación {reservation.roomNumber} • {reservation.guestName}</p>
               </div>
-              <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClose}
-                  className="text-[#A3A3A3] hover:text-[#E5E5E5] hover:bg-[#252525]"
-              >
-                <X className="h-5 w-5" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={onClose} className="h-10 w-10"><X className="h-6 w-6 text-[#A3A3A3]"/></Button>
             </div>
 
-            {/* Stepper Visual */}
-            <div className="flex items-center justify-center mt-6 gap-4">
+            {/* Stepper Ampliado */}
+            <div className="flex items-center justify-center gap-4">
               {steps.map((step, idx) => {
-                const Icon = step.icon
                 const isActive = currentStep === step.number
                 const isCompleted = currentStep > step.number
-
                 return (
                     <div key={step.number} className="flex items-center">
-                      <div className="flex items-center gap-2">
-                        <div
-                            className={cn(
-                                "h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300 border",
-                                isActive
-                                    ? "bg-[#D4AF37] text-[#0F0F0F] border-[#D4AF37]"
-                                    : isCompleted
-                                        ? "bg-[#059669] text-white border-[#059669]"
-                                        : "bg-[#1A1A1A] text-[#A3A3A3] border-[#333333]",
-                            )}
-                        >
-                          {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
-                        </div>
-                        <span
-                            className={cn(
-                                "text-sm font-medium hidden sm:block",
-                                isActive ? "text-[#D4AF37]" : isCompleted ? "text-[#059669]" : "text-[#A3A3A3]",
-                            )}
-                        >
-                      {step.title}
-                    </span>
+                      <div className={cn("flex items-center gap-3 px-6 py-2 rounded-full border transition-all",
+                          isActive ? "bg-[#D4AF37]/10 border-[#D4AF37] text-[#D4AF37]" :
+                              isCompleted ? "bg-[#059669]/10 border-[#059669] text-[#059669]" : "border-transparent text-[#555]")}>
+                        <step.icon className="h-5 w-5" />
+                        <span className="text-base font-medium">{step.title}</span>
                       </div>
-                      {idx < steps.length - 1 && (
-                          <div
-                              className={cn("w-8 sm:w-12 h-0.5 mx-2", currentStep > step.number ? "bg-[#059669]" : "bg-[#333333]")}
-                          />
-                      )}
+                      {idx < steps.length - 1 && <div className="w-12 h-px bg-[#333333]" />}
                     </div>
                 )
               })}
             </div>
           </div>
 
-          {/* Content Scrollable */}
-          <div className="p-6 overflow-y-auto flex-1">
+          {/* Body */}
+          <div className="px-8 py-8 overflow-y-auto flex-1 bg-[#0F0F0F]">
 
-            {/* PASO 0: VALIDACIÓN FINANCIERA (DEUDA PENDIENTE) */}
+            {/* PASO 0: DEUDA */}
             {currentStep === 0 && (
-                <div className="flex flex-col items-center justify-center h-full space-y-6 text-center py-8">
-                  <div className="h-20 w-20 rounded-full bg-red-900/20 flex items-center justify-center border-2 border-red-900/50 animate-pulse">
-                    <AlertTriangle className="h-10 w-10 text-red-500" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-bold text-[#E5E5E5]">Pago Pendiente Detectado</h3>
-                    <p className="text-[#A3A3A3] max-w-md mx-auto">
-                      Para completar el Check-in, la reserva debe estar pagada al 100%.
-                      Actualmente el sistema detecta un saldo pendiente.
-                    </p>
+                <div className="flex flex-col items-center justify-center h-full space-y-8">
+                  <div className="text-center space-y-4">
+                    <Badge variant="outline" className="text-red-400 border-red-900 bg-red-900/10 px-6 py-2 text-lg rounded-full">
+                      <AlertTriangle className="h-5 w-5 mr-2" /> Saldo Pendiente Requerido
+                    </Badge>
+                    <div className="py-4">
+                      <h3 className="text-5xl font-bold text-[#E5E5E5]">${pendingAmount.toLocaleString()}</h3>
+                      <p className="text-[#A3A3A3] mt-2 text-lg">Debe saldar la cuenta para habilitar el Check-in.</p>
+                    </div>
                   </div>
 
-                  <div className="w-full max-w-sm bg-[#1A1A1A] p-6 rounded-lg border border-[#333333] shadow-lg">
-                    <div className="flex justify-between mb-3 text-sm">
-                      <span className="text-[#A3A3A3]">Valor Total Reserva</span>
-                      <span className="text-[#E5E5E5] font-medium">${reservation.totalAmount.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between mb-3 text-sm">
-                      <span className="text-[#A3A3A3]">Pagado a la fecha</span>
-                      <span className="text-green-500 font-medium">${reservation.paidAmount.toLocaleString()}</span>
-                    </div>
-                    <div className="border-t border-[#333333] my-3 pt-3 flex justify-between font-bold text-lg">
-                      <span className="text-red-400">Saldo Pendiente</span>
-                      <span className="text-red-500">${pendingAmount.toLocaleString()}</span>
-                    </div>
-
-                    <Button
-                        className="w-full mt-4 bg-[#E5E5E5] text-black hover:bg-white font-semibold"
-                        onClick={() => alert("Aquí se abriría el modal de 'Registrar Nuevo Pago'")}
-                    >
-                      <CreditCard className="h-4 w-4 mr-2"/> Registrar Pago Ahora
+                  <div className="w-full max-w-md bg-[#1A1A1A] p-8 rounded-2xl border border-[#333333] space-y-6 shadow-xl">
+                    <div className="flex justify-between text-base"><span className="text-[#777]">Total Reserva</span> <span className="text-[#E5E5E5] font-medium">${reservation.totalAmount.toLocaleString()}</span></div>
+                    <div className="flex justify-between text-base"><span className="text-[#777]">Abonado</span> <span className="text-green-500 font-medium">${localPaidAmount.toLocaleString()}</span></div>
+                    <Button className="w-full h-12 text-lg bg-[#E5E5E5] text-black hover:bg-white font-bold mt-2" onClick={handleOpenPayment}>
+                      <Wallet className="h-5 w-5 mr-2" /> Registrar Pago Ahora
                     </Button>
                   </div>
-
-                  <p className="text-xs text-[#555] max-w-xs">
-                    Nota: No se podrá avanzar al registro de huéspedes hasta que el saldo sea $0.
-                  </p>
                 </div>
             )}
 
-            {/* PASO 1: HUÉSPED PRINCIPAL */}
+            {/* PASO 1: TITULAR */}
             {currentStep === 1 && (
-                <div className="space-y-6">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-[family-name:var(--font-heading)] text-lg text-[#E5E5E5]">
-                      Datos del Huésped Principal
-                    </h3>
-                  </div>
+                <div className="space-y-8 max-w-6xl mx-auto">
+                  <h3 className="text-xl font-bold text-[#D4AF37] border-b border-[#333333] pb-4">Información del Titular</h3>
+                  {/* Grid de 4 columnas en pantallas grandes para aprovechar el ancho */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
 
-                  {/* Alerta de Extranjería */}
-                  {isForeigner && (
-                      <Alert className="bg-blue-900/10 border-blue-800 mb-4">
-                        <Plane className="h-4 w-4 text-blue-400" />
-                        <AlertTitle className="text-blue-400 ml-2">Huésped Extranjero</AlertTitle>
-                        <AlertDescription className="text-blue-300/80 ml-2 text-xs">
-                          Recuerde solicitar el pasaporte físico y verificar el sello de ingreso o tarjeta migratoria vigente para el reporte SIRE.
-                        </AlertDescription>
-                      </Alert>
-                  )}
+                    {/* Grupo Identificación */}
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Nacionalidad *</Label>
+                      <Select value={mainGuest.nacionalidad} onValueChange={v => setMainGuest({...mainGuest, nacionalidad: v})}>
+                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">{countries.map(c => <SelectItem key={c} value={c} className="text-[#E5E5E5] focus:bg-[#252525]">{c}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Tipo ID *</Label>
+                      <Select value={mainGuest.tipoId} onValueChange={v => setMainGuest({...mainGuest, tipoId: v})}>
+                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">{documentTypes.map(d => <SelectItem key={d.value} value={d.value} className="text-[#E5E5E5] focus:bg-[#252525]">{d.label}</SelectItem>)}</SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 xl:col-span-2"><Label className="text-[#A3A3A3]">Número ID *</Label>
+                      <Input value={mainGuest.numeroId} onChange={e => setMainGuest({...mainGuest, numeroId: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Nacionalidad *</Label>
-                      <Select
-                          value={mainGuest.nationality}
-                          onValueChange={(v) => setMainGuest({ ...mainGuest, nationality: v })}
-                      >
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
+                    {/* Grupo Nombre */}
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Primer Nombre *</Label>
+                      <Input value={mainGuest.primerNombre} onChange={e => setMainGuest({...mainGuest, primerNombre: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Segundo Nombre</Label>
+                      <Input value={mainGuest.segundoNombre} onChange={e => setMainGuest({...mainGuest, segundoNombre: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Primer Apellido *</Label>
+                      <Input value={mainGuest.primerApellido} onChange={e => setMainGuest({...mainGuest, primerApellido: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Segundo Apellido</Label>
+                      <Input value={mainGuest.segundoApellido} onChange={e => setMainGuest({...mainGuest, segundoApellido: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+
+                    {/* Grupo Demográfico */}
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Fecha Nacimiento *</Label>
+                      <Input type="date" value={mainGuest.fechaCumpleanos} onChange={e => setMainGuest({...mainGuest, fechaCumpleanos: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11 dark:[color-scheme:dark]"/>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Género *</Label>
+                      <Select value={mainGuest.genero} onValueChange={v => setMainGuest({...mainGuest, genero: v})}>
+                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue placeholder="Seleccione"/></SelectTrigger>
                         <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                          {countries.map((c) => (
-                              <SelectItem key={c} value={c} className="text-[#E5E5E5] focus:bg-[#252525]">
-                                {c}
-                              </SelectItem>
-                          ))}
+                          <SelectItem value="M" className="text-[#E5E5E5] focus:bg-[#252525]">Masculino</SelectItem>
+                          <SelectItem value="F" className="text-[#E5E5E5] focus:bg-[#252525]">Femenino</SelectItem>
+                          <SelectItem value="O" className="text-[#E5E5E5] focus:bg-[#252525]">Otro</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="space-y-2"><Label className="text-[#A3A3A3]">Teléfono *</Label>
+                      <Input type="tel" value={mainGuest.telefono} onChange={e => setMainGuest({...mainGuest, telefono: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#D4AF37]">Correo Electrónico *</Label>
+                      <Input type="email" value={mainGuest.correo} onChange={e => setMainGuest({...mainGuest, correo: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Tipo de Documento *</Label>
-                      <Select
-                          value={mainGuest.documentType}
-                          onValueChange={(v) => setMainGuest({ ...mainGuest, documentType: v })}
-                      >
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
+                    {/* Grupo Ubicación */}
+                    <div className="space-y-2 xl:col-span-2"><Label className="text-[#D4AF37]">Dirección Residencia *</Label>
+                      <Input value={mainGuest.direccion} onChange={e => setMainGuest({...mainGuest, direccion: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#D4AF37]">Ciudad Origen *</Label>
+                      <Input value={mainGuest.ciudadOrigen} onChange={e => setMainGuest({...mainGuest, ciudadOrigen: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+                    <div className="space-y-2"><Label className="text-[#D4AF37]">Ciudad Destino *</Label>
+                      <Input value={mainGuest.ciudadDestino} onChange={e => setMainGuest({...mainGuest, ciudadDestino: e.target.value})} className="bg-[#1A1A1A] border-[#333333] h-11"/>
+                    </div>
+                    <div className="space-y-2 xl:col-span-4"><Label className="text-[#D4AF37]">Ocupación *</Label>
+                      <Select value={mainGuest.ocupacion} onValueChange={v => setMainGuest({...mainGuest, ocupacion: v})}>
+                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] h-11"><SelectValue placeholder="Seleccione"/></SelectTrigger>
                         <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                          {documentTypes.map((d) => (
-                              <SelectItem key={d.value} value={d.value} className="text-[#E5E5E5] focus:bg-[#252525]">
-                                {d.label}
-                              </SelectItem>
-                          ))}
+                          {occupations.map(o => <SelectItem key={o} value={o} className="text-[#E5E5E5] focus:bg-[#252525]">{o}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Número de Documento *</Label>
-                      <Input
-                          value={mainGuest.documentNumber}
-                          onChange={(e) => setMainGuest({ ...mainGuest, documentNumber: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Fecha de Nacimiento *</Label>
-                      <Input
-                          type="date"
-                          value={mainGuest.birthDate}
-                          onChange={(e) => setMainGuest({ ...mainGuest, birthDate: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Nombre *</Label>
-                      <Input
-                          value={mainGuest.firstName}
-                          onChange={(e) => setMainGuest({ ...mainGuest, firstName: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Primer Apellido *</Label>
-                      <Input
-                          value={mainGuest.lastName1}
-                          onChange={(e) => setMainGuest({ ...mainGuest, lastName1: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Segundo Apellido</Label>
-                      <Input
-                          value={mainGuest.lastName2}
-                          onChange={(e) => setMainGuest({ ...mainGuest, lastName2: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Género *</Label>
-                      <Select value={mainGuest.gender} onValueChange={(v) => setMainGuest({ ...mainGuest, gender: v })}>
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                          <SelectItem value="M" className="text-[#E5E5E5] focus:bg-[#252525]">
-                            Masculino
-                          </SelectItem>
-                          <SelectItem value="F" className="text-[#E5E5E5] focus:bg-[#252525]">
-                            Femenino
-                          </SelectItem>
-                          <SelectItem value="O" className="text-[#E5E5E5] focus:bg-[#252525]">
-                            Otro
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Teléfono *</Label>
-                      <Input
-                          type="tel"
-                          value={mainGuest.phone}
-                          onChange={(e) => setMainGuest({ ...mainGuest, phone: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Email *</Label>
-                      <Input
-                          type="email"
-                          value={mainGuest.email}
-                          onChange={(e) => setMainGuest({ ...mainGuest, email: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Ocupación *</Label>
-                      <Select
-                          value={mainGuest.occupation}
-                          onValueChange={(v) => setMainGuest({ ...mainGuest, occupation: v })}
-                      >
-                        <SelectTrigger className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]">
-                          <SelectValue placeholder="Seleccionar" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-[#1A1A1A] border-[#333333]">
-                          {occupations.map((o) => (
-                              <SelectItem key={o} value={o} className="text-[#E5E5E5] focus:bg-[#252525]">
-                                {o}
-                              </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2 md:col-span-2">
-                      <Label className="text-[#A3A3A3]">Dirección de Residencia *</Label>
-                      <Input
-                          value={mainGuest.address}
-                          onChange={(e) => setMainGuest({ ...mainGuest, address: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Ciudad de Origen *</Label>
-                      <Input
-                          value={mainGuest.originCity}
-                          onChange={(e) => setMainGuest({ ...mainGuest, originCity: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-[#A3A3A3]">Ciudad de Destino *</Label>
-                      <Input
-                          value={mainGuest.destinationCity}
-                          onChange={(e) => setMainGuest({ ...mainGuest, destinationCity: e.target.value })}
-                          className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5]"
-                      />
                     </div>
                   </div>
                 </div>
@@ -515,163 +381,190 @@ export function CheckinWizard({ isOpen, onClose, reservation, onComplete }: Chec
 
             {/* PASO 2: ACOMPAÑANTES */}
             {currentStep === 2 && (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-[family-name:var(--font-heading)] text-lg text-[#E5E5E5]">Acompañantes</h3>
-                    <Button onClick={addCompanion} className="bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Agregar Acompañante
-                    </Button>
+                <div className="space-y-8 max-w-6xl mx-auto">
+                  <div className="flex justify-between items-center bg-[#1A1A1A] p-6 rounded-xl border border-[#333333]">
+                    <div>
+                      <h3 className="text-xl font-bold text-[#D4AF37]">Registro de Acompañantes</h3>
+                      <p className="text-[#777]">Ingrese los datos de las personas adicionales en la habitación.</p>
+                    </div>
+                    <Button onClick={addCompanion} size="lg" className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90 font-medium px-6"><Plus className="h-5 w-5 mr-2"/> Agregar Nuevo</Button>
                   </div>
 
-                  {companions.length === 0 ? (
-                      <div className="text-center py-12 text-[#A3A3A3]">
-                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>No hay acompañantes registrados</p>
-                        <p className="text-sm mt-1">Haga clic en "Agregar Acompañante" para añadir uno</p>
-                      </div>
-                  ) : (
-                      <div className="space-y-4">
-                        {companions.map((companion, idx) => (
-                            <div key={companion.id} className="p-4 rounded-lg border border-[#333333] bg-[#1A1A1A]">
-                              <div className="flex items-center justify-between mb-4">
-                                <h4 className="text-sm font-medium text-[#E5E5E5]">Acompañante {idx + 1}</h4>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => removeCompanion(companion.id)}
-                                    className="h-8 w-8 text-[#CF6679] hover:text-[#CF6679] hover:bg-[#CF6679]/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div className="space-y-2">
-                                  <Label className="text-[#A3A3A3]">Nombre Completo *</Label>
-                                  <Input
-                                      value={companion.name}
-                                      onChange={(e) => updateCompanion(companion.id, "name", e.target.value)}
-                                      className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-[#A3A3A3]">Documento *</Label>
-                                  <Input
-                                      value={companion.document}
-                                      onChange={(e) => updateCompanion(companion.id, "document", e.target.value)}
-                                      className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
-                                  />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label className="text-[#A3A3A3]">Fecha de Nacimiento *</Label>
-                                  <Input
-                                      type="date"
-                                      value={companion.birthDate}
-                                      onChange={(e) => updateCompanion(companion.id, "birthDate", e.target.value)}
-                                      className="bg-[#0F0F0F] border-[#333333] text-[#E5E5E5]"
-                                  />
-                                </div>
-                              </div>
+                  <div className="space-y-4">
+                    {companions.map((comp, idx) => (
+                        <div key={comp.id} className="p-6 bg-[#141414] border border-[#333333] rounded-xl relative transition-all hover:border-[#555]">
+                          <Button size="icon" variant="ghost" className="absolute top-4 right-4 text-red-500 hover:bg-red-900/20 hover:text-red-400" onClick={() => {
+                            setCompanions(companions.filter(c => c.id !== comp.id))
+                          }}><Trash2 className="h-5 w-5"/></Button>
+
+                          <Badge variant="outline" className="mb-4 text-[#D4AF37] border-[#D4AF37]/50 text-sm px-3 py-1">Acompañante #{idx+1}</Badge>
+
+                          {/* Grid más amplia para acompañantes */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                            <div className="space-y-1"><Label className="text-xs text-[#777]">Nacionalidad *</Label>
+                              <Select value={comp.nacionalidad} onValueChange={v => updateCompanion(comp.id, "nacionalidad", v)}>
+                                <SelectTrigger className="h-10 bg-[#0F0F0F] border-[#333333]"><SelectValue /></SelectTrigger>
+                                <SelectContent className="bg-[#1A1A1A] border-[#333333]">{countries.map(c => <SelectItem key={c} value={c} className="text-[#E5E5E5] focus:bg-[#252525]">{c}</SelectItem>)}</SelectContent>
+                              </Select>
                             </div>
-                        ))}
-                      </div>
-                  )}
+                            <div className="space-y-1"><Label className="text-xs text-[#777]">No. Documento *</Label>
+                              <Input className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.numeroId} onChange={e => updateCompanion(comp.id, "numeroId", e.target.value)} />
+                            </div>
+                            <div className="space-y-1"><Label className="text-xs text-[#777]">Primer Nombre *</Label>
+                              <Input className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.primerNombre} onChange={e => updateCompanion(comp.id, "primerNombre", e.target.value)} />
+                            </div>
+                            <div className="space-y-1"><Label className="text-xs text-[#777]">Primer Apellido *</Label>
+                              <Input className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.primerApellido} onChange={e => updateCompanion(comp.id, "primerApellido", e.target.value)} />
+                            </div>
+
+                            <div className="space-y-1"><Label className="text-xs text-[#777]">Fecha Nacimiento *</Label>
+                              <Input type="date" className="h-10 bg-[#0F0F0F] border-[#333333] dark:[color-scheme:dark]" value={comp.fechaCumpleanos} onChange={e => updateCompanion(comp.id, "fechaCumpleanos", e.target.value)} />
+                            </div>
+                            <div className="space-y-1"><Label className="text-xs text-[#777]">Género *</Label>
+                              <Select value={comp.genero} onValueChange={v => updateCompanion(comp.id, "genero", v)}>
+                                <SelectTrigger className="h-10 bg-[#0F0F0F] border-[#333333]"><SelectValue placeholder="-"/></SelectTrigger>
+                                <SelectContent className="bg-[#1A1A1A] border-[#333333]">
+                                  <SelectItem value="M" className="text-[#E5E5E5] focus:bg-[#252525]">Masculino</SelectItem>
+                                  <SelectItem value="F" className="text-[#E5E5E5] focus:bg-[#252525]">Femenino</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1 md:col-span-2"><Label className="text-xs text-[#777]">Teléfono *</Label>
+                              <Input type="tel" className="h-10 bg-[#0F0F0F] border-[#333333]" value={comp.telefono} onChange={e => updateCompanion(comp.id, "telefono", e.target.value)} />
+                            </div>
+                          </div>
+                        </div>
+                    ))}
+                    {companions.length === 0 && (
+                        <div className="text-center py-12 border-2 border-dashed border-[#333333] rounded-xl">
+                          <Users className="h-16 w-16 text-[#333333] mx-auto mb-4"/>
+                          <p className="text-[#555] text-lg">No hay acompañantes registrados.</p>
+                        </div>
+                    )}
+                  </div>
                 </div>
             )}
 
-            {/* PASO 3: FIRMA DIGITAL */}
+            {/* PASO 3: FIRMA Y LEGAL */}
             {currentStep === 3 && (
-                <div className="space-y-6">
-                  <h3 className="font-[family-name:var(--font-heading)] text-lg text-[#E5E5E5]">
-                    Firma Digital del Huésped
-                  </h3>
-                  <p className="text-sm text-[#A3A3A3]">Por favor firme en el recuadro usando el dedo o un lápiz táctil.</p>
-
-                  <div className="flex flex-col items-center">
-                    <div className="relative rounded-lg border-2 border-[#D4AF37] overflow-hidden bg-[#0F0F0F]">
-                      <canvas
-                          ref={canvasRef}
-                          width={400}
-                          height={200}
-                          className="touch-none cursor-crosshair"
-                          onMouseDown={startDrawing}
-                          onMouseMove={draw}
-                          onMouseUp={stopDrawing}
-                          onMouseLeave={stopDrawing}
-                          onTouchStart={startDrawing}
-                          onTouchMove={draw}
-                          onTouchEnd={stopDrawing}
-                      />
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 max-w-7xl mx-auto h-full">
+                  {/* Lado Legal */}
+                  <div className="space-y-8 flex flex-col justify-center">
+                    <div>
+                      <h3 className="text-2xl font-bold text-[#E5E5E5] mb-2">Términos Legales</h3>
+                      <p className="text-[#A3A3A3]">Lea y acepte para continuar.</p>
                     </div>
-
-                    <div className="flex gap-3 mt-4">
-                      <Button
-                          variant="outline"
-                          onClick={clearSignature}
-                          className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent"
-                      >
-                        Limpiar
-                      </Button>
-                      {signature && (
-                          <div className="flex items-center gap-2 text-[#059669]">
-                            <Check className="h-4 w-4" />
-                            <span className="text-sm">Firma capturada</span>
-                          </div>
-                      )}
+                    <div className="space-y-6 p-8 bg-[#141414] rounded-2xl border border-[#333333]">
+                      <div className="flex gap-4 items-start">
+                        <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(c) => setTermsAccepted(c as boolean)} className="mt-1 border-[#555] h-5 w-5 data-[state=checked]:bg-[#D4AF37]"/>
+                        <div className="grid gap-1">
+                          <Label htmlFor="terms" className="text-base font-medium text-[#E5E5E5] cursor-pointer">Reglamento Interno</Label>
+                          <p className="text-sm text-[#777]">Acepto las políticas de cancelación, horarios y normas de convivencia del hotel.</p>
+                        </div>
+                      </div>
+                      <div className="h-px bg-[#333333]" />
+                      <div className="flex gap-4 items-start">
+                        <Checkbox id="privacy" checked={dataPolicyAccepted} onCheckedChange={(c) => setDataPolicyAccepted(c as boolean)} className="mt-1 border-[#555] h-5 w-5 data-[state=checked]:bg-[#D4AF37]"/>
+                        <div className="grid gap-1">
+                          <Label htmlFor="privacy" className="text-base font-medium text-[#E5E5E5] cursor-pointer">Tratamiento de Datos (Habeas Data)</Label>
+                          <p className="text-sm text-[#777]">Autorizo el uso de mis datos personales según la Ley 1581 de 2012 para fines del servicio.</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-lg bg-[#1A1A1A] border border-[#333333]">
-                    <p className="text-xs text-[#A3A3A3]">
-                      Yo, <span className="font-bold text-[#D4AF37] uppercase">{mainGuest.firstName} {mainGuest.lastName1}</span>, identificado con {mainGuest.documentType} {mainGuest.documentNumber}, declaro que los datos suministrados son verídicos. Acepto los términos y condiciones del hotel, incluyendo las políticas de cancelación, uso de instalaciones y tratamiento de datos personales según la Ley 1581 de 2012.
-                    </p>
+                  {/* Lado Firma - MODIFICADO: Altura aumentada */}
+                  <div className="space-y-4 flex flex-col h-full">
+                    <h3 className="text-xl font-bold text-[#E5E5E5]">Firma Digital</h3>
+
+                    <div className="flex-1 min-h-[300px] border-2 border-dashed border-[#444] bg-[#0F0F0F] rounded-xl overflow-hidden relative shadow-inner">
+                      {/* Canvas con resolución interna aumentada para evitar pixelado en pantallas grandes */}
+                      <canvas
+                          ref={canvasRef}
+                          className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+                          width={800}
+                          height={400}
+                          onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                          onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
+                      />
+                      {!isDrawing && !signature && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-[#333333] pointer-events-none">
+                            <PenTool className="h-12 w-12 mb-2 opacity-20"/>
+                            <span className="text-xl font-medium opacity-40">Firmar en este espacio</span>
+                          </div>
+                      )}
+                    </div>
+
+                    <Button variant="outline" onClick={clearSignature} className="text-[#CF6679] border-[#333333] hover:bg-[#CF6679]/10 hover:border-[#CF6679] w-full h-12">
+                      <Trash2 className="h-5 w-5 mr-2"/> Borrar Firma y Reintentar
+                    </Button>
                   </div>
                 </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-[#333333] flex justify-between shrink-0 bg-[#1A1A1A]">
-            <Button
-                variant="outline"
-                onClick={() => {
-                  // Si hay deuda, el botón "Anterior" en el paso 0 debería cerrar o no hacer nada (o cerrar el modal)
-                  if (currentStep === 0 && hasDebt) {
-                    onClose();
-                  } else if (currentStep > 1) {
-                    setCurrentStep(currentStep - 1);
-                  } else {
-                    onClose();
-                  }
-                }}
-                className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] bg-transparent"
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              {(currentStep === 1 && !hasDebt) || (currentStep === 0) ? "Cancelar" : "Anterior"}
+          <div className="px-8 py-6 bg-[#141414] border-t border-[#333333] flex justify-between shrink-0">
+            <Button variant="outline" size="lg" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} className="border-[#333333] text-[#A3A3A3] hover:text-[#E5E5E5] hover:bg-[#252525] px-6">
+              <ChevronLeft className="h-5 w-5 mr-2"/> Anterior
             </Button>
 
             {currentStep < 3 ? (
-                <Button
-                    onClick={() => setCurrentStep(currentStep + 1)}
-                    // Bloqueo: Si está en paso 0 y sigue habiendo deuda, NO avanza.
-                    // Si está en paso 1 y no es válido, NO avanza.
-                    disabled={(currentStep === 0 && hasDebt) || (currentStep === 1 && !isStep1Valid())}
-                    className="bg-[#D4AF37] text-[#0F0F0F] hover:bg-[#D4AF37]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                <Button onClick={() => setCurrentStep(currentStep+1)}
+                        size="lg"
+                        disabled={(currentStep === 0 && hasDebt) || (currentStep === 1 && !isMainGuestValid()) || (currentStep === 2 && !areCompanionsValid())}
+                        className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90 font-bold px-8 text-lg"
                 >
-                  Siguiente
-                  <ChevronRight className="h-4 w-4 ml-2" />
+                  Siguiente <ChevronRight className="h-5 w-5 ml-2"/>
                 </Button>
             ) : (
-                <Button
-                    onClick={handleComplete}
-                    disabled={!isStep3Valid()}
-                    className="bg-[#059669] text-white hover:bg-[#059669]/90 disabled:opacity-50"
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Completar Check-in
+                <Button onClick={handleComplete} size="lg" disabled={!isStep3Valid()} className="bg-[#059669] text-white hover:bg-[#059669]/90 font-bold shadow-lg shadow-green-900/20 px-8 text-lg">
+                  <Check className="h-5 w-5 mr-2"/> Confirmar Check-in
                 </Button>
             )}
           </div>
+
+          {/* MODAL DE PAGO */}
+          <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+            <DialogContent className="bg-[#1A1A1A] border-[#333333] text-[#E5E5E5] sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-[#D4AF37] flex items-center gap-2 text-xl">
+                  <DollarSign className="h-6 w-6"/> Registrar Pago
+                </DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-6 py-4">
+                <div className="grid gap-2">
+                  <Label>Monto a pagar</Label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3 text-[#777] text-lg">$</span>
+                    <Input
+                        type="number"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        className="pl-8 bg-[#0F0F0F] border-[#333333] text-2xl font-bold h-14"
+                    />
+                  </div>
+                  <p className="text-sm text-[#777]">Deuda actual: ${pendingAmount.toLocaleString()}</p>
+                </div>
+                <div className="grid gap-2">
+                  <Label>Método de Pago</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger className="bg-[#0F0F0F] border-[#333333] h-12"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-[#1A1A1A] border-[#333333]">
+                      <SelectItem value="efectivo" className="text-[#E5E5E5] focus:bg-[#252525]">Efectivo</SelectItem>
+                      <SelectItem value="tarjeta" className="text-[#E5E5E5] focus:bg-[#252525]">Tarjeta Débito/Crédito</SelectItem>
+                      <SelectItem value="transferencia" className="text-[#E5E5E5] focus:bg-[#252525]">Transferencia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)} className="border-[#333333] text-[#E5E5E5] hover:bg-[#252525] h-11">Cancelar</Button>
+                <Button onClick={handleRegisterPayment} className="bg-[#059669] text-white hover:bg-[#059669]/90 h-11 font-bold">Confirmar Pago</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
         </DialogContent>
       </Dialog>
   )
