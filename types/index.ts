@@ -1,92 +1,162 @@
+// types/index.ts
+
 // ==========================================
-// 1. CONTRATOS DEL BACKEND (DTOs)
-// Estos deben coincidir EXACTAMENTE con el C#
+// 1. ENUMS Y TIPOS BASE (BACKEND & SHARED)
 // ==========================================
 
-export type BackendRoomStatus = "Available" | "Occupied" | "Dirty" | "TouchUp" |"Maintenance" | "Blocked";
+export type BackendRoomStatus = "Available" | "Occupied" | "Dirty" | "TouchUp" | "Maintenance" | "Blocked";
 export type BackendReservationStatus = "Pending" | "Confirmed" | "CheckedIn" | "CheckedOut" | "Cancelled" | "NoShow";
 export type DocumentType = "CC" | "CE" | "PA" | "TI" | "RC";
 
-// Lo que devuelve GET /api/rooms
+// ✅ NUEVO: Enums para Caja y Finanzas
+export type FolioStatus = 'Open' | 'Closed';
+export type TransactionType = 'Charge' | 'Payment' | 'Adjustment';
+export type PaymentMethod = 'None' | 'Cash' | 'CreditCard' | 'DebitCard' | 'Transfer';
+export type CashierShiftStatus = 'Open' | 'Closed';
+
+// Mapeo inverso opcional si lo necesitas en UI
+export const RoomStatusMap: Record<number, BackendRoomStatus> = {
+    0: 'Available',
+    1: 'Occupied',
+    2: 'Dirty',
+    3: 'Maintenance',
+    4: 'TouchUp',
+    5: 'Blocked'
+};
+
+// ==========================================
+// 2. CONTRATOS DEL BACKEND (DTOs)
+// Lo que llega crudo de la API
+// ==========================================
+
+// GET /api/rooms
 export interface RoomDto {
     id: string;
     number: string;
-    category: string; // El backend envía string, nosotros lo validamos en el front
+    category: string; // Backend envía string
     basePrice: number;
     status: BackendRoomStatus;
+    capacity?: number; // Agregado por si el backend lo envía
+    floor?: number;    // Agregado por si el backend lo envía
 }
 
-// Lo que devuelve GET /api/guests
+// GET /api/guests
 export interface GuestDto {
     id: string;
-    firstName: string;      // Antes: primerNombre
-    lastName: string;       // Antes: primerApellido
-    documentType: DocumentType; // Antes: tipoId
-    documentNumber: string; // Antes: numeroId
+    firstName: string;
+    lastName: string;
+    documentType: DocumentType;
+    documentNumber: string;
     email: string;
     phone: string;
     nationality: string;
-    birthDate?: string;     // YYYY-MM-DD
+    birthDate?: string; // YYYY-MM-DD
+    notes?: string;
 }
 
-// Lo que devuelve GET /api/reservations
+// GET /api/reservations
 export interface ReservationDto {
     id: string;
-    code: string;
+    code: string; // ConfirmationCode
     status: BackendReservationStatus;
     mainGuestId: string;
-    mainGuestName: string;
+    mainGuestName: string; // Helper enviado por backend
     roomId: string;
-    roomNumber: string;
-    startDate: string; // ISO String
-    endDate: string;   // ISO String
+    roomNumber: string;    // Helper enviado por backend
+    startDate: string; // ISO String CheckIn
+    endDate: string;   // ISO String CheckOut
     nights: number;
-    totalAmount?: number; // Puede venir nulo si no se calculó
+    totalAmount?: number;
+    adults?: number;
+    children?: number;
 }
 
 // ==========================================
-// 2. TIPOS DE LA APLICACIÓN (FRONTEND)
-// Adaptados para que tu UI funcione cómoda
+// 3. NUEVOS DTOs PARA CAJA Y FOLIOS
 // ==========================================
 
-// Tus categorías de negocio restringidas
+export interface CashierShift {
+    id: string;
+    userId: string;
+    openedAt: string;
+    closedAt?: string;
+    startingAmount: number;
+    systemCalculatedAmount: number;
+    actualAmount: number;
+    status: CashierShiftStatus;
+}
+
+export interface FolioTransaction {
+    id: string;
+    folioId: string;
+    type: TransactionType;
+    description: string;
+    amount: number;
+    quantity: number;
+    unitPrice: number;
+    createdAt: string;
+    createdByUserId: string;
+
+    // Campos para Caja
+    paymentMethod: PaymentMethod;
+    cashierShiftId?: string;
+}
+
+export interface Folio {
+    id: string;
+    status: FolioStatus;
+    balance: number;
+    transactions: FolioTransaction[];
+    reservationId?: string;
+    alias?: string;
+}
+
+export interface DashboardStats {
+    occupancyRate: number;
+    arrivalsToday: number;
+    departuresToday: number;
+    inHouseGuests: number;
+    revenueToday: number;
+}
+
+// ==========================================
+// 4. TIPOS DE LA APLICACIÓN (FRONTEND / UI)
+// Tipos enriquecidos para componentes React
+// ==========================================
+
 export type RoomCategory = "Doble" | "Familiar" | "Suite" | "Estándar" | "Superior" | "Deluxe";
 
-// Estados visuales (Mantiene tu lógica de colores)
+// Estados visuales (Semáforo)
 export type VisualReservationStatus =
-    | "check_in_paid"       // Verde
-    | "check_in_debt"       // Rojo
-    | "confirmed_deposit"   // Azul
-    | "confirmed_no_deposit"// Naranja
-    | "blocked"             // Gris
-    | "available";          // Blanco
+    | "check_in_paid"
+    | "check_in_debt"
+    | "confirmed_deposit"
+    | "confirmed_no_deposit"
+    | "blocked"
+    | "available";
 
-// Entidad 'Room' enriquecida para el uso en componentes React
+// Entidad 'Room' enriquecida para UI
 export interface Room extends Omit<RoomDto, 'status' | 'category'> {
     category: RoomCategory;
-    // Mantenemos 'status' del backend, pero agregamos el visual si lo necesitas
     status: BackendRoomStatus;
-    // Propiedades visuales derivadas (opcionales)
+    // Propiedades visuales derivadas
     housekeepingStatus?: "Limpia" | "Sucia" | "Mantenimiento";
+    amenities?: string[]; // Si decides parsear el JSON
 }
 
 // ==========================================
-// 3. COMPATIBILIDAD CON TU FORMULARIO
+// 5. FORMULARIOS
 // ==========================================
 
-// Perfil extendido para formularios (mezcla datos reales con datos de UI)
 export interface GuestFormValues {
-    nombre: string;         // Mapear a firstName al enviar
-    apellido: string;       // Mapear a lastName al enviar
-    tipoDocumento: string;  // Mapear a documentType
+    nombre: string;
+    apellido: string;
+    tipoDocumento: string;
     numeroDocumento: string;
     email: string;
     telefono: string;
     nacionalidad: string;
     fechaNacimiento?: Date;
-
-    // Campos que el backend AÚN NO TIENE (Ojo con esto)
-    // Si los envías, el backend los ignorará por ahora
     ocupacion?: string;
     genero?: string;
     paisResidencia?: string;

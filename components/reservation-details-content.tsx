@@ -12,9 +12,8 @@ import {
     CheckCircle2, Circle, AlertCircle, XCircle,
     Copy, MessageSquare, ExternalLink, FileText,
     ArrowRightLeft, DollarSign, Search, Clock,
-    Save, User, Briefcase, Flag, Globe
+    Save, User, Briefcase, Globe, LogOut
 } from "lucide-react"
-import { CheckinWizard } from "@/components/checkin-wizard"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -68,20 +67,46 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area" // Necesario para forms largos
+import { ScrollArea } from "@/components/ui/scroll-area"
 
+// Componentes importados (asegúrate de que existan en tu proyecto)
+import { CheckinWizard } from "@/components/checkin-wizard"
 import { ReservationGuestList } from "./reservation-guest-list"
 
-// --- MOCK DATA ---
-const mockReservation: any = {
+// --- INTERFACES & MOCK DATA ---
+
+interface Guest {
+    id: string
+    primerNombre: string
+    segundoNombre?: string
+    primerApellido: string
+    segundoApellido?: string
+    correo: string
+    telefono: string
+    paisOrigen?: string
+    ciudadOrigen?: string
+    paisResidencia?: string
+    ciudadResidencia?: string
+    direccionResidencia?: string
+    tipoId: string
+    numeroId: string
+    nacionalidad?: string
+    ocupacion?: string
+    fechaNacimiento?: string
+    esTitular: boolean
+    isSigned: boolean
+}
+
+// Datos simulados iniciales
+const initialReservationData: any = {
     id: "RES-2026-001",
     checkInCode: "ZAF-8821",
     roomId: "101",
     roomName: "Suite Deluxe - Vista Mar",
     status: "confirmada",
-    statusStep: 2,
-    startDate: "2026-01-03",
-    endDate: "2026-01-07",
+    statusStep: 2, // 1: Reservada, 2: Confirmada, 3: Hospedado, 4: Finalizada
+    startDate: "2026-02-10",
+    endDate: "2026-02-15",
     adults: 2,
     children: 1,
     totalAmount: 720000,
@@ -103,21 +128,21 @@ const mockReservation: any = {
             ciudadOrigen: "Medellín",
             paisResidencia: "Colombia",
             ciudadResidencia: "Bogotá",
+            direccionResidencia: "Calle 123 # 45-67",
             tipoId: "CC",
             numeroId: "1098765432",
             nacionalidad: "Colombiano",
-            ocupacion: "Ingeniero",
+            ocupacion: "Ingeniero de Sistemas",
             fechaNacimiento: "1990-05-15",
             esTitular: true,
             isSigned: true
         }
     ],
     folioItems: [
-        { id: 1, date: "2026-01-03", concept: "Noche de Alojamiento (Suite Deluxe)", qty: 1, price: 180000, total: 180000 },
-        { id: 2, date: "2026-01-04", concept: "Noche de Alojamiento (Suite Deluxe)", qty: 1, price: 180000, total: 180000 },
-        { id: 3, date: "2026-01-05", concept: "Noche de Alojamiento (Suite Deluxe)", qty: 1, price: 180000, total: 180000 },
-        { id: 4, date: "2026-01-06", concept: "Noche de Alojamiento (Suite Deluxe)", qty: 1, price: 180000, total: 180000 },
-        { id: 5, date: "2026-01-03", concept: "Servicio a la habitación - Cena", qty: 1, price: 45000, total: 45000 },
+        { id: 1, date: "2026-02-10", concept: "Noche de Alojamiento (Suite Deluxe)", qty: 1, price: 180000, total: 180000 },
+        { id: 2, date: "2026-02-11", concept: "Noche de Alojamiento (Suite Deluxe)", qty: 1, price: 180000, total: 180000 },
+        { id: 3, date: "2026-02-12", concept: "Noche de Alojamiento (Suite Deluxe)", qty: 1, price: 180000, total: 180000 },
+        { id: 4, date: "2026-02-10", concept: "Servicio a la habitación - Cena", qty: 1, price: 45000, total: 45000 },
     ]
 }
 
@@ -127,8 +152,13 @@ interface ReservationDetailsContentProps {
 
 export function ReservationDetailsContent({ reservationId }: ReservationDetailsContentProps) {
     const router = useRouter()
+
+    // State principal de la reserva (inicializado con mock)
+    const [reservation, setReservation] = useState(initialReservationData)
+
     const [activeTab, setActiveTab] = useState("general")
     const [isCheckinWizardOpen, setIsCheckinWizardOpen] = useState(false)
+
     // Estados de Modales
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
     const [isPaymentOpen, setIsPaymentOpen] = useState(false)
@@ -136,13 +166,13 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
     const [isCancelling, setIsCancelling] = useState(false)
 
     // Estado para Edición de Huésped (Guarda el objeto huésped o null)
-    const [editingGuest, setEditingGuest] = useState<any | null>(null)
+    const [editingGuest, setEditingGuest] = useState<Guest | null>(null)
 
     // Cálculos
-    const nights = differenceInDays(new Date(mockReservation.endDate), new Date(mockReservation.startDate))
-    const totalCapacity = mockReservation.adults + mockReservation.children
-    const pendingAmount = mockReservation.totalAmount - mockReservation.paidAmount
-    const percentPaid = (mockReservation.paidAmount / mockReservation.totalAmount) * 100
+    const nights = differenceInDays(new Date(reservation.endDate), new Date(reservation.startDate))
+    const totalCapacity = reservation.adults + reservation.children
+    const pendingAmount = reservation.totalAmount - reservation.paidAmount
+    const percentPaid = (reservation.paidAmount / reservation.totalAmount) * 100
 
     // Handlers
     const handleCopy = (text: string, label: string) => {
@@ -151,12 +181,13 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
     }
 
     const handleWhatsApp = () => {
-        const phone = mockReservation.guests[0].telefono.replace(/[^0-9]/g, "")
+        const phone = reservation.guests[0].telefono.replace(/[^0-9]/g, "")
         window.open(`https://wa.me/${phone}`, "_blank")
     }
 
     const goToFolios = () => {
-        router.push(`/folios?reservationId=${reservationId}&guestId=${mockReservation.guests[0].id}`)
+        // Redirige al módulo de folios filtrando por esta reserva
+        router.push(`/folios?reservationId=${reservationId}`)
     }
 
     const handleCancelReservation = () => {
@@ -164,21 +195,43 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
         setTimeout(() => {
             setIsCancelling(false)
             setIsCancelDialogOpen(false)
+            setReservation({ ...reservation, status: "cancelada", statusStep: 4 }) // Simulación
             toast.error("Reserva Cancelada", { description: "Se ha notificado al canal de venta." })
-        }, 2000)
+        }, 1500)
     }
 
     const handleSaveGuestData = (e: React.FormEvent) => {
         e.preventDefault()
-        // Aquí iría la lógica de guardar en Backend
-        toast.success("Datos actualizados", { description: `Se guardó la información de ${editingGuest.primerNombre}` })
+        // Aquí iría la lógica de guardar en Backend (PUT /api/guests/{id})
+
+        // Simulación de actualización local
+        const updatedGuests = reservation.guests.map((g: Guest) =>
+            g.id === editingGuest?.id ? { ...g, ...editingGuest } : g
+        )
+        setReservation({ ...reservation, guests: updatedGuests })
+
+        toast.success("Datos actualizados", { description: `Se guardó la información de ${editingGuest?.primerNombre}` })
         setEditingGuest(null)
     }
+
+    const handleCheckinComplete = (data: any) => {
+        setIsCheckinWizardOpen(false)
+        // Actualizar estado local a "Hospedado"
+        setReservation({
+            ...reservation,
+            status: "hospedado",
+            statusStep: 3
+        })
+        toast.success("Check-in completado", { description: "La habitación ahora está ocupada y el folio activo." })
+    }
+
+    // Mapeo de pasos de estado
+    const steps = ['Reservada', 'Confirmada', 'Hospedado', 'Finalizada']
 
     return (
         <div className="flex flex-col h-full bg-background text-foreground overflow-y-auto">
 
-            {/* --- MODAL DE EDICIÓN DE HUÉSPED (NUEVO) --- */}
+            {/* --- MODAL DE EDICIÓN DE HUÉSPED --- */}
             <Dialog open={!!editingGuest} onOpenChange={(open) => !open && setEditingGuest(null)}>
                 <DialogContent className="bg-card border-border text-foreground sm:max-w-[700px] h-[85vh] p-0 flex flex-col">
                     <DialogHeader className="px-6 py-4 border-b border-border">
@@ -201,25 +254,44 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Primer Nombre</Label>
-                                        <Input defaultValue={editingGuest?.primerNombre} className="bg-background border-border" placeholder="Ej: Carlos" />
+                                        <Input
+                                            value={editingGuest?.primerNombre || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, primerNombre: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Segundo Nombre</Label>
-                                        <Input defaultValue={editingGuest?.segundoNombre} className="bg-background border-border" placeholder="Ej: Andrés" />
+                                        <Input
+                                            value={editingGuest?.segundoNombre || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, segundoNombre: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Primer Apellido</Label>
-                                        <Input defaultValue={editingGuest?.primerApellido} className="bg-background border-border" placeholder="Ej: García" />
+                                        <Input
+                                            value={editingGuest?.primerApellido || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, primerApellido: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Segundo Apellido</Label>
-                                        <Input defaultValue={editingGuest?.segundoApellido} className="bg-background border-border" placeholder="Ej: Márquez" />
+                                        <Input
+                                            value={editingGuest?.segundoApellido || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, segundoApellido: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Tipo Documento</Label>
-                                        <Select defaultValue={editingGuest?.tipoId || "CC"}>
+                                        <Select
+                                            value={editingGuest?.tipoId || "CC"}
+                                            onValueChange={(val) => setEditingGuest(prev => prev ? {...prev, tipoId: val} : null)}
+                                        >
                                             <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
                                             <SelectContent className="bg-card border-border text-foreground">
                                                 <SelectItem value="CC">Cédula (CC)</SelectItem>
@@ -230,17 +302,30 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                     </div>
                                     <div className="space-y-2 col-span-2">
                                         <Label className="text-xs text-muted-foreground">Número de Documento</Label>
-                                        <Input defaultValue={editingGuest?.numeroId} className="bg-background border-border" placeholder="Ej: 1098..." />
+                                        <Input
+                                            value={editingGuest?.numeroId || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, numeroId: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Fecha Nacimiento</Label>
-                                        <Input type="date" defaultValue={editingGuest?.fechaNacimiento} className="bg-background border-border block" />
+                                        <Input
+                                            type="date"
+                                            value={editingGuest?.fechaNacimiento || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, fechaNacimiento: e.target.value} : null)}
+                                            className="bg-background border-border block"
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Nacionalidad</Label>
-                                        <Input defaultValue={editingGuest?.nacionalidad} className="bg-background border-border" placeholder="Ej: Colombiano" />
+                                        <Input
+                                            value={editingGuest?.nacionalidad || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, nacionalidad: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -255,15 +340,27 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Teléfono / Móvil</Label>
-                                        <Input defaultValue={editingGuest?.telefono} className="bg-background border-border" placeholder="+57..." />
+                                        <Input
+                                            value={editingGuest?.telefono || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, telefono: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="text-xs text-muted-foreground">Correo Electrónico</Label>
-                                        <Input defaultValue={editingGuest?.correo} className="bg-background border-border" placeholder="correo@ejemplo.com" />
+                                        <Input
+                                            value={editingGuest?.correo || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, correo: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                     <div className="space-y-2 col-span-2">
                                         <Label className="text-xs text-muted-foreground">Ocupación / Profesión</Label>
-                                        <Input defaultValue={editingGuest?.ocupacion} className="bg-background border-border" placeholder="Ej: Ingeniero, Estudiante..." />
+                                        <Input
+                                            value={editingGuest?.ocupacion || ""}
+                                            onChange={(e) => setEditingGuest(prev => prev ? {...prev, ocupacion: e.target.value} : null)}
+                                            className="bg-background border-border"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -281,11 +378,19 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         <span className="text-[10px] uppercase text-muted-foreground font-bold">Lugar de Procedencia</span>
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">País</Label>
-                                            <Input defaultValue={editingGuest?.paisOrigen} className="bg-background border-border h-8 text-xs" placeholder="País" />
+                                            <Input
+                                                value={editingGuest?.paisOrigen || ""}
+                                                onChange={(e) => setEditingGuest(prev => prev ? {...prev, paisOrigen: e.target.value} : null)}
+                                                className="bg-background border-border h-8 text-xs"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">Ciudad</Label>
-                                            <Input defaultValue={editingGuest?.ciudadOrigen} className="bg-background border-border h-8 text-xs" placeholder="Ciudad" />
+                                            <Input
+                                                value={editingGuest?.ciudadOrigen || ""}
+                                                onChange={(e) => setEditingGuest(prev => prev ? {...prev, ciudadOrigen: e.target.value} : null)}
+                                                className="bg-background border-border h-8 text-xs"
+                                            />
                                         </div>
                                     </div>
 
@@ -294,15 +399,27 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         <span className="text-[10px] uppercase text-muted-foreground font-bold">Lugar de Residencia</span>
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">País</Label>
-                                            <Input defaultValue={editingGuest?.paisResidencia} className="bg-background border-border h-8 text-xs" placeholder="País" />
+                                            <Input
+                                                value={editingGuest?.paisResidencia || ""}
+                                                onChange={(e) => setEditingGuest(prev => prev ? {...prev, paisResidencia: e.target.value} : null)}
+                                                className="bg-background border-border h-8 text-xs"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">Ciudad</Label>
-                                            <Input defaultValue={editingGuest?.ciudadResidencia} className="bg-background border-border h-8 text-xs" placeholder="Ciudad" />
+                                            <Input
+                                                value={editingGuest?.ciudadResidencia || ""}
+                                                onChange={(e) => setEditingGuest(prev => prev ? {...prev, ciudadResidencia: e.target.value} : null)}
+                                                className="bg-background border-border h-8 text-xs"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-xs text-muted-foreground">Dirección</Label>
-                                            <Input defaultValue={editingGuest?.direccionResidencia} className="bg-background border-border h-8 text-xs" placeholder="Dirección completa" />
+                                            <Input
+                                                value={editingGuest?.direccionResidencia || ""}
+                                                onChange={(e) => setEditingGuest(prev => prev ? {...prev, direccionResidencia: e.target.value} : null)}
+                                                className="bg-background border-border h-8 text-xs"
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -321,15 +438,13 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                 </DialogContent>
             </Dialog>
 
-            {/* --- MODALES EXISTENTES (CANCEL, PAYMENT, CHANGE ROOM) --- */}
-            {/* ... (Aquí van los otros Dialogs que ya tenías: Cancel, Payment, ChangeRoom. No los repito para no saturar, pero deben estar aquí) ... */}
+            {/* --- MODAL CANCELAR --- */}
             <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
-                {/* ... Código del AlertDialog ... */}
                 <AlertDialogContent className="bg-card border-border text-foreground">
                     <AlertDialogHeader>
                         <AlertDialogTitle>¿Estás seguro de cancelar esta reserva?</AlertDialogTitle>
                         <AlertDialogDescription className="text-muted-foreground">
-                            Esta acción no se puede deshacer. Se liberará la habitación {mockReservation.roomId}.
+                            Esta acción no se puede deshacer. Se liberará la habitación {reservation.roomId}.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -345,6 +460,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* --- MODAL PAGO --- */}
             <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
                 <DialogContent className="bg-card border-border text-foreground sm:max-w-[500px]">
                     <DialogHeader>
@@ -352,7 +468,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             <DollarSign className="h-5 w-5" /> Registrar Nuevo Pago
                         </DialogTitle>
                         <DialogDescription className="text-muted-foreground">
-                            Ingresa los detalles del pago recibido para la habitación {mockReservation.roomId}.
+                            Ingresa los detalles del pago recibido para la habitación {reservation.roomId}.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -388,6 +504,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                 </DialogContent>
             </Dialog>
 
+            {/* --- MODAL CAMBIO HABITACIÓN --- */}
             <Dialog open={isChangeRoomOpen} onOpenChange={setIsChangeRoomOpen}>
                 <DialogContent className="bg-card border-border text-foreground sm:max-w-[600px]">
                     <DialogHeader>
@@ -395,7 +512,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             <ArrowRightLeft className="h-5 w-5 text-[#D4AF37]" /> Cambio de Habitación
                         </DialogTitle>
                         <DialogDescription className="text-muted-foreground">
-                            Mover reserva actual de la <strong>{mockReservation.roomId}</strong> a una nueva unidad.
+                            Mover reserva actual de la <strong>{reservation.roomId}</strong> a una nueva unidad.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -436,13 +553,15 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                         </Link>
                         <div>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-bold tracking-tight text-white">Reserva #{mockReservation.id}</h1>
-                                <Badge variant="outline" className="border-[#D4AF37] text-[#D4AF37] bg-primary/10 px-2 py-0.5 text-xs uppercase tracking-wider">Confirmada</Badge>
+                                <h1 className="text-2xl font-bold tracking-tight text-white">Reserva #{reservation.id}</h1>
+                                <Badge variant="outline" className="border-[#D4AF37] text-[#D4AF37] bg-primary/10 px-2 py-0.5 text-xs uppercase tracking-wider">
+                                    {reservation.status}
+                                </Badge>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Creada: {format(new Date(mockReservation.createdDate), "dd MMM yyyy", { locale: es })}</span>
+                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Creada: {format(new Date(reservation.createdDate), "dd MMM yyyy", { locale: es })}</span>
                                 <span>•</span>
-                                <span className="text-[#D4AF37]">Canal: {mockReservation.origin}</span>
+                                <span className="text-[#D4AF37]">Canal: {reservation.origin}</span>
                             </div>
                         </div>
                     </div>
@@ -456,7 +575,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-card border-border text-foreground">
                                 <DropdownMenuLabel>Gestión</DropdownMenuLabel>
-                                <DropdownMenuItem className="hover:bg-[#333333] cursor-pointer" onClick={() => handleCopy("https://...", "Link Pre-Checkin")}>
+                                <DropdownMenuItem className="hover:bg-[#333333] cursor-pointer" onClick={() => handleCopy("https://hotel-zafiro.com/pre-checkin/" + reservation.checkInCode, "Link Pre-Checkin")}>
                                     <LinkIcon className="h-4 w-4 mr-2" /> Copiar Link Pre-Checkin
                                 </DropdownMenuItem>
                                 <DropdownMenuItem className="hover:bg-[#333333] cursor-pointer" onClick={() => toast.success("Correo enviado")}>
@@ -472,39 +591,49 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        <Button className="bg-primary text-black hover:bg-[#B5952F] font-semibold shadow-lg shadow-amber-900/20" onClick={() => setIsCheckinWizardOpen(true)}>
-                            Check-In
-                        </Button>
+                        {/* Botón dinámico según estado */}
+                        {reservation.statusStep < 3 ? (
+                            <Button
+                                className="bg-primary text-black hover:bg-[#B5952F] font-semibold shadow-lg shadow-amber-900/20"
+                                onClick={() => setIsCheckinWizardOpen(true)}
+                            >
+                                Check-In
+                            </Button>
+                        ) : reservation.statusStep === 3 ? (
+                            <Button
+                                className="bg-red-600 text-white hover:bg-red-700 font-semibold shadow-lg shadow-red-900/20"
+                                onClick={() => router.push(`/folios?reservationId=${reservationId}`)}
+                            >
+                                <LogOut className="h-4 w-4 mr-2" /> Check-Out
+                            </Button>
+                        ) : null}
+
                         {/* Componente Wizard */}
                         {isCheckinWizardOpen && (
                             <CheckinWizard
                                 isOpen={isCheckinWizardOpen}
                                 onClose={() => setIsCheckinWizardOpen(false)}
                                 reservation={{
-                                    id: mockReservation.id,
-                                    guestName: `${mockReservation.guests[0].primerNombre} ${mockReservation.guests[0].primerApellido}`,
-                                    roomNumber: mockReservation.roomId,
-                                    checkIn: new Date(mockReservation.startDate),
-                                    checkOut: new Date(mockReservation.endDate),
-                                    totalAmount: mockReservation.totalAmount,
-                                    paidAmount: mockReservation.paidAmount
+                                    id: reservation.id,
+                                    guestName: `${reservation.guests[0].primerNombre} ${reservation.guests[0].primerApellido}`,
+                                    roomNumber: reservation.roomId,
+                                    checkIn: new Date(reservation.startDate),
+                                    checkOut: new Date(reservation.endDate),
+                                    totalAmount: reservation.totalAmount,
+                                    paidAmount: reservation.paidAmount
                                 }}
-                                onComplete={(data) => {
-                                    // Lógica de guardado
-                                    setIsCheckinWizardOpen(false)
-                                    toast.success("Check-in completado exitosamente")
-                                    // Actualizar estado local de la vista...
-                                }}
+                                onComplete={handleCheckinComplete}
                             />
                         )}
                     </div>
                 </div>
 
+                {/* Progress Bar de Estado */}
                 <div className="mt-6 flex items-center justify-between max-w-3xl mx-auto pb-2">
-                    {['Reservada', 'Confirmada', 'Hospedado', 'Finalizada'].map((step, index) => {
+                    {steps.map((step, index) => {
                         const stepNum = index + 1;
-                        const isActive = stepNum <= mockReservation.statusStep;
-                        const isCurrent = stepNum === mockReservation.statusStep;
+                        const isActive = stepNum <= reservation.statusStep;
+                        const isCurrent = stepNum === reservation.statusStep;
                         return (
                             <div key={step} className="flex flex-col items-center relative flex-1">
                                 <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 z-10 transition-colors ${isActive ? 'bg-primary border-[#D4AF37] text-black' : 'bg-card border-border text-[#555]'}`}>
@@ -529,14 +658,14 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             <div className="flex items-center justify-between mb-4">
                                 <TabsList className="bg-card border border-border h-10">
                                     <TabsTrigger value="general" className="data-[state=active]:bg-primary data-[state=active]:text-black">General</TabsTrigger>
-                                    <TabsTrigger value="huespedes" className="data-[state=active]:bg-primary data-[state=active]:text-black">Huéspedes ({mockReservation.guests.length})</TabsTrigger>
+                                    <TabsTrigger value="huespedes" className="data-[state=active]:bg-primary data-[state=active]:text-black">Huéspedes ({reservation.guests.length})</TabsTrigger>
                                     <TabsTrigger value="finance" className="data-[state=active]:bg-primary data-[state=active]:text-black">Finanzas</TabsTrigger>
                                 </TabsList>
                             </div>
 
                             <TabsContent value="general" className="space-y-6 mt-0">
-                                {/* ... (Mismo contenido de General) ... */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {/* Card: Detalles de Estadía */}
                                     <Card className="bg-card border-border">
                                         <CardHeader className="pb-2">
                                             <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
@@ -547,7 +676,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                             <div className="flex justify-between items-center mb-4">
                                                 <div>
                                                     <p className="text-xs text-[#737373]">Check-In</p>
-                                                    <p className="text-lg font-bold text-foreground">{format(new Date(mockReservation.startDate), "dd MMM yyyy", { locale: es })}</p>
+                                                    <p className="text-lg font-bold text-foreground">{format(new Date(reservation.startDate), "dd MMM yyyy", { locale: es })}</p>
                                                 </div>
                                                 <div className="flex flex-col items-center px-4">
                                                     <div className="bg-[#333333] text-muted-foreground text-xs px-2 py-1 rounded-full mb-1">{nights} Noches</div>
@@ -555,15 +684,16 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                                 </div>
                                                 <div className="text-right">
                                                     <p className="text-xs text-[#737373]">Check-Out</p>
-                                                    <p className="text-lg font-bold text-foreground">{format(new Date(mockReservation.endDate), "dd MMM yyyy", { locale: es })}</p>
+                                                    <p className="text-lg font-bold text-foreground">{format(new Date(reservation.endDate), "dd MMM yyyy", { locale: es })}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                                <span>{mockReservation.adults} Adultos, {mockReservation.children} Niños</span>
+                                                <span>{reservation.adults} Adultos, {reservation.children} Niños</span>
                                             </div>
                                         </CardContent>
                                     </Card>
 
+                                    {/* Card: Habitación Asignada */}
                                     <Card className="bg-card border-border">
                                         <CardHeader className="pb-2">
                                             <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
@@ -573,8 +703,8 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         <CardContent>
                                             <div className="flex items-start justify-between">
                                                 <div>
-                                                    <div className="text-3xl font-bold text-white mb-1">{mockReservation.roomId}</div>
-                                                    <p className="text-sm text-muted-foreground">{mockReservation.roomName}</p>
+                                                    <div className="text-3xl font-bold text-white mb-1">{reservation.roomId}</div>
+                                                    <p className="text-sm text-muted-foreground">{reservation.roomName}</p>
                                                 </div>
                                                 <Badge className="bg-green-900/20 text-green-400 border-green-900">Limpia</Badge>
                                             </div>
@@ -586,6 +716,8 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                         </CardContent>
                                     </Card>
                                 </div>
+
+                                {/* Card: Notas */}
                                 <Card className="bg-card border-border">
                                     <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
                                         <CardTitle className="text-sm font-medium text-muted-foreground uppercase flex items-center gap-2">
@@ -595,7 +727,7 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                     </CardHeader>
                                     <CardContent>
                                         <div className="bg-[#262626] border-l-4 border-[#D4AF37] p-4 rounded-r-md">
-                                            <p className="text-sm text-foreground leading-relaxed italic">"{mockReservation.notes}"</p>
+                                            <p className="text-sm text-foreground leading-relaxed italic">"{reservation.notes}"</p>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -603,14 +735,17 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
 
                             <TabsContent value="huespedes">
                                 <ReservationGuestList
-                                    guests={mockReservation.guests}
+                                    guests={reservation.guests}
                                     maxGuests={totalCapacity}
-                                    // ABRIMOS EL DIALOG VACÍO PARA NUEVO
-                                    onAddGuest={() => setEditingGuest({})}
-                                    // ABRIMOS EL DIALOG CON DATOS PARA EDITAR
-                                    // Buscamos el objeto guest completo en el mock (esto sería mejor pasarlo directo, ver archivo ReservationGuestList)
-                                    onEditGuest={(guestData) => setEditingGuest(guestData)}
-                                    onSignGuest={(id, isSigned) => {
+                                    onAddGuest={() => setEditingGuest({
+                                        id: `new-${Date.now()}`,
+                                        primerNombre: "", primerApellido: "",
+                                        correo: "", telefono: "",
+                                        tipoId: "CC", numeroId: "",
+                                        esTitular: false, isSigned: false
+                                    } as Guest)}
+                                    onEditGuest={(guestData: any) => setEditingGuest(guestData)}
+                                    onSignGuest={(id: string, isSigned: boolean) => {
                                         if(isSigned) toast("Visualizando Firma")
                                         else toast("Abriendo Pad de Firma...")
                                     }}
@@ -618,12 +753,11 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                             </TabsContent>
 
                             <TabsContent value="finance">
-                                {/* ... (Mismo contenido de Finanzas) ... */}
                                 <Card className="bg-card border-border">
                                     <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
                                         <div className="space-y-1">
                                             <CardTitle className="text-base text-foreground">Detalle de Cargos</CardTitle>
-                                            <CardDescription className="text-xs text-muted-foreground">Pre-visualización de Folio #{mockReservation.id}</CardDescription>
+                                            <CardDescription className="text-xs text-muted-foreground">Pre-visualización de Folio #{reservation.id}</CardDescription>
                                         </div>
                                         <Button variant="outline" size="sm" className="border-[#D4AF37] text-[#D4AF37] hover:bg-primary/10" onClick={goToFolios}>
                                             <FileText className="h-4 w-4 mr-2" /> Ver Folio Completo
@@ -640,17 +774,17 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {mockReservation.folioItems.map((item: any) => (
+                                                {reservation.folioItems.map((item: any) => (
                                                     <TableRow key={item.id} className="border-border hover:bg-[#333333]/50">
                                                         <TableCell className="text-xs text-foreground font-mono">{item.date}</TableCell>
                                                         <TableCell className="text-xs text-foreground">{item.concept}</TableCell>
                                                         <TableCell className="text-xs text-muted-foreground text-right">{item.qty}</TableCell>
-                                                        <TableCell className="text-xs text-foreground text-right font-bold">$ {item.total.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-xs text-foreground text-right font-bold">$ {item.price.toLocaleString()}</TableCell>
                                                     </TableRow>
                                                 ))}
                                                 <TableRow className="bg-[#262626] border-t-2 border-border hover:bg-[#262626]">
                                                     <TableCell colSpan={3} className="text-right text-xs font-bold text-muted-foreground uppercase">Total Cargos</TableCell>
-                                                    <TableCell className="text-right text-sm font-bold text-[#D4AF37]">$ {mockReservation.totalAmount.toLocaleString()}</TableCell>
+                                                    <TableCell className="text-right text-sm font-bold text-[#D4AF37]">$ {reservation.totalAmount.toLocaleString()}</TableCell>
                                                 </TableRow>
                                             </TableBody>
                                         </Table>
@@ -660,9 +794,8 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                         </Tabs>
                     </div>
 
-                    {/* COLUMNA DERECHA */}
+                    {/* COLUMNA DERECHA (SIDEBAR) */}
                     <div className="lg:col-span-4 space-y-6">
-                        {/* ... (Mismo contenido Sidebar) ... */}
                         <Card className="bg-card border-border overflow-hidden">
                             <div className="bg-[#262626] p-4 border-b border-border flex justify-between items-center">
                                 <span className="font-semibold text-foreground">Balance</span>
@@ -674,10 +807,10 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                 <div className="space-y-1">
                                     <div className="flex justify-between text-lg font-bold">
                                         <span className="text-white">Total</span>
-                                        <span className="text-[#D4AF37]">$ {mockReservation.totalAmount.toLocaleString()}</span>
+                                        <span className="text-[#D4AF37]">$ {reservation.totalAmount.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between text-xs text-muted-foreground">
-                                        <span>Pagado: $ {mockReservation.paidAmount.toLocaleString()}</span>
+                                        <span>Pagado: $ {reservation.paidAmount.toLocaleString()}</span>
                                         <span>{percentPaid.toFixed(0)}%</span>
                                     </div>
                                     <Progress value={percentPaid} className="h-2 bg-[#333333]" indicatorColor="bg-green-500" />
@@ -710,22 +843,22 @@ export function ReservationDetailsContent({ reservationId }: ReservationDetailsC
                                 <div className="flex items-center gap-4 mb-4">
                                     <Avatar className="h-12 w-12 border border-[#D4AF37]/30">
                                         <AvatarFallback className="bg-[#262626] text-[#D4AF37] font-bold">
-                                            {mockReservation.guests[0].primerNombre[0]}{mockReservation.guests[0].primerApellido[0]}
+                                            {reservation.guests[0].primerNombre[0]}{reservation.guests[0].primerApellido[0]}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div>
                                         <p className="font-bold text-foreground text-sm">
-                                            {mockReservation.guests[0].primerNombre} {mockReservation.guests[0].primerApellido}
+                                            {reservation.guests[0].primerNombre} {reservation.guests[0].primerApellido}
                                         </p>
-                                        <p className="text-xs text-[#737373]">ID: {mockReservation.guests[0].numeroId}</p>
+                                        <p className="text-xs text-[#737373]">ID: {reservation.guests[0].numeroId}</p>
                                     </div>
                                 </div>
                                 <div className="space-y-3 text-sm">
-                                    <div className="flex items-center gap-3 text-muted-foreground cursor-pointer hover:text-white" onClick={() => handleCopy(mockReservation.guests[0].correo, "Email")}>
-                                        <Mail className="h-4 w-4" /> <span className="truncate">{mockReservation.guests[0].correo}</span>
+                                    <div className="flex items-center gap-3 text-muted-foreground cursor-pointer hover:text-white" onClick={() => handleCopy(reservation.guests[0].correo, "Email")}>
+                                        <Mail className="h-4 w-4" /> <span className="truncate">{reservation.guests[0].correo}</span>
                                     </div>
                                     <div className="flex items-center gap-3 text-muted-foreground">
-                                        <Phone className="h-4 w-4" /> <span>{mockReservation.guests[0].telefono}</span>
+                                        <Phone className="h-4 w-4" /> <span>{reservation.guests[0].telefono}</span>
                                     </div>
                                 </div>
                                 <Separator className="bg-[#333333] my-4" />
