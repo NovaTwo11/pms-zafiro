@@ -18,38 +18,42 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
+// --- Tipos Compartidos ---
+export interface ActiveFolio {
+  id: string
+  roomNumber: string
+  guestName: string
+  balance: number
+  status: string
+}
+
+export type PaymentMethodType = "Cash" | "CreditCard" | "Transfer" | "RoomCharge" | "DayPass"
+
 interface CheckoutModalProps {
   isOpen: boolean
   onClose: () => void
   total: number
-  onComplete: () => void
-  preselectedRoom?: string
+  activeFolios: ActiveFolio[] // <--- Recibimos datos reales
+  onComplete: (data: {
+    method: PaymentMethodType,
+    folioId?: string,
+    finalAmount: number,
+    discount: number
+  }) => void
 }
 
-type PaymentMethod = "cash" | "card" | "transfer" | "room" | "daypass" | null
-
-// Sample data - En un caso real, esto vendría de tu API (/api/folios/active-guests y /api/folios/active-externals)
-const availableRooms = [
-  { number: "201", guest: "Sr. García Mendoza" },
-  { number: "102", guest: "Sra. Martínez López" },
-  { number: "305", guest: "Sr. Rodríguez Pérez" },
-  { number: "203", guest: "Sra. Hernández Villa" },
-  { number: "304", guest: "Sr. Díaz Sánchez" },
-]
-
+// Datos Mock SOLO para Pasadías (ya que el backend aún no tiene endpoint para esto)
 const availablePasadias = [
   { id: "e1", alias: "Familia Pérez", description: "Evento de cumpleaños" },
   { id: "e2", alias: "Empresa ABC Corp", description: "Almuerzo ejecutivo" },
-  { id: "e3", alias: "Sr. López (Pasadía)", description: "Uso de piscina" },
 ]
 
-export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedRoom }: CheckoutModalProps) {
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null)
+export function CheckoutModal({ isOpen, onClose, total, activeFolios, onComplete }: CheckoutModalProps) {
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType | null>(null)
   const [roomSearch, setRoomSearch] = useState("")
-  // Si viene preseleccionada, buscamos el objeto completo, si no, null
-  const [selectedRoom, setSelectedRoom] = useState<(typeof availableRooms)[0] | null>(
-      preselectedRoom ? availableRooms.find((r) => r.number === preselectedRoom) || null : null,
-  )
+
+  // Estado adaptado a datos reales
+  const [selectedRoom, setSelectedRoom] = useState<ActiveFolio | null>(null)
   const [selectedPasadia, setSelectedPasadia] = useState<(typeof availablePasadias)[0] | null>(null)
 
   // Estados para descuento
@@ -76,9 +80,11 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
   const discountAmount = calculateDiscount()
   const finalTotal = Math.max(0, total - discountAmount)
 
-  // Filtros de búsqueda
-  const filteredRooms = availableRooms.filter(
-      (room) => room.number.includes(roomSearch) || room.guest.toLowerCase().includes(roomSearch.toLowerCase()),
+  // Filtros de búsqueda (Con datos reales)
+  const filteredRooms = activeFolios.filter(
+      (folio) =>
+          folio.roomNumber.includes(roomSearch) ||
+          folio.guestName.toLowerCase().includes(roomSearch.toLowerCase())
   )
 
   const filteredPasadias = availablePasadias.filter(
@@ -86,9 +92,17 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
   )
 
   const handleComplete = () => {
-    // Aquí podrías enviar selectedRoom.number o selectedPasadia.id al backend junto con la orden
+    // Validamos que si es cargo a habitación, se haya seleccionado una
+    if (paymentMethod === "RoomCharge" && !selectedRoom) return;
+
+    onComplete({
+      method: paymentMethod!,
+      folioId: selectedRoom?.id, // ID real del backend
+      finalAmount: finalTotal,
+      discount: discountAmount
+    })
+
     resetState()
-    onComplete()
   }
 
   const handleClose = () => {
@@ -112,7 +126,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
           {/* HEADER */}
           <DialogHeader className="p-6 pb-4 border-b border-border">
             <div className="flex items-center justify-between">
-              <DialogTitle className="font-[family-name:var(--font-heading)] text-2xl text-foreground">Cobrar Orden</DialogTitle>
+              <DialogTitle className="font-serif text-2xl text-foreground">Cobrar Orden</DialogTitle>
               <Button
                   variant="ghost"
                   size="icon"
@@ -212,21 +226,21 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                   {/* Botones de Pago Directo */}
                   <div className="grid grid-cols-3 gap-4">
                     <button
-                        onClick={() => setPaymentMethod("cash")}
+                        onClick={() => setPaymentMethod("Cash")}
                         className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] hover:bg-accent/50 transition-all duration-200 active:scale-95"
                     >
                       <Banknote className="h-8 w-8 text-[#059669] mb-2" />
                       <span className="text-sm font-medium text-foreground">Efectivo</span>
                     </button>
                     <button
-                        onClick={() => setPaymentMethod("card")}
+                        onClick={() => setPaymentMethod("CreditCard")}
                         className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] hover:bg-accent/50 transition-all duration-200 active:scale-95"
                     >
                       <CreditCard className="h-8 w-8 text-[#3B82F6] mb-2" />
                       <span className="text-sm font-medium text-foreground">Tarjeta</span>
                     </button>
                     <button
-                        onClick={() => setPaymentMethod("transfer")}
+                        onClick={() => setPaymentMethod("Transfer")}
                         className="flex flex-col items-center justify-center h-28 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] hover:bg-accent/50 transition-all duration-200 active:scale-95"
                     >
                       <Building2 className="h-8 w-8 text-[#8B5CF6] mb-2" />
@@ -237,7 +251,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                   {/* Botones de Cargo a Cuenta */}
                   <div className="grid grid-cols-2 gap-4">
                     <button
-                        onClick={() => setPaymentMethod("room")}
+                        onClick={() => setPaymentMethod("RoomCharge")}
                         className="flex flex-col items-center justify-center h-24 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] hover:bg-accent/50 transition-all duration-200 active:scale-95"
                     >
                       <BedDouble className="h-6 w-6 text-[#D4AF37] mb-2" />
@@ -245,7 +259,7 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                     </button>
 
                     <button
-                        onClick={() => setPaymentMethod("daypass")}
+                        onClick={() => setPaymentMethod("DayPass")}
                         className="flex flex-col items-center justify-center h-24 rounded-xl border-2 border-border bg-background hover:border-[#D4AF37] hover:bg-accent/50 transition-all duration-200 active:scale-95"
                     >
                       <Users className="h-6 w-6 text-[#D4AF37] mb-2" />
@@ -262,9 +276,9 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                   </Button>
                 </div>
 
-            ) : paymentMethod === "room" && !selectedRoom ? (
+            ) : paymentMethod === "RoomCharge" && !selectedRoom ? (
 
-                /* VISTA 2: SELECCIÓN DE HABITACIÓN */
+                /* VISTA 2: SELECCIÓN DE HABITACIÓN (REAL) */
                 <div className="space-y-4 animate-in slide-in-from-right duration-300">
                   <div className="flex items-center gap-2 mb-4">
                     <Button
@@ -290,33 +304,34 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                   </div>
 
                   <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1 custom-scrollbar">
-                    {filteredRooms.map((room) => (
-                        <button
-                            key={room.number}
-                            onClick={() => setSelectedRoom(room)}
-                            className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-background hover:bg-accent/50 hover:border-[#D4AF37] transition-all duration-200 text-left group"
-                        >
-                          <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center group-hover:bg-[#D4AF37]/20 transition-colors">
-                            <span className="text-sm font-bold text-[#D4AF37]">{room.number}</span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">{room.guest}</p>
-                            <p className="text-xs text-muted-foreground">Habitación {room.number}</p>
-                          </div>
-                        </button>
-                    ))}
-                    {filteredRooms.length === 0 && (
+                    {filteredRooms.length === 0 ? (
                         <div className="text-center py-8">
                           <BedDouble className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                          <p className="text-muted-foreground">No se encontraron habitaciones</p>
+                          <p className="text-muted-foreground">No se encontraron huéspedes activos</p>
                         </div>
+                    ) : (
+                        filteredRooms.map((folio) => (
+                            <button
+                                key={folio.id}
+                                onClick={() => setSelectedRoom(folio)}
+                                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border bg-background hover:bg-accent/50 hover:border-[#D4AF37] transition-all duration-200 text-left group"
+                            >
+                              <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center group-hover:bg-[#D4AF37]/20 transition-colors">
+                                <span className="text-sm font-bold text-[#D4AF37]">{folio.roomNumber}</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{folio.guestName}</p>
+                                <p className="text-xs text-muted-foreground">Saldo: {formatCurrency(folio.balance)}</p>
+                              </div>
+                            </button>
+                        ))
                     )}
                   </div>
                 </div>
 
-            ) : paymentMethod === "daypass" && !selectedPasadia ? (
+            ) : paymentMethod === "DayPass" && !selectedPasadia ? (
 
-                /* VISTA 3: SELECCIÓN DE PASADÍA (FOLIO EXTERNO) */
+                /* VISTA 3: SELECCIÓN DE PASADÍA (MOCK VISUAL) */
                 <div className="space-y-4 animate-in slide-in-from-right duration-300">
                   <div className="flex items-center gap-2 mb-4">
                     <Button
@@ -357,12 +372,6 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                           </div>
                         </button>
                     ))}
-                    {filteredPasadias.length === 0 && (
-                        <div className="text-center py-8">
-                          <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
-                          <p className="text-muted-foreground">No se encontraron folios externos</p>
-                        </div>
-                    )}
                   </div>
                 </div>
 
@@ -374,8 +383,8 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                       variant="ghost"
                       size="sm"
                       onClick={() => {
-                        if (paymentMethod === "room") setSelectedRoom(null)
-                        else if (paymentMethod === "daypass") setSelectedPasadia(null)
+                        if (paymentMethod === "RoomCharge") setSelectedRoom(null)
+                        else if (paymentMethod === "DayPass") setSelectedPasadia(null)
                         else setPaymentMethod(null)
                       }}
                       className="text-muted-foreground hover:text-foreground px-0"
@@ -384,51 +393,45 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                   </Button>
 
                   <div className="text-center py-4">
-                    {paymentMethod === "cash" && (
+                    {paymentMethod === "Cash" && (
                         <>
                           <div className="h-20 w-20 rounded-full bg-[#059669]/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-[#059669]/30">
                             <Banknote className="h-10 w-10 text-[#059669]" />
                           </div>
                           <h3 className="text-xl font-semibold text-foreground">Pago en Efectivo</h3>
-                          <p className="text-muted-foreground text-sm mt-1">
-                            Recibe el dinero e ingresa al sistema.
-                          </p>
+                          <p className="text-muted-foreground text-sm mt-1">Recibe el dinero e ingresa al sistema.</p>
                         </>
                     )}
-                    {paymentMethod === "card" && (
+                    {paymentMethod === "CreditCard" && (
                         <>
                           <div className="h-20 w-20 rounded-full bg-[#3B82F6]/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-[#3B82F6]/30">
                             <CreditCard className="h-10 w-10 text-[#3B82F6]" />
                           </div>
                           <h3 className="text-xl font-semibold text-foreground">Pago con Tarjeta</h3>
-                          <p className="text-muted-foreground text-sm mt-1">
-                            Procesa el cobro en el datáfono.
-                          </p>
+                          <p className="text-muted-foreground text-sm mt-1">Procesa el cobro en el datáfono.</p>
                         </>
                     )}
-                    {paymentMethod === "transfer" && (
+                    {paymentMethod === "Transfer" && (
                         <>
                           <div className="h-20 w-20 rounded-full bg-[#8B5CF6]/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-[#8B5CF6]/30">
                             <Building2 className="h-10 w-10 text-[#8B5CF6]" />
                           </div>
                           <h3 className="text-xl font-semibold text-foreground">Transferencia</h3>
-                          <p className="text-muted-foreground text-sm mt-1">
-                            Verifique el comprobante bancario.
-                          </p>
+                          <p className="text-muted-foreground text-sm mt-1">Verifique el comprobante bancario.</p>
                         </>
                     )}
-                    {paymentMethod === "room" && selectedRoom && (
+                    {paymentMethod === "RoomCharge" && selectedRoom && (
                         <>
                           <div className="h-20 w-20 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-[#D4AF37]/30">
-                            <span className="text-2xl font-bold text-[#D4AF37]">{selectedRoom.number}</span>
+                            <span className="text-2xl font-bold text-[#D4AF37]">{selectedRoom.roomNumber}</span>
                           </div>
                           <h3 className="text-xl font-semibold text-foreground">Cargar a Habitación</h3>
                           <p className="text-muted-foreground text-sm mt-1 px-4">
-                            Se añadirá al folio de: <br/> <span className="font-medium text-foreground">{selectedRoom.guest}</span>
+                            Se añadirá al folio de: <br/> <span className="font-medium text-foreground">{selectedRoom.guestName}</span>
                           </p>
                         </>
                     )}
-                    {paymentMethod === "daypass" && selectedPasadia && (
+                    {paymentMethod === "DayPass" && selectedPasadia && (
                         <>
                           <div className="h-20 w-20 rounded-full bg-[#D4AF37]/10 flex items-center justify-center mx-auto mb-4 ring-1 ring-[#D4AF37]/30">
                             <Users className="h-10 w-10 text-[#D4AF37]" />
@@ -447,11 +450,11 @@ export function CheckoutModal({ isOpen, onClose, total, onComplete, preselectedR
                         onClick={handleComplete}
                         className={cn(
                             "w-full h-12 text-lg font-semibold shadow-lg transition-all duration-300",
-                            paymentMethod === "cash"
+                            paymentMethod === "Cash"
                                 ? "bg-[#059669] hover:bg-[#059669]/90 text-white shadow-[#059669]/20"
-                                : paymentMethod === "card"
+                                : paymentMethod === "CreditCard"
                                     ? "bg-[#3B82F6] hover:bg-[#3B82F6]/90 text-white shadow-[#3B82F6]/20"
-                                    : paymentMethod === "transfer"
+                                    : paymentMethod === "Transfer"
                                         ? "bg-[#8B5CF6] hover:bg-[#8B5CF6]/90 text-white shadow-[#8B5CF6]/20"
                                         : "bg-primary hover:bg-[#B5952F] text-[#0F0F0F] shadow-amber-900/20",
                         )}

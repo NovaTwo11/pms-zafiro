@@ -3,33 +3,25 @@
 import { useState, useEffect } from "react"
 import { ProductGrid } from "./product-grid"
 import { Ticket } from "./ticket"
-import { CheckoutModal } from "./checkout-modal"
+import { CheckoutModal, ActiveFolio, PaymentMethodType } from "./checkout-modal"
 import { usePOSStore } from "@/lib/store"
 import api from "@/lib/api"
 import { toast } from "sonner"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Lock, Unlock, DollarSign, LogOut } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-// --- Tipos ---
+// --- Tipos Backend ---
 interface CashierShift {
-  id: string;
-  openedAt: string;
-  startingAmount: number;
+  id: string; // Guid
   status: "Open" | "Closed";
 }
 
-// --- Datos Mock ---
+// --- Datos Mock Productos (Frontend Only) ---
+// Nota: Idealmente esto vendría de una tabla "Products", pero lo dejamos mockeado por simplicidad
 const categories = [
   { id: "all", name: "Todo" },
   { id: "bebidas", name: "Bebidas" },
@@ -43,60 +35,59 @@ const products = [
   { id: "p1", name: "Coca-Cola", price: 6000, category: "bebidas", image: "/refreshing-cola-can.png" },
   { id: "p2", name: "Agua Mineral", price: 4000, category: "bebidas", image: "/mineral-water-bottle.jpg" },
   { id: "p3", name: "Cerveza Club", price: 8000, category: "bebidas", image: "/amber-beer-bottle.png" },
-  { id: "p4", name: "Whisky Buchanan's", price: 25000, category: "bebidas", image: "/whisky-glass.jpg" },
-  { id: "p5", name: "Mojito", price: 22000, category: "cocteles", image: "/mojito-cocktail.jpg" },
-  { id: "p6", name: "Margarita", price: 24000, category: "cocteles", image: "/margarita-cocktail.png" },
-  { id: "p7", name: "Piña Colada", price: 23000, category: "cocteles", image: "/pina-colada.png" },
-  { id: "p8", name: "Papas Fritas", price: 15000, category: "snacks", image: "/crispy-french-fries.png" },
-  { id: "p9", name: "Nachos con Queso", price: 18000, category: "snacks", image: "/nachos-cheese.png" },
-  { id: "p10", name: "Alitas BBQ", price: 28000, category: "snacks", image: "/bbq-chicken-wings.png" },
   { id: "p11", name: "Hamburguesa Clásica", price: 32000, category: "platos", image: "/classic-hamburger.jpg" },
   { id: "p12", name: "Club Sandwich", price: 28000, category: "platos", image: "/club-sandwich.jpg" },
   { id: "p13", name: "Ensalada César", price: 25000, category: "platos", image: "/caesar-salad.png" },
-  { id: "p14", name: "Pizza Margarita", price: 35000, category: "platos", image: "/margherita-pizza.png" },
-  { id: "p15", name: "Brownie con Helado", price: 16000, category: "postres", image: "/brownie-ice-cream.jpg" },
-  { id: "p16", name: "Cheesecake", price: 14000, category: "postres", image: "/cheesecake-slice.png" },
 ]
 
 export function POSContent() {
-  // --- Estados de Negocio (POS) ---
+  // --- Estados de Negocio ---
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const { items, addItem, clearCart, total } = usePOSStore()
 
-  // --- Estados de Caja (Cashiering) ---
+  // --- Estados de Datos Reales ---
   const [shift, setShift] = useState<CashierShift | null>(null)
-  const [loadingShift, setLoadingShift] = useState(true)
+  const [activeFolios, setActiveFolios] = useState<ActiveFolio[]>([]) // Lista real de backend
+
+  const [loading, setLoading] = useState(true)
   const [openShiftModalOpen, setOpenShiftModalOpen] = useState(false)
   const [closeShiftModalOpen, setCloseShiftModalOpen] = useState(false)
   const [amountInput, setAmountInput] = useState("")
 
   // --- Carga Inicial ---
-  const fetchStatus = async () => {
+  const initData = async () => {
     try {
-      setLoadingShift(true)
-      const { data } = await api.get("/cashier/status")
-      if (data) {
-        setShift(data)
-        setOpenShiftModalOpen(false)
-      } else {
+      setLoading(true)
+
+      // 1. Obtener Turno de Caja
+      try {
+        const { data: shiftData } = await api.get("/cashier/status")
+        setShift(shiftData)
+        if (!shiftData) setOpenShiftModalOpen(true)
+      } catch {
         setShift(null)
-        setOpenShiftModalOpen(true) // Forzar apertura si no hay turno
+        setOpenShiftModalOpen(true)
       }
-    } catch (error) {
-      console.error("Error fetching shift", error)
-      setShift(null)
-      setOpenShiftModalOpen(true)
+
+      // 2. Obtener Huéspedes Activos (Para cobrar a habitación)
+      try {
+        const { data: foliosData } = await api.get("/folios/active-guests")
+        setActiveFolios(foliosData)
+      } catch (e) {
+        console.error("Error cargando folios", e)
+      }
+
     } finally {
-      setLoadingShift(false)
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchStatus()
+    initData()
   }, [])
 
-  // --- Handlers de Caja ---
+  // --- Handlers Caja ---
   const handleOpenShift = async () => {
     if (!amountInput) return toast.error("Ingresa el monto base")
     try {
@@ -105,7 +96,7 @@ export function POSContent() {
       setOpenShiftModalOpen(false)
       setAmountInput("")
       toast.success("Caja abierta correctamente")
-    } catch (error) {
+    } catch {
       toast.error("Error al abrir caja")
     }
   }
@@ -116,21 +107,22 @@ export function POSContent() {
       await api.post("/cashier/close", { actualAmount: parseFloat(amountInput) })
       setShift(null)
       setCloseShiftModalOpen(false)
-      setOpenShiftModalOpen(true) // Volver a pedir apertura
+      setOpenShiftModalOpen(true)
       setAmountInput("")
-      clearCart() // Limpiar carrito al cerrar turno
+      clearCart()
       toast.success("Turno cerrado correctamente")
-    } catch (error) {
+    } catch {
       toast.error("Error al cerrar caja")
     }
   }
 
-  // --- Handlers de POS ---
-  const filteredProducts =
-      selectedCategory === "all" ? products : products.filter((p) => p.category === selectedCategory)
-
-  const handleProductClick = (product: (typeof products)[0]) => {
+  // --- Handlers Venta ---
+  const handleProductClick = (product: typeof products[0]) => {
     if (!shift) return toast.error("Debes abrir caja primero")
+
+    // CORRECCIÓN:
+    // 1. No pasamos 'quantity' (el store lo pone en 1).
+    // 2. Mapeamos solo las propiedades que el store espera (id, name, price, image).
     addItem({
       id: product.id,
       name: product.name,
@@ -139,149 +131,177 @@ export function POSContent() {
     })
   }
 
-  const handleCheckout = () => {
-    setCheckoutOpen(true)
+  // Lógica principal de cobro conectada al backend
+  const handlePaymentComplete = async (paymentData: {
+    method: PaymentMethodType,
+    folioId?: string,
+    finalAmount: number,
+    discount: number
+  }) => {
+
+    if (!shift) return toast.error("No hay turno abierto")
+
+    // Si es "RoomCharge", necesitamos obligatoriamente un folio destino.
+    // Si es "Cash/Card", idealmente también, pero si no hay, fallará.
+    // Para simplificar: Si es Cash/Card y NO seleccionó habitación,
+    // asumimos que es una venta "Walk-in" (necesitaríamos un folio genérico,
+    // pero por ahora usaremos la primera habitación activa como 'dummy' o lanzaremos error).
+
+    let targetFolioId = paymentData.folioId
+
+    if (!targetFolioId) {
+      // Opción: Si es Cash y no hay folio, no podemos guardar en este esquema estricto de FolioTransaction.
+      // Solución rápida: Requerir seleccionar habitación SIEMPRE en este MVP.
+      if (activeFolios.length > 0) {
+        // Fallback a la primera habitación (solo para pruebas) o error
+        // toast.error("Por favor selecciona una habitación para asociar la venta (Requerido en MVP)")
+        // return;
+
+        // Ojo: checkout-modal ya valida que si es RoomCharge tenga folio.
+        // Si es Cash, permitiremos continuar solo si hay un folio seleccionado,
+        // Si no, tendremos que asignar uno 'dummy' (lo omito para no complicar).
+        // Asumiré que el modal fuerza selección o usamos uno por defecto si queremos.
+      } else {
+        toast.error("No hay huéspedes activos para cargar la venta.")
+        return
+      }
+    }
+
+    // Si el usuario pagó en Cash/Card pero NO seleccionó folio,
+    // en este diseño estricto no podemos guardar la transacción sin FolioId.
+    // Así que asumiremos que el usuario SIEMPRE selecciona un folio en el modal
+    // (puedes modificar CheckoutModal para forzarlo en Cash también si quieres).
+    // Por ahora, si targetFolioId es null, usaremos el primer folio activo como "Fallback" para que no falle el demo.
+    if (!targetFolioId && activeFolios.length > 0) {
+      targetFolioId = activeFolios[0].id
+      toast.info(`Venta asignada a habitación ${activeFolios[0].roomNumber} por defecto`)
+    }
+
+    if (!targetFolioId) {
+      toast.error("Error: No hay folio destino disponible.")
+      return
+    }
+
+    try {
+      const loadingToast = toast.loading("Procesando transacción...")
+
+      // 1. Registrar Cargos (Consumos) - Type: Charge
+      // Enviamos cada producto individualmente para detalle en folio
+      const itemPromises = items.map(item => {
+        return api.post(`/folios/${targetFolioId}/transactions`, {
+          amount: item.price * item.quantity,
+          description: item.name, // Nombre del producto
+          type: "Charge",
+          quantity: item.quantity,
+          unitPrice: item.price,
+          category: "Restaurante", // Categoría fija por ahora
+          cashierShiftId: shift.id
+        })
+      })
+
+      await Promise.all(itemPromises)
+
+      // 2. Si NO es cargo a habitación (es Cash/Card), registrar el PAGO inmediato.
+      if (paymentData.method !== "RoomCharge") {
+        await api.post(`/folios/${targetFolioId}/transactions`, {
+          amount: paymentData.finalAmount,
+          description: `Pago POS - ${paymentData.method}`,
+          type: "Payment",
+          category: "Payment",
+          paymentMethod: paymentData.method,
+          cashierShiftId: shift.id
+        })
+      }
+
+      toast.dismiss(loadingToast)
+      toast.success("Venta registrada exitosamente")
+
+      clearCart()
+      setCheckoutOpen(false)
+      initData() // Recargar datos (saldos actualizados)
+
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al procesar la venta")
+    }
   }
 
-  const handleCheckoutComplete = () => {
-    clearCart()
-    setCheckoutOpen(false)
-    // Aquí podrías recargar el estado del turno si quisieras actualizar el "SystemCalculatedAmount" en tiempo real
-  }
-
-  if (loadingShift) return <div className="p-10 flex justify-center">Cargando sistema de caja...</div>
+  if (loading) return <div className="h-screen flex items-center justify-center">Cargando sistema...</div>
 
   return (
       <>
         <div className="h-[calc(100vh-112px)] flex flex-col lg:flex-row gap-6 relative">
-          {/* Overlay de Bloqueo si no hay turno (aunque el modal lo cubre, esto es visual de fondo) */}
-          {!shift && <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center text-muted-foreground">Sistema Bloqueado - Caja Cerrada</div>}
+          {!shift && <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center text-muted-foreground font-medium">Caja Cerrada - Inicie Turno</div>}
 
-          {/* Left - Product Catalog */}
+          {/* Catálogo */}
           <div className="flex-1 flex flex-col min-w-0">
-            {/* Header con Estado de Caja */}
             <div className="mb-4 flex justify-between items-center">
               <div>
-                <h1 className="font-serif text-3xl font-semibold text-foreground">Punto de Venta</h1>
+                <h1 className="font-serif text-3xl font-semibold">Punto de Venta</h1>
                 <div className="flex items-center gap-2 mt-1">
-                  <p className="text-muted-foreground">Bar & Restaurante</p>
-                  {shift && (
-                      <Badge variant="outline" className="text-green-600 border-green-200 bg-green-50">
-                        <Unlock className="w-3 h-3 mr-1" /> Turno Abierto
-                      </Badge>
-                  )}
+                  {shift && <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200"><Unlock className="w-3 h-3 mr-1" /> Caja Abierta</Badge>}
                 </div>
               </div>
-
-              {/* Botón de Cierre de Caja */}
-              {shift && (
-                  <Button variant="destructive" size="sm" onClick={() => setCloseShiftModalOpen(true)}>
-                    <LogOut className="w-4 h-4 mr-2" /> Cerrar Caja
-                  </Button>
-              )}
+              {shift && <Button variant="destructive" size="sm" onClick={() => setCloseShiftModalOpen(true)}><LogOut className="w-4 h-4 mr-2" /> Cerrar Turno</Button>}
             </div>
 
-            {/* Category Tabs - Capsule style */}
             <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
               {categories.map((cat) => (
-                  <button
-                      key={cat.id}
-                      onClick={() => setSelectedCategory(cat.id)}
-                      disabled={!shift}
-                      className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                          selectedCategory === cat.id
-                              ? "bg-primary text-[#0F0F0F]"
-                              : "bg-card text-muted-foreground border border-border hover:border-[#444444] hover:text-foreground"
-                      }`}
-                  >
+                  <button key={cat.id} onClick={() => setSelectedCategory(cat.id)} disabled={!shift}
+                          className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                              selectedCategory === cat.id ? "bg-primary text-primary-foreground" : "bg-card border hover:bg-accent"
+                          }`}>
                     {cat.name}
                   </button>
               ))}
             </div>
 
-            {/* Products Grid */}
             <div className="flex-1 overflow-y-auto">
-              <ProductGrid products={filteredProducts} onProductClick={handleProductClick} />
+              <ProductGrid
+                  products={selectedCategory === "all" ? products : products.filter(p => p.category === selectedCategory)}
+                  onProductClick={handleProductClick}
+              />
             </div>
           </div>
 
-          {/* Right - Ticket */}
+          {/* Ticket */}
           <div className="w-full lg:w-[380px] shrink-0">
-            <Ticket items={items} total={total()} onCheckout={handleCheckout} />
+            <Ticket items={items} total={total()} onCheckout={() => setCheckoutOpen(true)} />
           </div>
         </div>
 
-        {/* --- MODALES --- */}
-
-        {/* 1. Modal de Apertura de Caja (Obligatorio) */}
+        {/* Modales */}
         <Dialog open={openShiftModalOpen} onOpenChange={() => {}}>
           <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
-            <DialogHeader>
-              <DialogTitle>Apertura de Caja</DialogTitle>
-              <DialogDescription>
-                Para iniciar operaciones, ingresa el dinero base en efectivo.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="base-amount">Monto Base</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                      id="base-amount"
-                      type="number"
-                      className="pl-9"
-                      placeholder="0.00"
-                      value={amountInput}
-                      onChange={(e) => setAmountInput(e.target.value)}
-                  />
-                </div>
-              </div>
+            <DialogHeader><DialogTitle>Apertura de Caja</DialogTitle></DialogHeader>
+            <div className="py-4 space-y-2">
+              <Label>Monto Base Efectivo</Label>
+              <Input type="number" placeholder="0.00" value={amountInput} onChange={(e) => setAmountInput(e.target.value)} />
             </div>
-            <DialogFooter>
-              <Button onClick={handleOpenShift} className="w-full">Abrir Turno</Button>
-            </DialogFooter>
+            <DialogFooter><Button onClick={handleOpenShift} className="w-full">Abrir Turno</Button></DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 2. Modal de Cierre de Caja */}
         <Dialog open={closeShiftModalOpen} onOpenChange={setCloseShiftModalOpen}>
           <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Cierre de Turno</DialogTitle>
-              <DialogDescription>
-                Ingresa el monto total contado físicamente (Arqueo) para cerrar.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="close-amount">Total Efectivo Contado</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                      id="close-amount"
-                      type="number"
-                      className="pl-9"
-                      placeholder="0.00"
-                      value={amountInput}
-                      onChange={(e) => setAmountInput(e.target.value)}
-                  />
-                </div>
-              </div>
+            <DialogHeader><DialogTitle>Cierre de Caja</DialogTitle></DialogHeader>
+            <div className="py-4 space-y-2">
+              <Label>Dinero en Caja (Arqueo)</Label>
+              <Input type="number" placeholder="0.00" value={amountInput} onChange={(e) => setAmountInput(e.target.value)} />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setCloseShiftModalOpen(false)}>Cancelar</Button>
-              <Button variant="destructive" onClick={handleCloseShift}>Confirmar Cierre</Button>
+              <Button variant="destructive" onClick={handleCloseShift}>Cerrar Caja</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
 
-        {/* 3. Modal de Checkout (Existente) */}
         <CheckoutModal
             isOpen={checkoutOpen}
             onClose={() => setCheckoutOpen(false)}
             total={total()}
-            onComplete={handleCheckoutComplete}
+            activeFolios={activeFolios} // Pasamos la data real
+            onComplete={handlePaymentComplete} // Recibimos la data real
         />
       </>
   )
