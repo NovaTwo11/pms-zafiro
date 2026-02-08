@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
-import { addDays, format, startOfWeek, isSameDay, isToday, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns"
+import { useState, useRef, useMemo, useEffect } from "react"
+import { addDays, format, startOfWeek, isSameDay, isToday, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import { CheckinWizard } from "@/components/checkin-wizard"
 import { ChevronLeft, ChevronRight, Plus, Lock, DollarSign } from "lucide-react"
@@ -11,17 +11,20 @@ import { ReservationPopover } from "./reservation-popover"
 import { NewReservationModal } from "./new-reservation-modal"
 import { RateModifierModal } from "./rate-modifier-modal"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import api from "@/lib/api" // Tu cliente Axios
 
-// --- TYPES ---
+// Importamos los tipos centralizados y los visuales
+import {
+  Room as RoomType,
+  ReservationDto as ReservationType,
+  BackendReservationStatus,
+  VisualReservationStatus,
+  BackendRoomStatus
+} from "@/types"
+
+// --- TYPES LOCALES PARA LA VISTA ---
 type ViewMode = "day" | "week" | "month"
-type RoomCategory = "Estándar" | "Superior" | "Deluxe" | "Suite" | "Suite Junior" | "Suite Presidencial"
-
-type ReservationStatus =
-    | "check_in_paid"
-    | "check_in_debt"
-    | "confirmed_deposit"
-    | "confirmed_no_deposit"
-    | "blocked"
 
 export type ReservationSegment = {
   roomId: string
@@ -29,160 +32,22 @@ export type ReservationSegment = {
   endDate: Date
 }
 
-export type Reservation = {
+// Extendemos el tipo base para añadir lógica visual del cronograma
+export type TimelineReservation = {
   id: string
   guestName: string
   guestId?: string
-  segments: ReservationSegment[]
-  status: ReservationStatus
+  segments: ReservationSegment[] // El backend manda 1, pero el frontend soporta varios (cambios de cuarto)
+  status: VisualReservationStatus // Usamos el estado visual (colores)
   totalValue: number
   paidAmount: number
   checkInTime?: Date
 }
 
-type Room = {
-  id: string
-  number: string
-  category: RoomCategory
-  basePrice: number
-}
-
-type Floor = {
+type FloorGroup = {
   name: string
-  rooms: Room[]
+  rooms: RoomType[]
 }
-
-// --- DATA SIMULADA ROBUSTA (Contexto: Feb 2026) ---
-const floors: Floor[] = [
-  {
-    name: "Piso 1",
-    rooms: [
-      { id: "101", number: "101", category: "Estándar", basePrice: 150000 },
-      { id: "102", number: "102", category: "Estándar", basePrice: 150000 },
-      { id: "103", number: "103", category: "Superior", basePrice: 220000 },
-      { id: "104", number: "104", category: "Superior", basePrice: 220000 },
-      { id: "105", number: "105", category: "Suite", basePrice: 350000 },
-    ],
-  },
-  {
-    name: "Piso 2",
-    rooms: [
-      { id: "201", number: "201", category: "Estándar", basePrice: 150000 },
-      { id: "202", number: "202", category: "Estándar", basePrice: 150000 },
-      { id: "203", number: "203", category: "Superior", basePrice: 220000 },
-      { id: "204", number: "204", category: "Superior", basePrice: 220000 },
-      { id: "205", number: "205", category: "Suite", basePrice: 350000 },
-    ],
-  },
-  {
-    name: "Piso 3",
-    rooms: [
-      { id: "301", number: "301", category: "Estándar", basePrice: 160000 },
-      { id: "302", number: "302", category: "Estándar", basePrice: 160000 },
-      { id: "303", number: "303", category: "Superior", basePrice: 240000 },
-      { id: "304", number: "304", category: "Suite Junior", basePrice: 400000 },
-      { id: "305", number: "305", category: "Suite Presidencial", basePrice: 800000 },
-    ],
-  },
-]
-
-// "Quemando" datos para Febrero 2026
-const initialReservations: Reservation[] = [
-  // --- PASADAS ---
-  {
-    id: "hist1",
-    guestName: "Juan Pérez",
-    segments: [{ roomId: "101", startDate: new Date(2026, 0, 28), endDate: new Date(2026, 1, 2) }],
-    status: "check_in_paid",
-    totalValue: 750000,
-    paidAmount: 750000,
-  },
-  {
-    id: "hist2",
-    guestName: "Ana Solís",
-    segments: [{ roomId: "203", startDate: new Date(2026, 1, 1), endDate: new Date(2026, 1, 4) }],
-    status: "check_in_paid",
-    totalValue: 660000,
-    paidAmount: 660000,
-  },
-  // --- ACTUALES ---
-  {
-    id: "curr1",
-    guestName: "Carlos Ruiz",
-    segments: [{ roomId: "102", startDate: new Date(2026, 1, 5), endDate: new Date(2026, 1, 10) }],
-    status: "check_in_debt",
-    totalValue: 750000,
-    paidAmount: 300000,
-  },
-  {
-    id: "curr2",
-    guestName: "Familia Gómez",
-    segments: [{ roomId: "105", startDate: new Date(2026, 1, 6), endDate: new Date(2026, 1, 9) }],
-    status: "check_in_paid",
-    totalValue: 1050000,
-    paidAmount: 1050000,
-  },
-  {
-    id: "curr3",
-    guestName: "Lucía Méndez",
-    segments: [{ roomId: "201", startDate: new Date(2026, 1, 4), endDate: new Date(2026, 1, 8) }],
-    status: "check_in_paid",
-    totalValue: 600000,
-    paidAmount: 600000,
-  },
-  {
-    id: "curr4",
-    guestName: "Grupo Empresarial",
-    segments: [{ roomId: "304", startDate: new Date(2026, 1, 7), endDate: new Date(2026, 1, 12) }],
-    status: "check_in_debt",
-    totalValue: 2000000,
-    paidAmount: 0,
-  },
-  // --- PRÓXIMAS ---
-  {
-    id: "fut1",
-    guestName: "Roberto Díaz",
-    segments: [{ roomId: "101", startDate: new Date(2026, 1, 12), endDate: new Date(2026, 1, 15) }],
-    status: "confirmed_deposit",
-    totalValue: 450000,
-    paidAmount: 200000,
-  },
-  {
-    id: "fut2",
-    guestName: "María Torres",
-    segments: [{ roomId: "103", startDate: new Date(2026, 1, 14), endDate: new Date(2026, 1, 18) }],
-    status: "confirmed_no_deposit",
-    totalValue: 880000,
-    paidAmount: 0,
-  },
-  {
-    id: "fut3",
-    guestName: "Boda Martinez",
-    segments: [
-      { roomId: "305", startDate: new Date(2026, 1, 20), endDate: new Date(2026, 1, 25) }
-    ],
-    status: "confirmed_deposit",
-    totalValue: 4000000,
-    paidAmount: 1500000,
-  },
-  // --- BLOQUEOS ---
-  {
-    id: "blk1",
-    guestName: "MANTENIMIENTO TV",
-    segments: [{ roomId: "104", startDate: new Date(2026, 1, 6), endDate: new Date(2026, 1, 8) }],
-    status: "blocked",
-    totalValue: 0,
-    paidAmount: 0,
-  },
-  {
-    id: "blk2",
-    guestName: "PINTURA",
-    segments: [{ roomId: "202", startDate: new Date(2026, 1, 10), endDate: new Date(2026, 1, 15) }],
-    status: "blocked",
-    totalValue: 0,
-    paidAmount: 0,
-  },
-]
 
 // --- UTILIDADES VISUALES ---
 const formatPriceShort = (price: number) => {
@@ -191,8 +56,7 @@ const formatPriceShort = (price: number) => {
   return price.toString()
 }
 
-// CORREGIDO: Estilos adaptativos (Light/Dark)
-const getStatusStyles = (status: ReservationStatus) => {
+const getStatusStyles = (status: VisualReservationStatus) => {
   switch (status) {
     case "check_in_paid":
       return "bg-emerald-100 text-emerald-800 border-l-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-l-emerald-500 border-l-4 hover:bg-emerald-200 dark:hover:bg-emerald-500/25 ring-1 ring-emerald-500/20"
@@ -209,24 +73,40 @@ const getStatusStyles = (status: ReservationStatus) => {
   }
 }
 
-// CORREGIDO: Colores de categoría legibles
-const getCategoryColor = (category: RoomCategory) => {
-  switch (category) {
-    case "Estándar": return "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-400/20 dark:bg-blue-400/5"
-    case "Superior": return "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-400/20 dark:bg-purple-400/5"
-    case "Deluxe": return "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:border-amber-400/20 dark:bg-amber-400/5"
-    case "Suite":
-    case "Suite Junior":
-    case "Suite Presidencial": return "text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:border-rose-400/20 dark:bg-rose-400/5"
-    default: return "text-gray-400"
+const getCategoryColor = (category: string) => {
+  // Normalizamos para comparar sin importar mayúsculas/minúsculas
+  const cat = category.toLowerCase()
+  if (cat.includes("estándar") || cat.includes("standard")) return "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-400/20 dark:bg-blue-400/5"
+  if (cat.includes("superior")) return "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-400/20 dark:bg-purple-400/5"
+  if (cat.includes("deluxe")) return "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:border-amber-400/20 dark:bg-amber-400/5"
+  if (cat.includes("suite")) return "text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:border-rose-400/20 dark:bg-rose-400/5"
+  return "text-gray-400"
+}
+
+// Función auxiliar para mapear estado Backend -> Visual
+const mapBackendStatus = (status: BackendReservationStatus): VisualReservationStatus => {
+  switch (status) {
+    case "CheckedIn": return "check_in_debt" // Asumimos deuda por defecto (rojo) para seguridad
+    case "Confirmed": return "confirmed_deposit"
+    case "Pending": return "confirmed_no_deposit"
+    case "Cancelled":
+    case "CheckedOut":
+    case "NoShow": return "available"
+    default: return "available"
   }
 }
 
 export function CronogramaContent() {
+  // Estados de datos
+  const [rooms, setRooms] = useState<RoomType[]>([])
+  const [floors, setFloors] = useState<FloorGroup[]>([])
+  const [reservations, setReservations] = useState<TimelineReservation[]>([])
+  const [loading, setLoading] = useState(true)
+
+  // Estados de UI
   const [currentDate, setCurrentDate] = useState(new Date())
   const [viewMode, setViewMode] = useState<ViewMode>("month")
   const [selectedReservation, setSelectedReservation] = useState<string | null>(null)
-  const [reservations, setReservations] = useState<Reservation[]>(initialReservations)
 
   const [draggedSegment, setDraggedSegment] = useState<{
     reservationId: string
@@ -235,13 +115,86 @@ export function CronogramaContent() {
   } | null>(null)
 
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({})
-  const [checkinWizardData, setCheckinWizardData] = useState<{ isOpen: boolean; reservation: Reservation | null } | null>(null)
+  const [checkinWizardData, setCheckinWizardData] = useState<{ isOpen: boolean; reservation: TimelineReservation | null } | null>(null)
   const [newReservationModal, setNewReservationModal] = useState<{ isOpen: boolean; roomId: string; date: Date; type: "reservation" | "block" } | null>(null)
   const [rateModalOpen, setRateModalOpen] = useState(false)
 
   const gridRef = useRef<HTMLDivElement>(null)
 
-  const getRoomPrice = (room: Room, date: Date) => {
+  // --- CARGA DE DATOS REALES ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const [roomsRes, resRes] = await Promise.all([
+          api.get<RoomType[]>('/rooms'),
+          api.get<any[]>('/reservations') // Usamos any temporalmente para el mapping flexible
+        ])
+
+        // 1. Procesar Habitaciones y agrupar por Pisos
+        const sortedRooms = roomsRes.data.sort((a, b) => a.number.localeCompare(b.number))
+        setRooms(sortedRooms)
+
+        const groups: Record<string, RoomType[]> = {}
+        sortedRooms.forEach(room => {
+          const floorNum = room.number.charAt(0) // Ej: "1" de "101"
+          const floorName = `Piso ${floorNum}`
+          if (!groups[floorName]) groups[floorName] = []
+          groups[floorName].push(room)
+        })
+
+        const floorGroups: FloorGroup[] = Object.entries(groups).map(([name, rooms]) => ({ name, rooms }))
+        setFloors(floorGroups.sort((a, b) => a.name.localeCompare(b.name)))
+
+        // 2. Procesar Reservas
+        const mappedReservations: TimelineReservation[] = resRes.data
+            .filter(r => r.status !== "Cancelled" && r.status !== "CheckedOut") // Filtramos historial por ahora
+            .map(r => ({
+              id: r.id,
+              guestName: r.mainGuestName || "Huésped",
+              guestId: r.mainGuestId,
+              status: mapBackendStatus(r.status),
+              totalValue: r.totalAmount || 0, // Si el backend no calcula, poner 0
+              paidAmount: 0, // Pendiente implementar pagos en backend
+              segments: [{
+                roomId: r.roomId,
+                startDate: parseISO(r.startDate),
+                endDate: parseISO(r.endDate)
+              }]
+            }))
+
+        // 3. Crear Bloqueos Visuales para Habitaciones en Mantenimiento/Bloqueadas
+        const maintenanceBlocks: TimelineReservation[] = sortedRooms
+            .filter(r => r.status === "Maintenance" || r.status === "Blocked")
+            .map(r => ({
+              id: `block-${r.id}`,
+              guestName: r.status === "Maintenance" ? "MANTENIMIENTO" : "BLOQUEADA",
+              status: "blocked",
+              totalValue: 0,
+              paidAmount: 0,
+              segments: [{
+                roomId: r.id,
+                startDate: startOfMonth(currentDate), // Bloqueo visual todo el mes
+                endDate: endOfMonth(currentDate)
+              }]
+            }))
+
+        setReservations([...mappedReservations, ...maintenanceBlocks])
+
+      } catch (error) {
+        console.error("Error loading timeline:", error)
+        toast.error("Error al cargar datos del cronograma")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [currentDate]) // Recargar si cambia el mes para actualizar bloqueos dinámicos
+
+  // --- LÓGICA DE NEGOCIO ---
+
+  const getRoomPrice = (room: RoomType, date: Date) => {
     const key = `${room.id}-${format(date, "yyyy-MM-dd")}`
     return customPrices[key] || room.basePrice
   }
@@ -259,14 +212,17 @@ export function CronogramaContent() {
       })
     })
     setCustomPrices(newCustomPrices)
+    toast.success("Tarifas actualizadas localmente")
   }
 
   const handleDragStart = (reservationId: string, segmentIndex: number, originalRoomId: string) => {
     setDraggedSegment({ reservationId, segmentIndex, originalRoomId })
   }
 
-  const handleDrop = (targetRoomId: string) => {
+  const handleDrop = async (targetRoomId: string) => {
     if (!draggedSegment) return
+
+    // Optimistic Update
     setReservations((prev) =>
         prev.map((res) => {
           if (res.id === draggedSegment.reservationId) {
@@ -280,9 +236,15 @@ export function CronogramaContent() {
           return res
         })
     )
+
+    // TODO: Llamar al backend para actualizar roomId
+    // await api.patch(`/reservations/${draggedSegment.reservationId}`, { roomId: targetRoomId })
+
     setDraggedSegment(null)
+    toast.success("Habitación actualizada (Solo visual por ahora)")
   }
 
+  // --- LÓGICA DE FECHAS ---
   const days = useMemo(() => {
     if (viewMode === "day") return [currentDate]
     if (viewMode === "week") {
@@ -300,13 +262,19 @@ export function CronogramaContent() {
 
   const getReservationStyle = (startDate: Date, endDate: Date) => {
     const startIndex = days.findIndex((d) => isSameDay(d, startDate))
-    const endIndexRaw = days.findIndex((d) => isSameDay(d, endDate))
-    const endIndex = endIndexRaw === -1 && endDate > days[days.length - 1] ? days.length : endIndexRaw
+    // Nota: endDate es exclusivo en lógica de intervalos pero inclusivo visualmente para reservas de hotel
+    // Ajuste: si sale el día 5, ocupa la noche del 4.
+    // Para simplificar visualización: mostramos hasta el día previo al checkout o medio bloque.
+
+    let endIndexRaw = days.findIndex((d) => isSameDay(d, endDate))
+    if (endIndexRaw === -1 && endDate > days[days.length - 1]) endIndexRaw = days.length
 
     if (endDate <= days[0] || startDate > days[days.length - 1]) return { width: 0, left: 0, isHidden: true }
 
     const actualStart = startIndex >= 0 ? startIndex : 0
-    const actualEnd = endIndex >= 0 ? endIndex : days.length
+    const actualEnd = endIndexRaw >= 0 ? endIndexRaw : days.length
+
+    // Calculamos duración en días visibles
     const width = Math.max(1, actualEnd - actualStart)
 
     return { width, left: actualStart, isHidden: false }
@@ -322,15 +290,19 @@ export function CronogramaContent() {
 
   const handleCompleteCheckIn = (data: any) => {
     if (!checkinWizardData?.reservation) return
+
+    // Actualizar estado localmente y en backend (el wizard ya llama al backend usualmente)
     setReservations(prev => prev.map(r => r.id === checkinWizardData.reservation!.id ? { ...r, status: "check_in_paid", checkInTime: new Date() } : r))
     setCheckinWizardData(null)
+    toast.success("Check-in completado visualmente")
   }
 
+  if (loading) return <div className="flex h-full items-center justify-center text-muted-foreground">Cargando cronograma...</div>
+
   return (
-      // CORREGIDO: bg-background y text-foreground
       <div className="space-y-4 h-full flex flex-col bg-background text-foreground p-2">
 
-        {/* HEADER PRINCIPAL */}
+        {/* HEADER */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
           <div>
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Cronograma</h1>
@@ -341,7 +313,6 @@ export function CronogramaContent() {
             <Button
                 variant="outline"
                 size="sm"
-                // CORREGIDO: colores de borde y hover
                 className="border-input bg-background text-foreground hover:bg-accent hover:text-amber-600 dark:hover:text-[#D4AF37] transition-colors"
                 onClick={() => setRateModalOpen(true)}
             >
@@ -371,7 +342,6 @@ export function CronogramaContent() {
             <Button
                 size="sm"
                 onClick={() => setNewReservationModal({ isOpen: true, roomId: "", date: currentDate, type: "reservation" })}
-                // CORREGIDO: Hover dorado legible
                 className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
             >
               <Plus className="h-4 w-4 mr-1" /> Crear
@@ -379,8 +349,7 @@ export function CronogramaContent() {
           </div>
         </div>
 
-        {/* NAVEGACIÓN DE FECHAS */}
-        {/* CORREGIDO: Clases semánticas */}
+        {/* NAVEGACIÓN */}
         <div className="flex items-center justify-between shrink-0 bg-card p-2 rounded-md border border-border">
           <Button variant="ghost" size="icon" onClick={navigatePrevious} className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent">
             <ChevronLeft className="h-4 w-4" />
@@ -396,13 +365,12 @@ export function CronogramaContent() {
           </Button>
         </div>
 
-        {/* GRID DE RESERVAS */}
-        {/* CORREGIDO: bg-background y border-border */}
+        {/* GRID */}
         <div className="rounded-lg border border-border bg-background flex-1 flex flex-col overflow-hidden shadow-sm relative">
           <div ref={gridRef} className="flex-1 overflow-auto custom-scrollbar">
             <div className="min-w-max">
 
-              {/* HEADER DE DÍAS */}
+              {/* HEADER DÍAS */}
               <div className="flex sticky top-0 z-20 bg-card shadow-sm border-b border-border">
                 <div className="w-[180px] shrink-0 border-r border-border bg-card p-3 sticky left-0 z-30 flex items-center justify-between">
                   <span className="text-xs font-semibold text-muted-foreground">Habitación</span>
@@ -432,6 +400,10 @@ export function CronogramaContent() {
 
               {/* FILAS DE HABITACIONES */}
               <div className="pb-4">
+                {floors.length === 0 && (
+                    <div className="p-8 text-center text-muted-foreground">No hay habitaciones registradas</div>
+                )}
+
                 {floors.map((floor) => (
                     <div key={floor.name}>
                       {/* Nombre Piso */}
@@ -452,15 +424,14 @@ export function CronogramaContent() {
                                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("bg-primary/10") }}
                                 onDragLeave={(e) => { e.currentTarget.classList.remove("bg-primary/10") }}
                                 onDrop={(e) => { e.preventDefault(); e.currentTarget.classList.remove("bg-primary/10"); handleDrop(room.id) }}
-                                // CORREGIDO: Bordes y Hover
                                 className="flex border-b border-border/50 h-[72px] relative hover:bg-accent/30 group transition-colors"
                             >
 
-                              {/* COLUMNA INFO HABITACIÓN */}
+                              {/* INFO HABITACIÓN */}
                               <div className="w-[180px] shrink-0 border-r border-border px-4 flex flex-col justify-center sticky left-0 z-10 bg-background group-hover:bg-card transition-colors">
                                 <div className="flex items-center justify-between w-full mb-1">
                                   <span className="text-xl font-bold text-foreground">{room.number}</span>
-                                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 rounded-sm", getCategoryColor(room.category))}>
+                                  <Badge variant="outline" className={cn("text-[9px] px-1.5 py-0 rounded-sm truncate max-w-[80px]", getCategoryColor(room.category))}>
                                     {room.category}
                                   </Badge>
                                 </div>
@@ -473,7 +444,7 @@ export function CronogramaContent() {
                                 </div>
                               </div>
 
-                              {/* CELDAS */}
+                              {/* CELDAS DE DÍAS */}
                               <div className="flex relative">
                                 {days.map((day, idx) => (
                                     <div
@@ -491,7 +462,7 @@ export function CronogramaContent() {
                                     </div>
                                 ))}
 
-                                {/* BARRAS DE RESERVA */}
+                                {/* BARRAS DE RESERVA (DRAGGABLE) */}
                                 {roomSegments.map(({ reservation, segment, idx }) => {
                                   const style = getReservationStyle(segment.startDate, segment.endDate)
                                   if (style.isHidden) return null;
@@ -499,7 +470,7 @@ export function CronogramaContent() {
                                   return (
                                       <ReservationPopover
                                           key={`${reservation.id}-${idx}`}
-                                          reservation={reservation}
+                                          reservation={reservation} // Pasamos la reserva completa
                                           segment={segment}
                                           segmentIndex={idx}
                                           isOpen={selectedReservation === `${reservation.id}-${idx}`}
@@ -509,7 +480,7 @@ export function CronogramaContent() {
                                           onCancel={() => {}}
                                       >
                                         <div
-                                            draggable
+                                            draggable={reservation.status !== "blocked"}
                                             onDragStart={() => handleDragStart(reservation.id, idx, segment.roomId)}
                                             className={cn(
                                                 "absolute top-0 bottom-0 m-auto h-[90%] rounded-md shadow-sm text-[10px] font-medium flex flex-col justify-center px-2 cursor-grab active:cursor-grabbing transition-all z-10 hover:z-20 hover:scale-[1.02] hover:shadow-md backdrop-blur-sm overflow-hidden whitespace-nowrap",
@@ -531,9 +502,10 @@ export function CronogramaContent() {
                                           {style.width > 1 && reservation.status !== "blocked" && (
                                               <div className="flex items-center justify-between opacity-85 mt-0.5 text-[9px] font-normal">
                                       <span>
-                                        {reservation.paidAmount >= reservation.totalValue
+                                        {/* TODO: Lógica de pago real */}
+                                        {reservation.paidAmount >= reservation.totalValue && reservation.totalValue > 0
                                             ? "Pagado"
-                                            : `Deb: $${formatPriceShort(reservation.totalValue - reservation.paidAmount)}`}
+                                            : "Pendiente"}
                                       </span>
                                               </div>
                                           )}
@@ -568,11 +540,12 @@ export function CronogramaContent() {
           ))}
         </div>
 
+        {/* MODALES */}
         <RateModifierModal
             isOpen={rateModalOpen}
             onClose={() => setRateModalOpen(false)}
             onSave={handleSaveRates}
-            roomCategories={Array.from(new Set(floors.flatMap(f => f.rooms.map(r => r.category))))}
+            roomCategories={Array.from(new Set(rooms.map(r => r.category)))}
         />
 
         {newReservationModal && (
@@ -582,7 +555,7 @@ export function CronogramaContent() {
                 initialRoomId={newReservationModal.roomId}
                 initialDate={newReservationModal.date}
                 type={newReservationModal.type as any}
-                rooms={floors.flatMap((f) => f.rooms)}
+                rooms={rooms}
             />
         )}
 

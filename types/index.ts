@@ -3,7 +3,7 @@
 // Estos deben coincidir EXACTAMENTE con el C#
 // ==========================================
 
-export type BackendRoomStatus = "Available" | "Occupied" | "Dirty" | "Maintenance" | "Blocked";
+export type BackendRoomStatus = "Available" | "Occupied" | "Dirty" | "TouchUp" |"Maintenance" | "Blocked";
 export type BackendReservationStatus = "Pending" | "Confirmed" | "CheckedIn" | "CheckedOut" | "Cancelled" | "NoShow";
 export type DocumentType = "CC" | "CE" | "PA" | "TI" | "RC";
 
