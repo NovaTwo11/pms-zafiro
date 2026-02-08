@@ -29,7 +29,12 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="bg-card border-[#333] text-foreground">
+            {/* CAMBIO:
+               - Quitamos 'bg-card' (ya lo trae por defecto el componente, pero lo dejamos explícito si prefieres).
+               - Quitamos 'border-[#333]' -> Usamos 'border-border' o dejamos que el componente base lo maneje.
+               - Quitamos 'text-foreground' redundante (se hereda), pero está bien dejarlo.
+            */}
+            <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
                     <DialogTitle>Gestión de Tarifas y Temporadas</DialogTitle>
                 </DialogHeader>
@@ -38,11 +43,16 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label>Desde</Label>
+                            {/* CAMBIO:
+                                - 'text-white' -> 'text-foreground' (Negro en claro, Blanco en oscuro)
+                                - 'border-[#333]' -> 'border-input' (Gris suave en claro, oscuro en oscuro)
+                                - 'bg-background' -> Correcto.
+                            */}
                             <Input
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="bg-background border-[#333] text-white"
+                                className="bg-background border-input text-foreground"
                             />
                         </div>
                         <div className="space-y-2">
@@ -51,7 +61,7 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="bg-background border-[#333] text-white"
+                                className="bg-background border-input text-foreground"
                             />
                         </div>
                     </div>
@@ -59,10 +69,15 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                     <div className="space-y-2">
                         <Label>Aplicar a</Label>
                         <Select value={scope} onValueChange={setScope}>
-                            <SelectTrigger className="bg-background border-[#333] text-white">
+                            {/* CAMBIO EN TRIGGER:
+                               - 'text-white' -> 'text-foreground'
+                               - 'border-[#333]' -> 'border-input'
+                            */}
+                            <SelectTrigger className="bg-background border-input text-foreground">
                                 <SelectValue placeholder="Seleccionar alcance" />
                             </SelectTrigger>
-                            <SelectContent className="bg-card border-[#333] text-foreground">
+                            <SelectContent>
+                                {/* El contenido del Select usa bg-popover por defecto en shadcn */}
                                 <SelectItem value="ALL">Todas las habitaciones</SelectItem>
                                 {roomCategories.map((cat) => (
                                     <SelectItem key={cat} value={cat}>Categoría: {cat}</SelectItem>
@@ -80,15 +95,19 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                                 placeholder="Ej: 180000"
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
-                                className="pl-7 bg-background border-[#333] text-white"
+                                className="pl-7 bg-background border-input text-foreground"
                             />
                         </div>
                     </div>
                 </div>
 
                 <DialogFooter>
-                    <Button variant="outline" onClick={onClose} className="border-[#333] hover:bg-accent text-white">Cancelar</Button>
-                    <Button onClick={handleSave} className="bg-primary text-black hover:bg-primary/90">Aplicar Tarifa</Button>
+                    {/* CAMBIO BOTONES:
+                        - Cancelar: Quitamos 'text-white' (ahora es automático) y 'border-[#333]'.
+                        - Guardar: 'text-black' -> 'text-primary-foreground' (Se adapta mejor al contraste).
+                    */}
+                    <Button variant="outline" onClick={onClose}>Cancelar</Button>
+                    <Button onClick={handleSave}>Aplicar Tarifa</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
