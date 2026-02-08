@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { format, addDays } from "date-fns"
-import { X, CalendarDays, User, BedDouble, Wrench, Mail, Phone, CreditCard, Send } from "lucide-react"
+import { X, CalendarDays, User, BedDouble, Wrench, Mail, Phone, CreditCard, Send, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch" // Asegúrate de tener este componente, o usa un checkbox simple
+import { Switch } from "@/components/ui/switch"
+import api from "@/lib/api"
+import { toast } from "sonner"
 
 interface Room {
   id: string
@@ -38,27 +40,17 @@ export function NewReservationModal({
                                     }: NewReservationModalProps) {
   const initialTab = type === "reservation" ? "reservation" : "maintenance"
   const [activeTab, setActiveTab] = useState<"reservation" | "maintenance">(initialTab)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Estado para controlar el envío de correo
   const [sendEmail, setSendEmail] = useState(false)
-
-  // Reiniciar formulario cuando cambian props clave
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      roomId: initialRoomId,
-      checkIn: format(initialDate, "yyyy-MM-dd"),
-      checkOut: format(addDays(initialDate, 1), "yyyy-MM-dd")
-    }))
-    setSendEmail(false)
-  }, [initialRoomId, initialDate])
 
   const [formData, setFormData] = useState({
     // Datos del Titular
     guestName: "",
     email: "",
     phone: "",
-    docType: "",
+    docType: "CC",
     docNumber: "",
 
     // Datos de la Reserva
@@ -72,6 +64,19 @@ export function NewReservationModal({
     maintenanceReason: "",
   })
 
+  // Reiniciar formulario cuando cambian props clave
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(prev => ({
+        ...prev,
+        roomId: initialRoomId,
+        checkIn: format(initialDate, "yyyy-MM-dd"),
+        checkOut: format(addDays(initialDate, 1), "yyyy-MM-dd")
+      }))
+      setSendEmail(false)
+    }
+  }, [initialRoomId, initialDate, isOpen])
+
   // Desactivar el switch de envío si no hay email
   useEffect(() => {
     if (!formData.email) {
@@ -79,15 +84,65 @@ export function NewReservationModal({
     }
   }, [formData.email])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Aquí iría tu lógica de guardado
-    console.log("Submitting:", { ...formData, sendConfirmationEmail: sendEmail, type: activeTab })
-    onClose()
+    setIsSubmitting(true)
+
+    try {
+      if (activeTab === "reservation") {
+        // Construir payload para el endpoint "Smart Booking"
+        const payload = {
+          guestName: formData.guestName,
+          guestEmail: formData.email,
+          guestPhone: formData.phone,
+          docType: formData.docType,
+          docNumber: formData.docNumber,
+          roomId: formData.roomId,
+          checkIn: formData.checkIn,
+          checkOut: formData.checkOut,
+          adults: formData.adults,
+          children: formData.children,
+          notes: formData.notes
+        }
+
+        await api.post('/reservas/booking', payload)
+        toast.success("Reserva creada correctamente", {
+          description: `Habitación asignada: ${rooms.find(r => r.id === formData.roomId)?.number}`
+        })
+
+        if (sendEmail) {
+          // Aquí podrías llamar a un endpoint de envío de email si no se hace automático
+          toast.info("Enviando confirmación por correo...")
+        }
+      } else {
+        // Lógica para Bloqueo/Mantenimiento (Probablemente un endpoint diferente o cambiar el estado del Room)
+        // Por ahora, asumamos que es una reserva interna con estado "Blocked"
+        const payload = {
+          guestName: "MANTENIMIENTO",
+          docNumber: "INTERNAL",
+          roomId: formData.roomId,
+          checkIn: formData.checkIn,
+          checkOut: formData.checkOut,
+          notes: `BLOQUEO: ${formData.maintenanceReason} - ${formData.notes}`,
+          // Aquí podrías enviar un flag 'isMaintenance' si tu backend lo soporta
+        }
+        await api.post('/reservas/booking', payload)
+        toast.warning("Habitación bloqueada por mantenimiento")
+      }
+
+      onClose()
+    } catch (error) {
+      console.error("Error creando reserva:", error)
+      toast.error("Error al crear la reserva", {
+        description: "Verifica la disponibilidad de la habitación."
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Dialog open={isOpen} onOpenChange={(open) => !open && !isSubmitting && onClose()}>
         <DialogContent className="sm:max-w-[550px] bg-card border-border p-0 text-foreground max-h-[90vh] overflow-y-auto custom-scrollbar">
           <DialogHeader className="p-6 pb-0">
             <div className="flex items-center justify-between">
@@ -98,6 +153,7 @@ export function NewReservationModal({
                   variant="ghost"
                   size="icon"
                   onClick={onClose}
+                  disabled={isSubmitting}
                   className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-300"
               >
                 <X className="h-4 w-4" />
@@ -109,6 +165,7 @@ export function NewReservationModal({
             <TabsList className="w-full bg-background border-b border-border rounded-none p-0 h-auto mx-0 px-6 sticky top-0 z-10">
               <TabsTrigger
                   value="reservation"
+                  disabled={isSubmitting}
                   className="flex-1 rounded-none py-3 text-sm data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-muted-foreground transition-all duration-300"
               >
                 <BedDouble className="h-4 w-4 mr-2" />
@@ -116,6 +173,7 @@ export function NewReservationModal({
               </TabsTrigger>
               <TabsTrigger
                   value="maintenance"
+                  disabled={isSubmitting}
                   className="flex-1 rounded-none py-3 text-sm data-[state=active]:bg-transparent data-[state=active]:text-[#D4AF37] data-[state=active]:border-b-2 data-[state=active]:border-[#D4AF37] text-muted-foreground transition-all duration-300"
               >
                 <Wrench className="h-4 w-4 mr-2" />
@@ -142,6 +200,7 @@ export function NewReservationModal({
                           placeholder="Ej: Juan Pérez"
                           className="bg-background border-border text-foreground focus:border-[#D4AF37]"
                           required
+                          disabled={isSubmitting}
                       />
                     </div>
 
@@ -156,6 +215,7 @@ export function NewReservationModal({
                               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                               placeholder="cliente@email.com"
                               className="pl-8 bg-background border-border text-foreground focus:border-[#D4AF37]"
+                              disabled={isSubmitting}
                           />
                         </div>
                       </div>
@@ -169,6 +229,7 @@ export function NewReservationModal({
                               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                               placeholder="+57 300..."
                               className="pl-8 bg-background border-border text-foreground focus:border-[#D4AF37]"
+                              disabled={isSubmitting}
                           />
                         </div>
                       </div>
@@ -177,7 +238,11 @@ export function NewReservationModal({
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1.5 col-span-1">
                         <Label className="text-muted-foreground text-xs">Tipo Doc</Label>
-                        <Select value={formData.docType} onValueChange={(v) => setFormData({ ...formData, docType: v })}>
+                        <Select
+                            value={formData.docType}
+                            onValueChange={(v) => setFormData({ ...formData, docType: v })}
+                            disabled={isSubmitting}
+                        >
                           <SelectTrigger className="bg-background border-border text-foreground">
                             <SelectValue placeholder="Tipo" />
                           </SelectTrigger>
@@ -198,6 +263,7 @@ export function NewReservationModal({
                               onChange={(e) => setFormData({ ...formData, docNumber: e.target.value })}
                               placeholder="123456789"
                               className="pl-8 bg-background border-border text-foreground focus:border-[#D4AF37]"
+                              disabled={isSubmitting}
                           />
                         </div>
                       </div>
@@ -214,7 +280,12 @@ export function NewReservationModal({
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <Label className="text-muted-foreground text-xs">Habitación *</Label>
-                      <Select value={formData.roomId} onValueChange={(v) => setFormData({ ...formData, roomId: v })} required>
+                      <Select
+                          value={formData.roomId}
+                          onValueChange={(v) => setFormData({ ...formData, roomId: v })}
+                          required
+                          disabled={isSubmitting}
+                      >
                         <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37]">
                           <SelectValue placeholder="Seleccionar habitación" />
                         </SelectTrigger>
@@ -237,6 +308,7 @@ export function NewReservationModal({
                             onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
                             className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                             required
+                            disabled={isSubmitting}
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -247,6 +319,7 @@ export function NewReservationModal({
                             onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
                             className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                             required
+                            disabled={isSubmitting}
                         />
                       </div>
                     </div>
@@ -261,6 +334,7 @@ export function NewReservationModal({
                             value={formData.adults}
                             onChange={(e) => setFormData({ ...formData, adults: Number.parseInt(e.target.value) })}
                             className="bg-background border-border text-foreground focus:border-[#D4AF37]"
+                            disabled={isSubmitting}
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -272,6 +346,7 @@ export function NewReservationModal({
                             value={formData.children}
                             onChange={(e) => setFormData({ ...formData, children: Number.parseInt(e.target.value) })}
                             className="bg-background border-border text-foreground focus:border-[#D4AF37]"
+                            disabled={isSubmitting}
                         />
                       </div>
                     </div>
@@ -283,6 +358,7 @@ export function NewReservationModal({
                           onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                           placeholder="Solicitudes especiales..."
                           className="bg-background border-border text-foreground focus:border-[#D4AF37] resize-none h-16"
+                          disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -294,7 +370,7 @@ export function NewReservationModal({
                       id="email-mode"
                       checked={sendEmail}
                       onCheckedChange={setSendEmail}
-                      disabled={!formData.email} // REGLA: No se puede activar si no hay email
+                      disabled={!formData.email || isSubmitting}
                       className="data-[state=checked]:bg-primary"
                   />
                   <Label htmlFor="email-mode" className={`text-xs ${!formData.email ? 'text-[#666]' : 'text-foreground'}`}>
@@ -306,9 +382,15 @@ export function NewReservationModal({
 
               {/* --- TAB MANTENIMIENTO --- */}
               <TabsContent value="maintenance" className="p-6 space-y-4 mt-0">
+                {/* (Campos de mantenimiento igual que antes, solo agregando disabled={isSubmitting}) */}
                 <div className="space-y-1.5">
                   <Label className="text-muted-foreground text-xs">Habitación *</Label>
-                  <Select value={formData.roomId} onValueChange={(v) => setFormData({ ...formData, roomId: v })} required>
+                  <Select
+                      value={formData.roomId}
+                      onValueChange={(v) => setFormData({ ...formData, roomId: v })}
+                      required
+                      disabled={isSubmitting}
+                  >
                     <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37]">
                       <SelectValue placeholder="Seleccionar habitación" />
                     </SelectTrigger>
@@ -331,6 +413,7 @@ export function NewReservationModal({
                         onChange={(e) => setFormData({ ...formData, checkIn: e.target.value })}
                         className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                         required
+                        disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -341,6 +424,7 @@ export function NewReservationModal({
                         onChange={(e) => setFormData({ ...formData, checkOut: e.target.value })}
                         className="bg-background border-border text-foreground focus:border-[#D4AF37] [color-scheme:dark]"
                         required
+                        disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -351,6 +435,7 @@ export function NewReservationModal({
                       value={formData.maintenanceReason}
                       onValueChange={(v) => setFormData({ ...formData, maintenanceReason: v })}
                       required
+                      disabled={isSubmitting}
                   >
                     <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37]">
                       <SelectValue placeholder="Seleccionar motivo" />
@@ -373,6 +458,7 @@ export function NewReservationModal({
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       placeholder="Descripción del bloqueo..."
                       className="bg-background border-border text-foreground focus:border-[#D4AF37] resize-none h-20"
+                      disabled={isSubmitting}
                   />
                 </div>
               </TabsContent>
@@ -383,15 +469,21 @@ export function NewReservationModal({
                     type="button"
                     variant="outline"
                     onClick={onClose}
+                    disabled={isSubmitting}
                     className="flex-1 border-border text-foreground hover:bg-accent bg-transparent transition-all duration-300"
                 >
                   Cancelar
                 </Button>
                 <Button
                     type="submit"
+                    disabled={isSubmitting}
                     className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all duration-300 font-medium"
                 >
-                  {activeTab === "reservation" ? (sendEmail ? "Confirmar y Enviar" : "Confirmar Reserva") : "Bloquear"}
+                  {isSubmitting ? (
+                      <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/> Procesando...</span>
+                  ) : (
+                      activeTab === "reservation" ? (sendEmail ? "Confirmar y Enviar" : "Confirmar Reserva") : "Bloquear"
+                  )}
                 </Button>
               </div>
             </form>
