@@ -12,6 +12,7 @@ import { FolioCard } from "./folio-card"
 import { FolioDrawer } from "./folio-drawer"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import api from "@/lib/api" // <--- IMPORTANTE: Usamos tu cliente Axios configurado
 
 // Interfaces alineadas con el DTO del backend
 interface Folio {
@@ -48,30 +49,34 @@ export function FoliosContent() {
   const fetchFolios = async () => {
     setLoading(true)
     try {
-      // Fetch Huéspedes (GuestFolios)
-      const resGuests = await fetch("/api/folios/active-guests")
-      if (resGuests.ok) {
-        const data = await resGuests.json()
-        setGuestFolios(data.map((d: any) => ({
+      // 1. Fetch Huéspedes (GuestFolios) usando Axios
+      // Nota: api.get devuelve la respuesta completa, accedemos a .data
+      try {
+        const { data: guestsData } = await api.get("/folios/active-guests")
+        setGuestFolios(guestsData.map((d: any) => ({
           ...d,
           type: "guest",
           checkIn: new Date(d.checkIn),
           checkOut: new Date(d.checkOut)
         })))
+      } catch (err) {
+        console.error("Error cargando huéspedes", err)
       }
 
-      // Fetch Externos (ExternalFolios)
-      const resExternal = await fetch("/api/folios/active-externals")
-      if (resExternal.ok) {
-        const data = await resExternal.json()
-        setExternalFolios(data.map((d: any) => ({
+      // 2. Fetch Externos (ExternalFolios) usando Axios
+      try {
+        const { data: externalData } = await api.get("/folios/active-externals")
+        setExternalFolios(externalData.map((d: any) => ({
           ...d,
           type: "external",
           createdAt: new Date(d.createdAt)
         })))
+      } catch (err) {
+        console.error("Error cargando externos", err)
       }
+
     } catch (error) {
-      console.error("Error fetching folios", error)
+      console.error("Error general fetching folios", error)
       toast.error("Error al cargar los folios")
     } finally {
       setLoading(false)
@@ -101,19 +106,15 @@ export function FoliosContent() {
 
   const handleCreateFolio = async () => {
     try {
-      const res = await fetch("/api/folios/external", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newFolioData)
-      })
-
-      if (!res.ok) throw new Error("Error al crear folio")
+      // Usamos api.post en lugar de fetch
+      await api.post("/folios/external", newFolioData)
 
       toast.success("Folio externo creado exitosamente")
       setNewFolioModal(false)
       setNewFolioData({ alias: "", description: "" })
       fetchFolios() // Recargar lista
     } catch (error) {
+      console.error(error)
       toast.error("No se pudo crear el folio")
     }
   }
@@ -183,7 +184,7 @@ export function FoliosContent() {
                       {filteredGuestFolios.map((folio) => (
                           <FolioCard
                               key={folio.id}
-                              folio={folio as any} // Cast temporal si FolioCard espera tipos estrictos
+                              folio={folio as any}
                               isSelected={selectedFolioId === folio.id}
                               onClick={() => setSelectedFolioId(folio.id)}
                           />
@@ -220,7 +221,6 @@ export function FoliosContent() {
         </div>
 
         {/* Detail Drawer */}
-        {/* Se asume que FolioDrawer hace sus propias llamadas para obtener transacciones usando el ID */}
         <FolioDrawer
             folio={currentFolio as any}
             isOpen={!!selectedFolioId}
