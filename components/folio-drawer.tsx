@@ -184,6 +184,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
       setTransactions([])
       setPaymentAmount("")
       setPaymentMethod("")
+      setReservationId(null)
       fetchFolioData()
     }
   }, [isOpen, folio])
@@ -308,48 +309,63 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
   // Se abre el Dialog primero, y al confirmar se llama a esta función
   const executeCheckOut = async () => {
-    // 1. VALIDACIÓN: Si faltan datos, CERRAMOS EL MODAL antes de salir
+    // 1. Cerrar el modal INMEDIATAMENTE para evitar congelamientos visuales
+    setCheckoutConfirmOpen(false);
+
+    // 2. Validación rápida
     if (!reservationId && isGuest) {
-      setCheckoutConfirmOpen(false) // <--- ¡ESTA LÍNEA ES LA QUE EVITA EL CONGELAMIENTO!
       toast.error("Error de datos", {
-        description: "No se encontró el ID de la reserva. Intenta recargar la página."
-      })
-      return
+        description: "No se encontró el ID de la reserva. Recarga el folio."
+      });
+      return;
     }
 
-    setProcessing(true)
+    // 3. Feedback visual no bloqueante (Toast de carga)
+    const toastId = toast.loading("Procesando salida del huésped...");
+
     try {
-      const idToCheckout = isGuest ? reservationId : folio.id
-      const response = await api.post(`/reservations/${idToCheckout}/checkout`)
+      const idToCheckout = isGuest ? reservationId : folio.id;
 
-      toast.success(response.data.message || "Check-out exitoso")
+      console.log(`[Checkout] Enviando POST a /reservations/${idToCheckout}/checkout`);
 
-      // Éxito
-      setCheckoutConfirmOpen(false)
-      onClose()
+      // 4. Enviar petición con cuerpo vacío {} para asegurar que Axios envíe los headers correctos
+      await api.post(`/reservations/${idToCheckout}/checkout`, {});
 
+      // 5. Éxito
+      toast.success("Check-out exitoso", { id: toastId });
+
+      // Cerrar el drawer y actualizar
+      onClose();
       if (onUpdate) {
-        setTimeout(() => {
-          onUpdate()
-          router.refresh()
-        }, 100)
-      } else {
-        router.refresh()
+        onUpdate();
       }
+      router.refresh();
 
     } catch (err: any) {
-      console.error(err)
-      setCheckoutConfirmOpen(false) // Aseguramos cerrar si el backend falla
-      const msg = err.response?.data?.message || "Error al realizar check-out"
+      console.error("[Checkout Error]", err);
 
-      if (err.response?.data?.error === "DeudaPendiente") {
-        toast.error("Saldo Pendiente", { description: msg })
+      // Manejo de errores específico
+      const serverMsg = err.response?.data?.message;
+      const errorType = err.response?.data?.error;
+
+      if (errorType === "DeudaPendiente") {
+        toast.error("Saldo Pendiente", {
+          id: toastId, // Reemplaza el toast de carga
+          description: serverMsg || "El folio debe estar en $0"
+        });
+      } else if (err.response?.status === 404) {
+        toast.error("No encontrada", {
+          id: toastId,
+          description: "La reserva o el folio no existen en el sistema."
+        });
       } else {
-        toast.error("Error del sistema", { description: msg })
+        toast.error("Error del sistema", {
+          id: toastId,
+          description: serverMsg || "No se pudo conectar con el servidor."
+        });
       }
-    } finally {
-      setProcessing(false)
     }
+    // No necesitamos 'finally { setProcessing(false) }' porque el modal ya se cerró al inicio.
   }
 
   const handleDeleteTransaction = async (txId: string) => {
