@@ -21,7 +21,8 @@ import {
   ChevronRight,
   MoreVertical,
   Pencil,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
@@ -30,8 +31,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
+import api from "@/lib/api"
+import { toast } from "sonner"
 
 // --- Tipos ---
 type GuestFolio = {
@@ -66,6 +70,7 @@ type TransactionItem = {
   category: "room" | "food" | "minibar" | "parking" | "wifi" | "payment"
   date: Date
   user?: string
+  type: string
 }
 
 type GroupedItem = {
@@ -81,18 +86,10 @@ interface FolioDrawerProps {
   folio: Folio | undefined
   isOpen: boolean
   onClose: () => void
+  onUpdate?: () => void // Callback para refrescar al padre
 }
 
-// --- Datos Iniciales ---
-const initialItems: TransactionItem[] = [
-  { id: "1", description: "Alojamiento", unitPrice: 180000, quantity: 1, amount: 180000, category: "room", date: new Date(2026, 0, 3, 15, 0) },
-  { id: "2", description: "Alojamiento", unitPrice: 180000, quantity: 1, amount: 180000, category: "room", date: new Date(2026, 0, 4, 15, 0) },
-  { id: "3", description: "Coca Cola", unitPrice: 6000, quantity: 2, amount: 12000, category: "minibar", date: new Date(2026, 0, 3, 19, 30) },
-  { id: "4", description: "Coca Cola", unitPrice: 6000, quantity: 1, amount: 6000, category: "minibar", date: new Date(2026, 0, 4, 14, 15) },
-  { id: "5", description: "Hamburguesa Clásica", unitPrice: 25000, quantity: 1, amount: 25000, category: "food", date: new Date(2026, 0, 4, 20, 0) },
-  { id: "6", description: "Parqueadero", unitPrice: 25000, quantity: 1, amount: 25000, category: "parking", date: new Date(2026, 0, 3, 10, 0) },
-  { id: "7", description: "Abono Efectivo", unitPrice: -120000, quantity: 1, amount: -120000, category: "payment", date: new Date(2026, 0, 4, 9, 0) },
-]
+// --- Helpers de Mapeo ---
 
 const getCategoryIcon = (category: string) => {
   switch (category) {
@@ -106,16 +103,40 @@ const getCategoryIcon = (category: string) => {
   }
 }
 
-export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
+const mapBackendTypeToCategory = (type: string, description: string): TransactionItem['category'] => {
+  if (type === 'Payment') return 'payment'
+  const desc = description.toLowerCase()
+  if (desc.includes('alojamiento') || desc.includes('habitación')) return 'room'
+  if (desc.includes('hamburguesa') || desc.includes('restaurante') || desc.includes('desayuno')) return 'food'
+  if (desc.includes('coca') || desc.includes('agua') || desc.includes('minibar')) return 'minibar'
+  if (desc.includes('parqueadero')) return 'parking'
+  if (desc.includes('wifi')) return 'wifi'
+  return 'food'
+}
+
+const mapPaymentMethodToBackend = (method: string): number => {
+  switch (method) {
+    case 'cash': return 1
+    case 'card': return 2
+    case 'transfer': return 4
+    default: return 1
+  }
+}
+
+export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerProps) {
   const router = useRouter()
 
   // Estados de Modales
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [editTransactionModalOpen, setEditTransactionModalOpen] = useState(false)
+  const [checkoutConfirmOpen, setCheckoutConfirmOpen] = useState(false) // Nuevo Dialog
 
-  // Datos del Folio (Simulación de base de datos local para la demo)
-  const [transactions, setTransactions] = useState<TransactionItem[]>(initialItems)
+  // Datos del Folio
+  const [transactions, setTransactions] = useState<TransactionItem[]>([])
+  const [reservationId, setReservationId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [processing, setProcessing] = useState(false) // Estado de carga en acciones
 
   // Estado para selección
   const [selectedGroup, setSelectedGroup] = useState<GroupedItem | null>(null)
@@ -126,18 +147,59 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
   const [paymentMethod, setPaymentMethod] = useState("")
   const [editForm, setEditForm] = useState({ quantity: 1, unitPrice: 0 })
 
-  // Resetear transacciones al cambiar de folio (opcional, aquí mantenemos las mismas para demo)
-  // useEffect(() => { setTransactions(initialItems) }, [folio?.id])
+  // --- Carga de Datos desde API ---
+  const fetchFolioData = async () => {
+    if (!folio?.id) return
+    setLoading(true)
+    try {
+      const { data } = await api.get(`/folios/${folio.id}`)
 
-  // --- Lógica de Agrupación (Recalcula cuando cambian las transacciones) ---
+      if (data.reservationId) {
+        setReservationId(data.reservationId)
+      }
+
+      const mappedTransactions = data.transactions.map((t: any) => ({
+        id: t.id,
+        description: t.description,
+        unitPrice: t.unitPrice,
+        quantity: t.quantity,
+        amount: t.amount,
+        category: mapBackendTypeToCategory(t.type, t.description),
+        date: new Date(t.date),
+        user: t.user,
+        type: t.type
+      }))
+
+      setTransactions(mappedTransactions)
+    } catch (error) {
+      console.error(error)
+      toast.error("Error cargando el detalle del folio")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isOpen && folio) {
+      setTransactions([])
+      setPaymentAmount("")
+      setPaymentMethod("")
+      fetchFolioData()
+    }
+  }, [isOpen, folio])
+
+  // --- Lógica de Agrupación ---
   const { groupedItems, summary, currentBalance } = useMemo(() => {
     const groups: Record<string, GroupedItem> = {}
     let totalCharges = 0
     let totalPayments = 0
 
     transactions.forEach(item => {
-      if (item.category === 'payment') {
-        totalPayments += Math.abs(item.amount)
+      const isPayment = item.type === 'Payment'
+      const absAmount = Math.abs(item.amount)
+
+      if (isPayment) {
+        totalPayments += absAmount
       } else {
         totalCharges += item.amount
       }
@@ -155,14 +217,16 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
       }
 
       groups[key].totalQuantity += item.quantity
-      groups[key].totalAmount += item.amount
+
+      if(isPayment) {
+        groups[key].totalAmount += absAmount
+      } else {
+        groups[key].totalAmount += item.amount
+      }
+
       groups[key].history.push(item)
     })
 
-    // Calcular saldo actual basado en las transacciones modificadas
-    // Nota: Usamos el saldo inicial del prop folio como base, pero para esta demo
-    // asumiremos que el saldo se deriva puramente de las transacciones para ver los cambios en tiempo real.
-    // Si quisieramos ser estrictos con el prop, usaríamos folio.balance, pero no se actualizaría al borrar ítems.
     const calculatedBalance = totalCharges - totalPayments
 
     return {
@@ -172,14 +236,13 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
     }
   }, [transactions])
 
-  // Actualizar el grupo seleccionado si cambian las transacciones (para reflejar ediciones en el modal abierto)
+  // Actualizar selección
   useEffect(() => {
     if (selectedGroup) {
       const updatedGroup = groupedItems.find(g => g.id === selectedGroup.id)
       if (updatedGroup) {
         setSelectedGroup(updatedGroup)
       } else {
-        // Si el grupo desapareció (ej. se borraron todos los items), cerrar modal
         setDetailModalOpen(false)
         setSelectedGroup(null)
       }
@@ -203,14 +266,98 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
   const title = isGuest ? `Hab. ${folio.roomNumber}` : folio.alias
   const subtitle = isGuest ? folio.guestName : folio.description
 
-  // Usamos el saldo calculado dinámicamente para habilitar/deshabilitar botones
   const canCheckOut = currentBalance === 0
 
   // --- Manejadores de Acciones ---
 
-  const handleDeleteTransaction = (txId: string) => {
-    if (confirm("¿Estás seguro de eliminar este registro?")) {
-      setTransactions(prev => prev.filter(t => t.id !== txId))
+  const handleAddPayment = async () => {
+    // Validación
+    const amountVal = parseFloat(paymentAmount);
+    if (amountVal > currentBalance && currentBalance > 0) {
+      toast.error(`El monto excede la deuda de ${formatCurrency(currentBalance)}`)
+      return
+    }
+
+    if (!paymentAmount || !paymentMethod) return
+
+    setProcessing(true)
+    try {
+      await api.post(`/folios/${folio.id}/transactions`, {
+        amount: amountVal,
+        description: "Abono a cuenta",
+        type: 1,
+        quantity: 1,
+        unitPrice: amountVal,
+        paymentMethod: mapPaymentMethodToBackend(paymentMethod),
+      })
+
+      toast.success("Pago registrado correctamente")
+      setPaymentModalOpen(false)
+      setPaymentAmount("")
+
+      await fetchFolioData() // Recargar datos internos
+      onUpdate?.() // Avisar al padre para actualizar la grilla
+
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al registrar el pago")
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Se abre el Dialog primero, y al confirmar se llama a esta función
+  const executeCheckOut = async () => {
+    // Validación preventiva
+    if (!reservationId && isGuest) {
+      toast.error("Error crítico: No se encontró ID de reserva asociado.")
+      return
+    }
+
+    setProcessing(true) // Activar spinner
+    try {
+      const idToCheckout = isGuest ? reservationId : folio.id
+
+      // 1. Llamada al Backend
+      const response = await api.post(`/reservations/${idToCheckout}/checkout`)
+
+      // 2. Feedback inmediato
+      toast.success(response.data.message || "Check-out exitoso")
+
+      // 3. CRÍTICO: Cerrar primero los modales para evitar conflictos de renderizado
+      setCheckoutConfirmOpen(false)
+      onClose() // Cerrar el Drawer principal
+
+      // 4. Forzar actualización de datos en el padre
+      if (onUpdate) {
+        // Pequeño delay para asegurar que la BD procesó la transacción
+        setTimeout(() => {
+          onUpdate()      // Recargar grilla
+          router.refresh() // Recargar datos de servidor Next.js
+        }, 100)
+      } else {
+        router.refresh()
+      }
+
+    } catch (err: any) {
+      console.error(err)
+      const msg = err.response?.data?.message || "Error al realizar check-out"
+
+      // Si es deuda, cerramos el confirm pero dejamos el drawer para que paguen
+      if (err.response?.data?.error === "DeudaPendiente") {
+        setCheckoutConfirmOpen(false)
+        toast.error("No se puede salir", { description: msg })
+      } else {
+        toast.error(msg)
+      }
+    } finally {
+      setProcessing(false) // SIEMPRE apagar el spinner
+    }
+  }
+
+  const handleDeleteTransaction = async (txId: string) => {
+    if (confirm("¿Estás seguro de eliminar este registro? Esta acción requiere permisos de administrador.")) {
+      toast.info("Función de eliminar transacción pendiente de implementación en API.")
     }
   }
 
@@ -221,19 +368,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
   }
 
   const saveTransactionChanges = () => {
-    if (!transactionToEdit) return
-
-    setTransactions(prev => prev.map(t => {
-      if (t.id === transactionToEdit.id) {
-        return {
-          ...t,
-          quantity: editForm.quantity,
-          unitPrice: editForm.unitPrice,
-          amount: editForm.quantity * editForm.unitPrice
-        }
-      }
-      return t
-    }))
+    toast.info("Edición pendiente de implementación en API.")
     setEditTransactionModalOpen(false)
     setTransactionToEdit(null)
   }
@@ -241,7 +376,6 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
   const handleDeleteFolio = () => {
     if (confirm(`¿Estás seguro de eliminar el folio "${folio.type}" de forma permanente?`)) {
       console.log("Folio eliminado:", folio.id)
-      // Aquí iría la llamada a la API
       onClose()
     }
   }
@@ -261,7 +395,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                     {title}
                   </SheetTitle>
                   <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-                  {isGuest && (
+                  {isGuest && folio.checkIn && (
                       <p className="text-xs text-muted-foreground mt-2">
                         {format(folio.checkIn, "dd MMM", { locale: es })} -{" "}
                         {format(folio.checkOut, "dd MMM", { locale: es })} • {folio.nights} noches
@@ -273,7 +407,8 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                       <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => console.log("Checkout")}
+                          // Cambiado para abrir el Dialog personalizado
+                          onClick={() => setCheckoutConfirmOpen(true)}
                           disabled={!canCheckOut}
                           className={cn(
                               "border-[#CF6679] text-[#CF6679] hover:bg-[#CF6679]/10 hover:text-[#CF6679] bg-transparent",
@@ -324,7 +459,12 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
             {/* Lista Agrupada */}
             <div className="flex-1 overflow-y-auto p-6">
               <h4 className="text-sm font-medium text-muted-foreground mb-4">Resumen de Consumos</h4>
-              {groupedItems.length === 0 ? (
+
+              {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+              ) : groupedItems.length === 0 ? (
                   <div className="text-center py-8 text-[#666666]">
                     <p>No hay consumos registrados</p>
                   </div>
@@ -338,8 +478,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                           <button
                               key={group.id}
                               onClick={() => { setSelectedGroup(group); setDetailModalOpen(true); }}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg bg-background border border-border transition-all duration-300 hover:border-[#D4AF37]/50 hover:bg-[#151515] group"
-                          >
+                              className="w-full flex items-center gap-3 p-3 rounded-lg bg-background border border-border transition-all duration-300 hover:border-[#D4AF37]/50 hover:bg-accent group"                          >
                             <div className={cn(
                                 "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
                                 isPayment ? "bg-[#059669]/10" : "bg-accent group-hover:bg-[#2A2A2A]",
@@ -350,7 +489,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                             <div className="flex-1 min-w-0 text-left">
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium text-foreground truncate">{group.description}</p>
-                                {group.totalQuantity > 1 && (
+                                {group.totalQuantity > 1 && !isPayment && (
                                     <span className="text-[10px] bg-[#333333] text-muted-foreground px-1.5 py-0.5 rounded-full">
                                 x{group.totalQuantity}
                             </span>
@@ -380,10 +519,10 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
               <div className="flex gap-3">
                 <Button
                     onClick={() => setPaymentModalOpen(true)}
-                    disabled={currentBalance === 0}
+                    disabled={currentBalance <= 0}
                     className={cn(
                         "flex-1 bg-[#059669] text-white hover:bg-[#059669]/90 transition-all duration-300",
-                        currentBalance === 0 && "opacity-50 cursor-not-allowed",
+                        currentBalance <= 0 && "opacity-50 cursor-not-allowed",
                     )}
                 >
                   <CreditCard className="h-4 w-4 mr-2" />
@@ -398,7 +537,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                 </Button>
               </div>
 
-              {/* Botón Eliminar Folio Externo (Solo si saldo es 0 y es externo) */}
+              {/* Botón Eliminar Folio Externo */}
               {isExternal && currentBalance === 0 && (
                   <Button
                       variant="ghost"
@@ -451,41 +590,42 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                     </div>
                   </div>
 
-                  {/* Lista de Transacciones Individuales con Acciones */}
+                  {/* Lista de Transacciones Individuales */}
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                     {selectedGroup.history.sort((a,b) => b.date.getTime() - a.date.getTime()).map((item) => (
                         <div key={item.id} className="relative pl-6 pb-2 last:pb-0 border-l border-border group">
-                          {/* Indicador visual de tiempo */}
                           <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-primary" />
-
                           <div className="flex justify-between items-start bg-[#151515]/50 p-2 rounded-md hover:bg-[#151515] transition-colors">
                             <div className="flex flex-col">
-                        <span className="text-sm text-foreground font-medium flex items-center gap-2">
-                           <Calendar className="h-3 w-3 text-[#666666]" />
-                          {format(item.date, "dd MMM yyyy", { locale: es })}
-                        </span>
+                                <span className="text-sm text-foreground font-medium flex items-center gap-2">
+                                   <Calendar className="h-3 w-3 text-[#666666]" />
+                                  {format(item.date, "dd MMM yyyy", { locale: es })}
+                                </span>
                               <span className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                           <Clock className="h-3 w-3 text-[#666666]" />
+                                   <Clock className="h-3 w-3 text-[#666666]" />
                                 {format(item.date, "hh:mm a", { locale: es })}
-                        </span>
+                                </span>
+                              {item.user && (
+                                  <span className="text-[10px] text-muted-foreground mt-1">Usuario: {item.user}</span>
+                              )}
                             </div>
 
                             <div className="flex items-center gap-3">
                               <div className="text-right">
-                            <span className="text-sm font-semibold text-foreground">
-                                {formatCurrency(item.amount)}
-                            </span>
-                                {item.quantity > 0 && (
+                                <span className="text-sm font-semibold text-foreground">
+                                    {formatCurrency(item.amount)}
+                                </span>
+                                {item.quantity > 0 && item.type !== 'Payment' && (
                                     <p className="text-xs text-muted-foreground">
                                       {item.quantity} x {formatCurrency(item.unitPrice)}
                                     </p>
                                 )}
                               </div>
 
-                              {/* Menú de Acciones (Editar/Eliminar) */}
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-[#2A2A2A]">
+                                  {/* CORREGIDO: hover:bg-accent se adapta a Light/Dark automáticamente */}
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors">
                                     <MoreVertical className="h-4 w-4 text-muted-foreground" />
                                   </Button>
                                 </DropdownMenuTrigger>
@@ -522,9 +662,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
 
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="quantity" className="text-right text-muted-foreground">
-                  Cantidad
-                </Label>
+                <Label htmlFor="quantity" className="text-right text-muted-foreground">Cantidad</Label>
                 <Input
                     id="quantity"
                     type="number"
@@ -534,9 +672,7 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="price" className="text-right text-muted-foreground">
-                  Precio Unit.
-                </Label>
+                <Label htmlFor="price" className="text-right text-muted-foreground">Precio Unit.</Label>
                 <Input
                     id="price"
                     type="number"
@@ -576,38 +712,53 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Monto *</Label>
-                <Input
-                    type="number"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0"
-                    className="bg-background border-border text-foreground focus:border-[#D4AF37] text-lg transition-all duration-300"
-                />
-                <p className="text-xs text-muted-foreground">Saldo pendiente: {formatCurrency(currentBalance)}</p>
+                <div className="relative">
+                  <Input
+                      type="number"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="0"
+                      className="pr-16 bg-background border-border text-foreground focus:border-[#D4AF37] text-lg transition-all duration-300"
+                  />
+                  {/* Botón MAX */}
+                  <Button
+                      size="sm"
+                      variant="ghost"
+                      className="absolute right-1 top-1 h-7 text-xs text-[#D4AF37] hover:text-[#b5952f] hover:bg-transparent"
+                      onClick={() => setPaymentAmount(currentBalance.toString())}
+                      disabled={currentBalance <= 0}
+                  >
+                    MAX
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Saldo pendiente: {formatCurrency(currentBalance)}
+                </p>
               </div>
 
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Método de Pago *</Label>
                 <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <SelectTrigger className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
-                    <SelectValue placeholder="Seleccionar método" />
+                  <SelectTrigger
+                      className="bg-background border-border text-foreground focus:border-[#D4AF37] transition-all duration-300">
+                    <SelectValue placeholder="Seleccionar método"/>
                   </SelectTrigger>
                   <SelectContent className="bg-card border-border">
                     <SelectItem value="cash" className="text-foreground focus:bg-accent">
                       <div className="flex items-center gap-2">
-                        <Banknote className="h-4 w-4 text-[#059669]" />
+                        <Banknote className="h-4 w-4 text-[#059669]"/>
                         Efectivo
                       </div>
                     </SelectItem>
                     <SelectItem value="card" className="text-foreground focus:bg-accent">
                       <div className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4 text-[#3B82F6]" />
+                        <CreditCard className="h-4 w-4 text-[#3B82F6]"/>
                         Tarjeta
                       </div>
                     </SelectItem>
                     <SelectItem value="transfer" className="text-foreground focus:bg-accent">
                       <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-[#8B5CF6]" />
+                        <Building2 className="h-4 w-4 text-[#8B5CF6]"/>
                         Transferencia
                       </div>
                     </SelectItem>
@@ -624,16 +775,44 @@ export function FolioDrawer({ folio, isOpen, onClose }: FolioDrawerProps) {
                   Cancelar
                 </Button>
                 <Button
-                    onClick={() => { console.log("Pago registrado"); setPaymentModalOpen(false); }}
-                    disabled={!paymentAmount || !paymentMethod}
+                    onClick={handleAddPayment}
+                    disabled={!paymentAmount || !paymentMethod || processing}
                     className="flex-1 bg-[#059669] text-white hover:bg-[#059669]/90 transition-all duration-300"
                 >
-                  Registrar Abono
+                  {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar Abono"}
                 </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* --- Alert Dialog Confirmación Check-out (NUEVO) --- */}
+        <AlertDialog open={checkoutConfirmOpen} onOpenChange={setCheckoutConfirmOpen}>
+          <AlertDialogContent className="bg-card border-border">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-foreground">¿Confirmar salida del huésped?</AlertDialogTitle>
+              <AlertDialogDescription className="text-muted-foreground">
+                Esta acción cerrará el folio, liberará la habitación y la marcará como <strong>SUCIA</strong> para limpieza.
+                <br /><br />
+                Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="border-border text-foreground hover:bg-accent">Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                  onClick={(e) => {
+                    e.preventDefault();
+                    executeCheckOut();
+                  }}
+                  className="bg-[#CF6679] text-white hover:bg-[#CF6679]/90 border-none"
+                  disabled={processing}
+              >
+                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <LogOut className="h-4 w-4 mr-2" />}
+                Confirmar Salida
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </>
   )
 }

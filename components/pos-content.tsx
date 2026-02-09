@@ -7,28 +7,38 @@ import { CheckoutModal, ActiveFolio, PaymentMethodType } from "./checkout-modal"
 import { usePOSStore } from "@/lib/store"
 import api from "@/lib/api"
 import { toast } from "sonner"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Lock, Unlock, DollarSign, LogOut } from "lucide-react"
+import { Unlock, LogOut } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 // --- Tipos Backend ---
 interface CashierShift {
-  id: string; // Guid
+  id: string;
   status: "Open" | "Closed";
 }
 
-// --- Datos Mock Productos (Frontend Only) ---
-// Nota: Idealmente esto vendría de una tabla "Products", pero lo dejamos mockeado por simplicidad
+// --- Helpers para Backend Enums ---
+// Convertir strings del frontend a enteros del backend
+const mapPaymentMethodToBackend = (method: string): number => {
+  // Enum Backend: 1=Cash, 2=Card, 4=Transfer
+  // Si es cargo a habitación, el método importa menos en el pago inmediato,
+  // pero lo usaremos para validación si fuera necesario.
+  switch (method) {
+    case 'cash': return 1
+    case 'card': return 2
+    case 'transfer': return 4
+    default: return 1 // Default Cash
+  }
+}
+
+// --- Datos Mock Productos ---
 const categories = [
   { id: "all", name: "Todo" },
   { id: "bebidas", name: "Bebidas" },
-  { id: "cocteles", name: "Cócteles" },
-  { id: "snacks", name: "Snacks" },
   { id: "platos", name: "Platos" },
-  { id: "postres", name: "Postres" },
 ]
 
 const products = [
@@ -37,7 +47,6 @@ const products = [
   { id: "p3", name: "Cerveza Club", price: 8000, category: "bebidas", image: "/amber-beer-bottle.png" },
   { id: "p11", name: "Hamburguesa Clásica", price: 32000, category: "platos", image: "/classic-hamburger.jpg" },
   { id: "p12", name: "Club Sandwich", price: 28000, category: "platos", image: "/club-sandwich.jpg" },
-  { id: "p13", name: "Ensalada César", price: 25000, category: "platos", image: "/caesar-salad.png" },
 ]
 
 export function POSContent() {
@@ -48,7 +57,7 @@ export function POSContent() {
 
   // --- Estados de Datos Reales ---
   const [shift, setShift] = useState<CashierShift | null>(null)
-  const [activeFolios, setActiveFolios] = useState<ActiveFolio[]>([]) // Lista real de backend
+  const [activeFolios, setActiveFolios] = useState<ActiveFolio[]>([])
 
   const [loading, setLoading] = useState(true)
   const [openShiftModalOpen, setOpenShiftModalOpen] = useState(false)
@@ -59,8 +68,7 @@ export function POSContent() {
   const initData = async () => {
     try {
       setLoading(true)
-
-      // 1. Obtener Turno de Caja
+      // 1. Turno
       try {
         const { data: shiftData } = await api.get("/cashier/status")
         setShift(shiftData)
@@ -69,15 +77,13 @@ export function POSContent() {
         setShift(null)
         setOpenShiftModalOpen(true)
       }
-
-      // 2. Obtener Huéspedes Activos (Para cobrar a habitación)
+      // 2. Huéspedes
       try {
         const { data: foliosData } = await api.get("/folios/active-guests")
         setActiveFolios(foliosData)
       } catch (e) {
         console.error("Error cargando folios", e)
       }
-
     } finally {
       setLoading(false)
     }
@@ -116,13 +122,8 @@ export function POSContent() {
     }
   }
 
-  // --- Handlers Venta ---
   const handleProductClick = (product: typeof products[0]) => {
     if (!shift) return toast.error("Debes abrir caja primero")
-
-    // CORRECCIÓN:
-    // 1. No pasamos 'quantity' (el store lo pone en 1).
-    // 2. Mapeamos solo las propiedades que el store espera (id, name, price, image).
     addItem({
       id: product.id,
       name: product.name,
@@ -131,7 +132,7 @@ export function POSContent() {
     })
   }
 
-  // Lógica principal de cobro conectada al backend
+  // --- Lógica Principal de Cobro (CORREGIDA) ---
   const handlePaymentComplete = async (paymentData: {
     method: PaymentMethodType,
     folioId?: string,
@@ -141,74 +142,56 @@ export function POSContent() {
 
     if (!shift) return toast.error("No hay turno abierto")
 
-    // Si es "RoomCharge", necesitamos obligatoriamente un folio destino.
-    // Si es "Cash/Card", idealmente también, pero si no hay, fallará.
-    // Para simplificar: Si es Cash/Card y NO seleccionó habitación,
-    // asumimos que es una venta "Walk-in" (necesitaríamos un folio genérico,
-    // pero por ahora usaremos la primera habitación activa como 'dummy' o lanzaremos error).
-
     let targetFolioId = paymentData.folioId
 
+    // Validación de seguridad: Requerir folio siempre para registrar la venta
+    // (En un futuro podrías crear un "Folio Mostrador" genérico en backend para ventas sin huesped)
     if (!targetFolioId) {
-      // Opción: Si es Cash y no hay folio, no podemos guardar en este esquema estricto de FolioTransaction.
-      // Solución rápida: Requerir seleccionar habitación SIEMPRE en este MVP.
       if (activeFolios.length > 0) {
-        // Fallback a la primera habitación (solo para pruebas) o error
-        // toast.error("Por favor selecciona una habitación para asociar la venta (Requerido en MVP)")
-        // return;
+        // Fallback temporal si el usuario no seleccionó (para evitar crash en demo)
+        // targetFolioId = activeFolios[0].id
+        // toast.info("Asignando a habitación por defecto (Demo Mode)")
 
-        // Ojo: checkout-modal ya valida que si es RoomCharge tenga folio.
-        // Si es Cash, permitiremos continuar solo si hay un folio seleccionado,
-        // Si no, tendremos que asignar uno 'dummy' (lo omito para no complicar).
-        // Asumiré que el modal fuerza selección o usamos uno por defecto si queremos.
+        // Modo Estricto:
+        toast.error("Por favor selecciona una habitación/folio para la venta.")
+        return
       } else {
-        toast.error("No hay huéspedes activos para cargar la venta.")
+        toast.error("No hay folios disponibles para cargar la venta.")
         return
       }
-    }
-
-    // Si el usuario pagó en Cash/Card pero NO seleccionó folio,
-    // en este diseño estricto no podemos guardar la transacción sin FolioId.
-    // Así que asumiremos que el usuario SIEMPRE selecciona un folio en el modal
-    // (puedes modificar CheckoutModal para forzarlo en Cash también si quieres).
-    // Por ahora, si targetFolioId es null, usaremos el primer folio activo como "Fallback" para que no falle el demo.
-    if (!targetFolioId && activeFolios.length > 0) {
-      targetFolioId = activeFolios[0].id
-      toast.info(`Venta asignada a habitación ${activeFolios[0].roomNumber} por defecto`)
-    }
-
-    if (!targetFolioId) {
-      toast.error("Error: No hay folio destino disponible.")
-      return
     }
 
     try {
       const loadingToast = toast.loading("Procesando transacción...")
 
-      // 1. Registrar Cargos (Consumos) - Type: Charge
-      // Enviamos cada producto individualmente para detalle en folio
+      // 1. Registrar Cargos (Consumos) -> Type: 0 (Charge)
+      // Iteramos para guardar el detalle de qué se comió
       const itemPromises = items.map(item => {
         return api.post(`/folios/${targetFolioId}/transactions`, {
           amount: item.price * item.quantity,
-          description: item.name, // Nombre del producto
-          type: "Charge",
+          description: item.name,
+          type: 0, // 0 = Charge (Enum Backend)
           quantity: item.quantity,
           unitPrice: item.price,
-          category: "Restaurante", // Categoría fija por ahora
+          category: "Restaurante",
           cashierShiftId: shift.id
         })
       })
 
       await Promise.all(itemPromises)
 
-      // 2. Si NO es cargo a habitación (es Cash/Card), registrar el PAGO inmediato.
+      // 2. Si NO es "A la habitación", significa que pagaron ahí mismo.
+      // Registramos el PAGO inmediato -> Type: 1 (Payment)
       if (paymentData.method !== "RoomCharge") {
         await api.post(`/folios/${targetFolioId}/transactions`, {
-          amount: paymentData.finalAmount,
-          description: `Pago POS - ${paymentData.method}`,
-          type: "Payment",
+          amount: paymentData.finalAmount, // El total pagado
+          description: `Pago POS - ${paymentData.method.toUpperCase()}`,
+          type: 1, // 1 = Payment (Enum Backend)
+          quantity: 1,
+          unitPrice: paymentData.finalAmount,
           category: "Payment",
-          paymentMethod: paymentData.method,
+          // Mapeamos 'cash'/'card' a 1/2 para el backend
+          paymentMethod: mapPaymentMethodToBackend(paymentData.method),
           cashierShiftId: shift.id
         })
       }
@@ -218,11 +201,14 @@ export function POSContent() {
 
       clearCart()
       setCheckoutOpen(false)
-      initData() // Recargar datos (saldos actualizados)
+      // Recargamos datos por si el saldo de la habitación cambió
+      // (aunque en POS no mostramos saldo, es buena práctica)
+      initData()
 
     } catch (error) {
       console.error(error)
-      toast.error("Error al procesar la venta")
+      toast.dismiss()
+      toast.error("Error al procesar la venta. Ver consola.")
     }
   }
 
@@ -270,7 +256,7 @@ export function POSContent() {
           </div>
         </div>
 
-        {/* Modales */}
+        {/* Modales Caja */}
         <Dialog open={openShiftModalOpen} onOpenChange={() => {}}>
           <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader><DialogTitle>Apertura de Caja</DialogTitle></DialogHeader>
@@ -300,8 +286,8 @@ export function POSContent() {
             isOpen={checkoutOpen}
             onClose={() => setCheckoutOpen(false)}
             total={total()}
-            activeFolios={activeFolios} // Pasamos la data real
-            onComplete={handlePaymentComplete} // Recibimos la data real
+            activeFolios={activeFolios}
+            onComplete={handlePaymentComplete}
         />
       </>
   )

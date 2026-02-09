@@ -12,7 +12,7 @@ import { FolioCard } from "./folio-card"
 import { FolioDrawer } from "./folio-drawer"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import api from "@/lib/api" // <--- IMPORTANTE: Usamos tu cliente Axios configurado
+import api from "@/lib/api"
 
 // Interfaces alineadas con el DTO del backend
 interface Folio {
@@ -38,7 +38,10 @@ export function FoliosContent() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("guests")
   const [newFolioModal, setNewFolioModal] = useState(false)
+
+  // Estados de Carga y Refresco
   const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0) // Estado para forzar recarga
 
   // Data states
   const [guestFolios, setGuestFolios] = useState<Folio[]>([])
@@ -49,8 +52,7 @@ export function FoliosContent() {
   const fetchFolios = async () => {
     setLoading(true)
     try {
-      // 1. Fetch Huéspedes (GuestFolios) usando Axios
-      // Nota: api.get devuelve la respuesta completa, accedemos a .data
+      // 1. Fetch Huéspedes (GuestFolios)
       try {
         const { data: guestsData } = await api.get("/folios/active-guests")
         setGuestFolios(guestsData.map((d: any) => ({
@@ -63,7 +65,7 @@ export function FoliosContent() {
         console.error("Error cargando huéspedes", err)
       }
 
-      // 2. Fetch Externos (ExternalFolios) usando Axios
+      // 2. Fetch Externos (ExternalFolios)
       try {
         const { data: externalData } = await api.get("/folios/active-externals")
         setExternalFolios(externalData.map((d: any) => ({
@@ -83,9 +85,15 @@ export function FoliosContent() {
     }
   }
 
+  // Recargar cuando cambie refreshKey
   useEffect(() => {
     fetchFolios()
-  }, [])
+  }, [refreshKey])
+
+  // Función para disparar la recarga desde hijos (Drawer)
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1)
+  }
 
   // Selección del folio actual para el Drawer
   const currentFolio =
@@ -106,13 +114,12 @@ export function FoliosContent() {
 
   const handleCreateFolio = async () => {
     try {
-      // Usamos api.post en lugar de fetch
       await api.post("/folios/external", newFolioData)
 
       toast.success("Folio externo creado exitosamente")
       setNewFolioModal(false)
       setNewFolioData({ alias: "", description: "" })
-      fetchFolios() // Recargar lista
+      handleRefresh() // Recargar lista
     } catch (error) {
       console.error(error)
       toast.error("No se pudo crear el folio")
@@ -225,6 +232,7 @@ export function FoliosContent() {
             folio={currentFolio as any}
             isOpen={!!selectedFolioId}
             onClose={() => setSelectedFolioId(null)}
+            onUpdate={handleRefresh} // <--- Conectado para actualizar en tiempo real
         />
 
         <Dialog open={newFolioModal} onOpenChange={setNewFolioModal}>

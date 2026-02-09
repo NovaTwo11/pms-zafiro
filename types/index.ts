@@ -133,7 +133,8 @@ export type VisualReservationStatus =
     | "confirmed_deposit"
     | "confirmed_no_deposit"
     | "blocked"
-    | "available";
+    | "available"
+    | "history";
 
 // Entidad 'Room' enriquecida para UI
 export interface Room extends Omit<RoomDto, 'status' | 'category'> {

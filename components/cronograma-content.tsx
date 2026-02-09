@@ -68,6 +68,8 @@ const getStatusStyles = (status: VisualReservationStatus) => {
       return "bg-orange-100 text-orange-800 border-l-orange-600 dark:bg-orange-500/15 dark:text-orange-100 dark:border-l-orange-500 border-l-4 hover:bg-orange-200 dark:hover:bg-orange-500/25 ring-1 ring-orange-500/20"
     case "blocked":
       return "bg-gray-200 text-gray-600 border-l-gray-500 dark:bg-gray-700/40 dark:text-gray-400 dark:border-l-gray-500 border-l-4 hover:bg-gray-300 dark:hover:bg-gray-600/50 grayscale pattern-diagonal-lines"
+    case "history":
+      return "bg-gray-100 text-gray-500 border-l-gray-400 dark:bg-gray-800 dark:text-gray-500 dark:border-l-gray-600 border-l-4 opacity-70"
     default:
       return "bg-gray-500"
   }
@@ -86,11 +88,11 @@ const getCategoryColor = (category: string) => {
 // Función auxiliar para mapear estado Backend -> Visual
 const mapBackendStatus = (status: BackendReservationStatus): VisualReservationStatus => {
   switch (status) {
-    case "CheckedIn": return "check_in_debt" // Asumimos deuda por defecto (rojo) para seguridad
+    case "CheckedIn": return "check_in_debt"
     case "Confirmed": return "confirmed_deposit"
     case "Pending": return "confirmed_no_deposit"
+    case "CheckedOut": return "history" // <--- NUEVO ESTADO VISUAL
     case "Cancelled":
-    case "CheckedOut":
     case "NoShow": return "available"
     default: return "available"
   }
@@ -148,7 +150,7 @@ export function CronogramaContent() {
 
         // 2. Procesar Reservas
         const mappedReservations: TimelineReservation[] = resRes.data
-            .filter(r => r.status !== "Cancelled" && r.status !== "CheckedOut") // Filtramos historial por ahora
+            .filter(r => r.status !== "Cancelled")
             .map(r => ({
               id: r.id,
               guestName: r.mainGuestName || "Huésped",
