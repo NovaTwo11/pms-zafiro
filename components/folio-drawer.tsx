@@ -308,16 +308,14 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
   // Se abre el Dialog primero, y al confirmar se llama a esta función
   const executeCheckOut = async () => {
-    // --- CORRECCIÓN AQUÍ ---
-    // Si falta el ID, cerramos el modal ANTES de salir para no bloquear la pantalla
+    // 1. VALIDACIÓN: Si faltan datos, CERRAMOS EL MODAL antes de salir
     if (!reservationId && isGuest) {
-      setCheckoutConfirmOpen(false) // <--- ¡ESTO FALTABA!
+      setCheckoutConfirmOpen(false) // <--- ¡ESTA LÍNEA ES LA QUE EVITA EL CONGELAMIENTO!
       toast.error("Error de datos", {
-        description: "No se encontró el ID de la reserva. Intenta recargar el folio."
+        description: "No se encontró el ID de la reserva. Intenta recargar la página."
       })
       return
     }
-    // -----------------------
 
     setProcessing(true)
     try {
@@ -326,6 +324,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
       toast.success(response.data.message || "Check-out exitoso")
 
+      // Éxito
       setCheckoutConfirmOpen(false)
       onClose()
 
@@ -340,9 +339,8 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
     } catch (err: any) {
       console.error(err)
+      setCheckoutConfirmOpen(false) // Aseguramos cerrar si el backend falla
       const msg = err.response?.data?.message || "Error al realizar check-out"
-
-      setCheckoutConfirmOpen(false) // Aseguramos cerrar modal en caso de error
 
       if (err.response?.data?.error === "DeudaPendiente") {
         toast.error("Saldo Pendiente", { description: msg })
