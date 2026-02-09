@@ -308,32 +308,31 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
   // Se abre el Dialog primero, y al confirmar se llama a esta función
   const executeCheckOut = async () => {
-    // Validación preventiva
+    // --- CORRECCIÓN AQUÍ ---
+    // Si falta el ID, cerramos el modal ANTES de salir para no bloquear la pantalla
     if (!reservationId && isGuest) {
-      toast.error("Error crítico: No se encontró ID de reserva asociado.")
+      setCheckoutConfirmOpen(false) // <--- ¡ESTO FALTABA!
+      toast.error("Error de datos", {
+        description: "No se encontró el ID de la reserva. Intenta recargar el folio."
+      })
       return
     }
+    // -----------------------
 
-    setProcessing(true) // Activar spinner
+    setProcessing(true)
     try {
       const idToCheckout = isGuest ? reservationId : folio.id
-
-      // 1. Llamada al Backend
       const response = await api.post(`/reservations/${idToCheckout}/checkout`)
 
-      // 2. Feedback inmediato
       toast.success(response.data.message || "Check-out exitoso")
 
-      // 3. CRÍTICO: Cerrar primero los modales para evitar conflictos de renderizado
       setCheckoutConfirmOpen(false)
-      onClose() // Cerrar el Drawer principal
+      onClose()
 
-      // 4. Forzar actualización de datos en el padre
       if (onUpdate) {
-        // Pequeño delay para asegurar que la BD procesó la transacción
         setTimeout(() => {
-          onUpdate()      // Recargar grilla
-          router.refresh() // Recargar datos de servidor Next.js
+          onUpdate()
+          router.refresh()
         }, 100)
       } else {
         router.refresh()
@@ -343,15 +342,15 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
       console.error(err)
       const msg = err.response?.data?.message || "Error al realizar check-out"
 
-      // Si es deuda, cerramos el confirm pero dejamos el drawer para que paguen
+      setCheckoutConfirmOpen(false) // Aseguramos cerrar modal en caso de error
+
       if (err.response?.data?.error === "DeudaPendiente") {
-        setCheckoutConfirmOpen(false)
-        toast.error("No se puede salir", { description: msg })
+        toast.error("Saldo Pendiente", { description: msg })
       } else {
-        toast.error(msg)
+        toast.error("Error del sistema", { description: msg })
       }
     } finally {
-      setProcessing(false) // SIEMPRE apagar el spinner
+      setProcessing(false)
     }
   }
 
