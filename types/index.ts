@@ -1,43 +1,34 @@
 // types/index.ts
 
 // ==========================================
-// 1. ENUMS Y TIPOS BASE (BACKEND & SHARED)
+// 1. ENUMS Y TIPOS BASE (SHARED)
 // ==========================================
 
 export type BackendRoomStatus = "Available" | "Occupied" | "Dirty" | "TouchUp" | "Maintenance" | "Blocked";
 export type BackendReservationStatus = "Pending" | "Confirmed" | "CheckedIn" | "CheckedOut" | "Cancelled" | "NoShow";
-export type DocumentType = "CC" | "CE" | "PA" | "TI" | "RC";
+export type DocumentType = "CC" | "CE" | "PA" | "TI" | "RC" | "Passport";
 
-// ✅ NUEVO: Enums para Caja y Finanzas
+// Enums Financieros
 export type FolioStatus = 'Open' | 'Closed';
 export type TransactionType = 'Charge' | 'Payment' | 'Adjustment';
 export type PaymentMethod = 'None' | 'Cash' | 'CreditCard' | 'DebitCard' | 'Transfer';
 export type CashierShiftStatus = 'Open' | 'Closed';
 
-// Mapeo inverso opcional si lo necesitas en UI
-export const RoomStatusMap: Record<number, BackendRoomStatus> = {
-    0: 'Available',
-    1: 'Occupied',
-    2: 'Dirty',
-    3: 'Maintenance',
-    4: 'TouchUp',
-    5: 'Blocked'
-};
+// Categorías de Habitación (Frontend constraint)
+export type RoomCategory = "Doble" | "Triple" | "Familiar" | "SuiteFamiliar";
 
 // ==========================================
-// 2. CONTRATOS DEL BACKEND (DTOs)
-// Lo que llega crudo de la API
+// 2. DTOs DEL BACKEND (Respuestas de API)
 // ==========================================
 
 // GET /api/rooms
 export interface RoomDto {
     id: string;
     number: string;
-    category: string; // Backend envía string
+    floor: number; // Agregado obligatoriamente tras la migración
+    category: string;
     basePrice: number;
     status: BackendRoomStatus;
-    capacity?: number; // Agregado por si el backend lo envía
-    floor?: number;    // Agregado por si el backend lo envía
 }
 
 // GET /api/guests
@@ -50,120 +41,25 @@ export interface GuestDto {
     email: string;
     phone: string;
     nationality: string;
-    birthDate?: string; // YYYY-MM-DD
-    notes?: string;
+    createdAt: string;
 }
 
 // GET /api/reservations
 export interface ReservationDto {
     id: string;
-    code: string; // ConfirmationCode
+    confirmationCode: string; // Corregido: en tu seed es ConfirmationCode
     status: BackendReservationStatus;
-    mainGuestId: string;
-    mainGuestName: string; // Helper enviado por backend
+    guestId: string;
+    mainGuestName?: string; // Opcional si el backend hace include
     roomId: string;
-    roomNumber: string;    // Helper enviado por backend
-    startDate: string; // ISO String CheckIn
-    endDate: string;   // ISO String CheckOut
-    nights: number;
-    totalAmount?: number;
-    adults?: number;
-    children?: number;
+    checkIn: string;  // ISO Date
+    checkOut: string; // ISO Date
+    totalAmount: number;
+    adults: number;
+    children: number;
 }
 
-// ==========================================
-// 3. NUEVOS DTOs PARA CAJA Y FOLIOS
-// ==========================================
-
-export interface CashierShift {
-    id: string;
-    userId: string;
-    openedAt: string;
-    closedAt?: string;
-    startingAmount: number;
-    systemCalculatedAmount: number;
-    actualAmount: number;
-    status: CashierShiftStatus;
-}
-
-export interface FolioTransaction {
-    id: string;
-    folioId: string;
-    type: TransactionType;
-    description: string;
-    amount: number;
-    quantity: number;
-    unitPrice: number;
-    createdAt: string;
-    createdByUserId: string;
-
-    // Campos para Caja
-    paymentMethod: PaymentMethod;
-    cashierShiftId?: string;
-}
-
-export interface Folio {
-    id: string;
-    status: FolioStatus;
-    balance: number;
-    transactions: FolioTransaction[];
-    reservationId?: string;
-    alias?: string;
-}
-
-export interface DashboardStats {
-    occupancyRate: number;
-    arrivalsToday: number;
-    departuresToday: number;
-    inHouseGuests: number;
-    revenueToday: number;
-}
-
-// ==========================================
-// 4. TIPOS DE LA APLICACIÓN (FRONTEND / UI)
-// Tipos enriquecidos para componentes React
-// ==========================================
-
-export type RoomCategory = "Doble" | "Familiar" | "Suite" | "Estándar" | "Superior" | "Deluxe";
-
-// Estados visuales (Semáforo)
-export type VisualReservationStatus =
-    | "check_in_paid"
-    | "check_in_debt"
-    | "confirmed_deposit"
-    | "confirmed_no_deposit"
-    | "blocked"
-    | "available"
-    | "history";
-
-// Entidad 'Room' enriquecida para UI
-export interface Room extends Omit<RoomDto, 'status' | 'category'> {
-    category: RoomCategory;
-    status: BackendRoomStatus;
-    // Propiedades visuales derivadas
-    housekeepingStatus?: "Limpia" | "Sucia" | "Mantenimiento";
-    amenities?: string[]; // Si decides parsear el JSON
-}
-
-// ==========================================
-// 5. FORMULARIOS
-// ==========================================
-
-export interface GuestFormValues {
-    nombre: string;
-    apellido: string;
-    tipoDocumento: string;
-    numeroDocumento: string;
-    email: string;
-    telefono: string;
-    nacionalidad: string;
-    fechaNacimiento?: Date;
-    ocupacion?: string;
-    genero?: string;
-    paisResidencia?: string;
-    ciudadResidencia?: string;
-}
-
+// GET /api/products
 export interface Product {
     id: string;
     name: string;
@@ -174,6 +70,17 @@ export interface Product {
     imageUrl?: string;
     isActive: boolean;
     createdAt: string;
+}
+
+// ==========================================
+// 3. DTOs DE CREACIÓN/EDICIÓN (Requests)
+// ==========================================
+
+export interface CreateRoomDto {
+    number: string;
+    floor: number;
+    category: string;
+    basePrice: number;
 }
 
 export interface CreateProductDto {
@@ -187,6 +94,26 @@ export interface CreateProductDto {
 
 export interface UpdateProductDto extends CreateProductDto {
     id: string;
-    imageUrl?: string;
     isActive: boolean;
+}
+
+// ==========================================
+// 4. TIPOS DE UI (Frontend Only)
+// ==========================================
+
+// Estados visuales del Dashboard (Semáforo)
+export type VisualReservationStatus =
+    | "check_in_paid"
+    | "check_in_debt"
+    | "confirmed_deposit"
+    | "confirmed_no_deposit"
+    | "blocked"
+    | "available"
+    | "history";
+
+// Interfaz enriquecida para el componente de Habitaciones
+export interface Room extends Omit<RoomDto, 'category'> {
+    category: RoomCategory | string;
+    // Propiedades derivadas en el cliente
+    visualStatus?: VisualReservationStatus;
 }
