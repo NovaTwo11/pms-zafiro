@@ -25,7 +25,7 @@ import {
   Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -57,6 +57,7 @@ type ExternalFolio = {
   description: string
   balance: number
   createdAt: Date
+  status?: string
 }
 
 type Folio = GuestFolio | ExternalFolio
@@ -131,6 +132,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [editTransactionModalOpen, setEditTransactionModalOpen] = useState(false)
   const [checkoutConfirmOpen, setCheckoutConfirmOpen] = useState(false)
+  const [isConfirmingCheckout, setIsConfirmingCheckout] = useState(false)
 
   // Datos del Folio
   const [transactions, setTransactions] = useState<TransactionItem[]>([])
@@ -319,39 +321,37 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
   // --- FUNCIÓN CHECK-OUT NUCLEAR (Sin Cierres Manuales) ---
   const executeCheckOut = async () => {
-    // 1. Validaciones
-    if (!reservationId && isGuest) {
-      toast.error("Error", { description: "Falta ID de reserva" });
+    // Validación
+    const idToCheckout = isGuest ? reservationId : folio.id;
+    if (!idToCheckout) {
+      toast.error("Error", { description: "No se encontró ID válido." });
       return;
     }
 
     const toastId = toast.loading("Procesando salida...");
 
     try {
-      const idToCheckout = isGuest ? reservationId : folio.id;
-
-      // 2. Petición al servidor
+      // 1. Petición al backend
       await api.post(`/reservations/${idToCheckout}/checkout`, {});
 
       toast.success("Check-out exitoso", { id: toastId });
 
-      // 3. SECUENCIA SEGURA (Gracias al onCloseAutoFocus ya no se congelará)
-      setCheckoutConfirmOpen(false); // Cerramos confirmación
-      onClose(); // Cerramos el Drawer principal
+      // 2. Cierre limpio (Sin conflictos de foco porque no hay Alert externo)
+      onClose();
 
-      // Pequeña pausa para que la animación de cierre sea visible
+      // 3. Refrescar datos
       setTimeout(() => {
         if (onUpdate) onUpdate();
         router.refresh();
-      }, 300);
+      }, 500);
 
     } catch (err: any) {
       console.error(err);
       const msg = err.response?.data?.message || "Error al procesar salida";
       toast.error("Error", { id: toastId, description: msg });
-      // No cerramos nada si hay error para permitir reintentar
+      setIsConfirmingCheckout(false); // Volver al estado normal si falla
     }
-  }
+  };
 
   const handleDeleteTransaction = async (txId: string) => {
     if (confirm("¿Estás seguro de eliminar este registro? Esta acción requiere permisos de administrador.")) {
@@ -510,7 +510,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
               )}
             </div>
 
-            {/* Footer de Acciones */}
+            {/* Footer de Acciones (Botones de Pago y Cargar) */}
             <div className="p-4 border-t border-border bg-card flex flex-col gap-3">
               <div className="flex gap-3">
                 <Button
@@ -545,9 +545,62 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                   </Button>
               )}
             </div>
-          </SheetContent>
-        </Sheet>
 
+            {/* --- MUEVE EL SHEET FOOTER AQUÍ ADENTRO --- */}
+            <SheetFooter className="px-6 py-4 border-t border-border mt-auto mb-6">
+              {isConfirmingCheckout ? (
+                  // --- MODO CONFIRMACIÓN ---
+                  <div className="w-full flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                    <div className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-sm text-destructive">
+                      <p className="font-semibold flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4" /> ¿Confirmar salida?
+                      </p>
+                      <p className="text-xs opacity-90 mt-1">
+                        Se cerrará el folio y la habitación pasará a estado <strong>SUCIA</strong>.
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                          variant="outline"
+                          onClick={() => setIsConfirmingCheckout(false)}
+                          disabled={loading}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                          variant="destructive"
+                          onClick={executeCheckOut}
+                          disabled={loading}
+                          className="bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
+                      >
+                        {loading ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                            <LogOut className="h-4 w-4 mr-2" />
+                        )}
+                        Sí, Confirmar Salida
+                      </Button>
+                    </div>
+                  </div>
+              ) : (
+                  // --- MODO NORMAL ---
+                  <div className="flex w-full sm:justify-between sm:space-x-2">
+                    <Button
+                        type="button"
+                        className="w-full sm:w-auto ml-auto bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
+                        onClick={() => setIsConfirmingCheckout(true)}
+                        // Revisa que 'in-house' sea exactamente como lo envía tu backend
+                        disabled={loading || (folio?.status !== 'in-house' && folio?.status !== 'Open')}>
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Check-out
+                    </Button>
+                  </div>
+              )}
+            </SheetFooter>
+
+          </SheetContent> {/* <--- EL SHEET CONTENT SE CIERRA AQUÍ */}
+        </Sheet>
         {/* --- Ventana Emergente: Historial Detallado del Producto --- */}
         <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
           <DialogContent className="sm:max-w-[500px] bg-card border-border">
@@ -780,40 +833,59 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
           </DialogContent>
         </Dialog>
 
-        {/* --- Alert Dialog Confirmación Check-out (CORREGIDO) --- */}
-        <AlertDialog open={checkoutConfirmOpen} onOpenChange={setCheckoutConfirmOpen}>
-          <AlertDialogContent className="bg-card border-border" onCloseAutoFocus={(e) => e.preventDefault()}>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-foreground">¿Confirmar salida del huésped?</AlertDialogTitle>
-              <AlertDialogDescription className="text-muted-foreground">
-                Esta acción cerrará el folio, liberará la habitación y la marcará como <strong>SUCIA</strong>.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="border-border text-foreground hover:bg-accent">
-                Cancelar
-              </AlertDialogCancel>
+        <SheetFooter className="px-6 py-4 border-t border-border mt-auto">
+          {isConfirmingCheckout ? (
+              // --- MODO CONFIRMACIÓN (Rojo y Alerta) ---
+              <div className="w-full flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                <div className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-sm text-destructive">
+                  <p className="font-semibold flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" /> ¿Confirmar salida?
+                  </p>
+                  <p className="text-xs opacity-90 mt-1">
+                    Se cerrará el folio y la habitación pasará a estado <strong>SUCIA</strong>.
+                  </p>
+                </div>
 
-                      {/* CAMBIO CRÍTICO:
-              Usamos un Button normal en lugar de AlertDialogAction.
-              Esto evita que la librería cierre el modal automáticamente y nos permite
-              controlar la ejecución de la función asíncrona.
-                       */}
-              <Button
-                  variant="destructive" // Esto le da el color rojo automáticamente si usas shadcn
-                  onClick={(e) => {
-                    // Log para confirmar que el click físico ocurrió
-                    console.log("🖱️ Click detectado en botón Confirmar");
-                    executeCheckOut();
-                  }}
-                  className="bg-[#CF6679] text-white hover:bg-[#CF6679]/90 border-none"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                Confirmar Salida
-              </Button>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                      variant="outline"
+                      onClick={() => setIsConfirmingCheckout(false)}
+                      disabled={loading}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                      variant="destructive"
+                      onClick={executeCheckOut}
+                      disabled={loading}
+                      className="bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
+                  >
+                    {loading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                        <LogOut className="h-4 w-4 mr-2" />
+                    )}
+                    Sí, Confirmar Salida
+                  </Button>
+                </div>
+              </div>
+          ) : (
+              // --- MODO NORMAL ---
+              <div className="flex w-full sm:justify-between sm:space-x-2">
+                {/* ... Aquí irían tus otros botones (ej. Guardar, Imprimir) si los tienes ... */}
+
+                {/* Botón Check-out Inicial */}
+                <Button
+                    type="button" // Importante: type="button" para no enviar formulario
+                    className="w-full sm:w-auto ml-auto bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
+                    onClick={() => setIsConfirmingCheckout(true)} // Solo cambia el estado local
+                    disabled={loading || (folio?.status !== 'in-house' && folio?.status !== 'Open')}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Check-out
+                </Button>
+              </div>
+          )}
+        </SheetFooter>
       </>
   )
 }
