@@ -163,3 +163,30 @@ export interface GuestFormValues {
     paisResidencia?: string;
     ciudadResidencia?: string;
 }
+
+export interface Product {
+    id: string;
+    name: string;
+    description: string;
+    unitPrice: number;
+    stock: number;
+    category: string;
+    imageUrl?: string;
+    isActive: boolean;
+    createdAt: string;
+}
+
+export interface CreateProductDto {
+    name: string;
+    description?: string;
+    unitPrice: number;
+    stock: number;
+    category: string;
+    imageUrl?: string;
+}
+
+export interface UpdateProductDto extends CreateProductDto {
+    id: string;
+    imageUrl?: string;
+    isActive: boolean;
+}

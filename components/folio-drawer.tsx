@@ -404,7 +404,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                       <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => setCheckoutConfirmOpen(true)}
+                          onClick={() => setIsConfirmingCheckout(true)}
                           disabled={!canCheckOut}
                           className={cn(
                               "border-[#CF6679] text-[#CF6679] hover:bg-[#CF6679]/10 hover:text-[#CF6679] bg-transparent",

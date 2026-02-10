@@ -9,10 +9,11 @@ import {
   TrendingDown,
   Eye,
   Trash2,
-  ImageIcon,
+  Image as ImageIcon,
+  Link as LinkIcon,
   Pencil,
   Save,
-  X
+  Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,178 +32,102 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
+import { productsApi } from "@/lib/api"
+import { toast } from "sonner"
 
-// Sample inventory data
-const inventoryItems = [
-  {
-    id: "i1",
-    name: "Coca-Cola 350ml",
-    category: "Bebidas",
-    stock: 48,
-    minStock: 24,
-    unit: "unidades",
-    price: 6000,
-    cost: 3500,
-    image: "/refreshing-cola-can.png",
-  },
-  {
-    id: "i2",
-    name: "Agua Mineral 600ml",
-    category: "Bebidas",
-    stock: 72,
-    minStock: 36,
-    unit: "unidades",
-    price: 4000,
-    cost: 1800,
-    image: "/reusable-water-bottle.png",
-  },
-  {
-    id: "i3",
-    name: "Cerveza Club Colombia",
-    category: "Bebidas",
-    stock: 36,
-    minStock: 24,
-    unit: "unidades",
-    price: 8000,
-    cost: 4500,
-    image: "/amber-beer-bottle.png",
-  },
-  {
-    id: "i4",
-    name: "Whisky Buchanan's 12",
-    category: "Licores",
-    stock: 5,
-    minStock: 3,
-    unit: "botellas",
-    price: 180000,
-    cost: 120000,
-    image: "/whisky-bottle.png",
-  },
-  {
-    id: "i5",
-    name: "Ron Medellín 8 Años",
-    category: "Licores",
-    stock: 2,
-    minStock: 3,
-    unit: "botellas",
-    price: 85000,
-    cost: 55000,
-    image: "/aged-rum-bottle.png",
-  },
-  {
-    id: "i6",
-    name: "Papas Margarita",
-    category: "Snacks",
-    stock: 15,
-    minStock: 20,
-    unit: "paquetes",
-    price: 4500,
-    cost: 2800,
-    image: "/potato-chips-bag.png",
-  },
-  {
-    id: "i7",
-    name: "Maní Salado",
-    category: "Snacks",
-    stock: 8,
-    minStock: 15,
-    unit: "paquetes",
-    price: 3000,
-    cost: 1500,
-    image: "/peanuts-bag.jpg",
-  },
-  {
-    id: "i8",
-    name: "Hamburguesa (Kit)",
-    category: "Cocina",
-    stock: 25,
-    minStock: 10,
-    unit: "kits",
-    price: 12000,
-    cost: 6500,
-    image: "/burger-kit.jpg",
-  },
-  {
-    id: "i9",
-    name: "Pan Hamburguesa",
-    category: "Cocina",
-    stock: 30,
-    minStock: 15,
-    unit: "unidades",
-    price: 2500,
-    cost: 1200,
-    image: "/hamburger-buns.jpg",
-  },
-  {
-    id: "i10",
-    name: "Toallas de Baño",
-    category: "Amenities",
-    stock: 50,
-    minStock: 30,
-    unit: "unidades",
-    price: 35000,
-    cost: 18000,
-    image: "/fluffy-bath-towels.png",
-  },
-  {
-    id: "i11",
-    name: "Jabón Líquido",
-    category: "Amenities",
-    stock: 12,
-    minStock: 20,
-    unit: "galones",
-    price: 28000,
-    cost: 15000,
-    image: "/liquid-soap.jpg",
-  },
-  {
-    id: "i12",
-    name: "Shampoo Individual",
-    category: "Amenities",
-    stock: 85,
-    minStock: 50,
-    unit: "unidades",
-    price: 3500,
-    cost: 1800,
-    image: "/shampoo-bottle.png",
-  },
-]
+// INTERFAZ EXTENDIDA PARA EL FRONTEND (Evita conflictos con @/types)
+interface InventoryItem {
+  id: string;
+  name: string;
+  description: string;
+  unitPrice: number;
+  stock: number;
+  category: string;
+  isActive: boolean;
+  createdAt?: string;
+  // Campos opcionales o visuales
+  imageUrl?: string;
+  minStock?: number; // Visual por ahora
+  unit?: string;     // Visual por ahora
+  cost?: number;     // Visual por ahora
+}
 
-const categories = ["Bebidas", "Licores", "Snacks", "Cocina", "Amenities"]
+const categories = ["Bebidas", "Licores", "Snacks", "Cocina", "Amenities", "Servicios"]
 
 export function InventarioContent() {
+  const [products, setProducts] = useState<InventoryItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [deductInventory, setDeductInventory] = useState(true)
 
-  // State logic separated for View and Edit
-  const [selectedProduct, setSelectedProduct] = useState<(typeof inventoryItems)[0] | null>(null)
+  // Estados de modales
+  const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null)
   const [viewModalOpen, setViewModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
-
-  // Create Product State
   const [newProductModal, setNewProductModal] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
-  // Form State (Reused for Create and Edit)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Formulario (Maneja datos temporales antes de enviar)
   const [formData, setFormData] = useState({
     name: "",
+    description: "",
     category: "",
     stock: 0,
-    minStock: 0,
+    minStock: 5,
     unit: "unidades",
-    price: 0,
+    unitPrice: 0,
     cost: 0,
-    image: "",
+    imageUrl: "",
   })
 
-  const filteredItems = inventoryItems.filter(
+  // --- Cargar datos ---
+  const fetchProducts = async () => {
+    setLoading(true)
+    try {
+      // Llamada a la API real
+      const data = await productsApi.getAll()
+
+      // Mapeo seguro para adaptar la respuesta de la API a nuestra interfaz de UI
+      const mappedData: InventoryItem[] = data.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description || "",
+        unitPrice: p.unitPrice,
+        stock: p.stock,
+        category: p.category,
+        isActive: p.isActive,
+        createdAt: p.createdAt,
+        imageUrl: p.imageUrl || "", // Mapeamos la URL del backend
+        minStock: 5, // Valor por defecto UI
+        unit: "unidades", // Valor por defecto UI
+        cost: 0 // Valor por defecto UI
+      }))
+
+      setProducts(mappedData)
+    } catch (error) {
+      console.error("Error cargando productos:", error)
+      toast.error("Error al conectar con el servidor")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
+
+  // --- Lógica de UI ---
+
+  const filteredItems = products.filter(
       (item) =>
           item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           item.category.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const lowStockItems = inventoryItems.filter((item) => item.stock <= item.minStock)
-  const totalValue = inventoryItems.reduce((sum, item) => sum + item.stock * item.price, 0)
+  const lowStockItems = products.filter((item) => item.stock <= (item.minStock || 0))
+  const totalValue = products.reduce((sum, item) => sum + item.stock * item.unitPrice, 0)
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-CO", {
@@ -214,57 +139,150 @@ export function InventarioContent() {
 
   // --- Handlers ---
 
-  const handleViewProduct = (product: (typeof inventoryItems)[0]) => {
+  const handleViewProduct = (product: InventoryItem) => {
     setSelectedProduct(product)
     setViewModalOpen(true)
   }
 
-  const handleEditProduct = (product: (typeof inventoryItems)[0]) => {
+  const handleEditProduct = (product: InventoryItem) => {
     setSelectedProduct(product)
     setFormData({
       name: product.name,
+      description: product.description || "",
       category: product.category,
       stock: product.stock,
-      minStock: product.minStock,
-      unit: product.unit,
-      price: product.price,
-      cost: product.cost,
-      image: product.image || "",
+      minStock: product.minStock || 5,
+      unit: product.unit || "unidades",
+      unitPrice: product.unitPrice,
+      cost: product.cost || 0,
+      imageUrl: product.imageUrl || "",
     })
     setEditModalOpen(true)
-  }
-
-  const handleDeleteProduct = (productId: string) => {
-    console.log("Deleting product:", productId)
-    setDeleteConfirm(null)
-    setEditModalOpen(false) // Close edit modal if open
-    setViewModalOpen(false) // Close view modal if open
-  }
-
-  const handleCreateProduct = () => {
-    console.log("Creating product:", formData)
-    setNewProductModal(false)
-    resetForm()
-  }
-
-  const handleUpdateProduct = () => {
-    console.log("Updating product:", selectedProduct?.id, formData)
-    setEditModalOpen(false)
-    // Here you would update the state/backend
   }
 
   const resetForm = () => {
     setFormData({
       name: "",
+      description: "",
       category: "",
       stock: 0,
-      minStock: 0,
+      minStock: 5,
       unit: "unidades",
-      price: 0,
+      unitPrice: 0,
       cost: 0,
-      image: "",
+      imageUrl: "",
     })
   }
+
+  // --- CRUD Actions ---
+
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      await productsApi.delete(productId)
+      toast.success("Producto eliminado correctamente")
+      fetchProducts()
+    } catch (error) {
+      toast.error("No se pudo eliminar el producto")
+    } finally {
+      setDeleteConfirm(null)
+      setEditModalOpen(false)
+      setViewModalOpen(false)
+    }
+  }
+
+  const handleCreateProduct = async () => {
+    if (!formData.name || !formData.category) return
+    setIsSubmitting(true)
+
+    try {
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        unitPrice: formData.unitPrice,
+        stock: formData.stock,
+        category: formData.category,
+        imageUrl: formData.imageUrl // Enviamos la URL al backend
+      }
+
+      await productsApi.create(payload)
+      toast.success("Producto creado exitosamente")
+      setNewProductModal(false)
+      resetForm()
+      fetchProducts()
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al crear el producto")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleUpdateProduct = async () => {
+    if (!selectedProduct) return
+    setIsSubmitting(true)
+
+    try {
+      const payload = {
+        id: selectedProduct.id,
+        name: formData.name,
+        description: formData.description,
+        unitPrice: formData.unitPrice,
+        stock: formData.stock,
+        category: formData.category,
+        isActive: selectedProduct.isActive,
+        imageUrl: formData.imageUrl // Actualizamos la URL
+      }
+
+      await productsApi.update(selectedProduct.id, payload)
+      toast.success("Producto actualizado")
+      setEditModalOpen(false)
+      fetchProducts()
+    } catch (error) {
+      toast.error("Error al actualizar")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // --- JSX de Campos de Imagen (Reutilizable) ---
+  const renderImageFields = () => (
+      <div className="col-span-2 flex flex-col gap-4 border-b border-border pb-4 mb-4">
+        <div className="flex justify-center">
+          <div className="relative h-32 w-32 rounded-lg bg-muted border border-border overflow-hidden flex items-center justify-center group">
+            {formData.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={formData.imageUrl}
+                    alt="Vista previa"
+                    className="h-full w-full object-cover transition-transform duration-500 hover:scale-110"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://placehold.co/400?text=Error+URL";
+                    }}
+                />
+            ) : (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <ImageIcon className="h-8 w-8 opacity-50" />
+                  <span className="text-[10px]">Sin Imagen</span>
+                </div>
+            )}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-muted-foreground flex items-center gap-2">
+            URL de la Imagen <span className="text-xs text-muted-foreground/60">(Opcional)</span>
+          </Label>
+          <div className="relative">
+            <LinkIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+                value={formData.imageUrl}
+                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                placeholder="https://ejemplo.com/foto.jpg"
+                className="pl-9 bg-background border-border text-foreground text-sm"
+            />
+          </div>
+        </div>
+      </div>
+  )
 
   return (
       <div className="space-y-6">
@@ -298,9 +316,8 @@ export function InventarioContent() {
           </div>
         </div>
 
-        {/* Kill Switch & Stats */}
+        {/* Stats Section */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Kill Switch Card */}
           <div className="rounded-lg border border-border bg-card p-5 sm:col-span-2 lg:col-span-1 transition-all duration-300 hover:border-[#444444]">
             <div className="flex items-center justify-between">
               <div>
@@ -315,22 +332,18 @@ export function InventarioContent() {
                   className="data-[state=checked]:bg-primary"
               />
             </div>
-            {!deductInventory && (
-                <div className="mt-3 p-2 rounded bg-[#F59E0B]/10 border border-[#F59E0B]/30">
-                  <p className="text-xs text-[#F59E0B]">Modo sin restricciones activo</p>
-                </div>
-            )}
           </div>
 
-          {/* Stats */}
           <div className="rounded-lg border border-border bg-card p-5 transition-all duration-300 hover:border-[#444444]">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center">
                 <Package className="h-5 w-5 text-[#3B82F6]" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-foreground">{inventoryItems.length}</p>
-                <p className="text-xs text-muted-foreground">Productos</p>
+                <p className="text-2xl font-semibold text-foreground">
+                  {loading ? "..." : products.length}
+                </p>
+                <p className="text-xs text-muted-foreground">Productos Activos</p>
               </div>
             </div>
           </div>
@@ -341,7 +354,9 @@ export function InventarioContent() {
                 <TrendingDown className="h-5 w-5 text-[#F59E0B]" />
               </div>
               <div>
-                <p className="text-2xl font-semibold text-[#F59E0B]">{lowStockItems.length}</p>
+                <p className="text-2xl font-semibold text-[#F59E0B]">
+                  {loading ? "..." : lowStockItems.length}
+                </p>
                 <p className="text-xs text-muted-foreground">Stock Bajo</p>
               </div>
             </div>
@@ -353,8 +368,10 @@ export function InventarioContent() {
                 <span className="text-[#059669] font-bold">$</span>
               </div>
               <div>
-                <p className="text-lg font-semibold text-foreground">{formatCurrency(totalValue)}</p>
-                <p className="text-xs text-muted-foreground">Valor Total</p>
+                <p className="text-lg font-semibold text-foreground">
+                  {loading ? "..." : formatCurrency(totalValue)}
+                </p>
+                <p className="text-xs text-muted-foreground">Valor Estimado</p>
               </div>
             </div>
           </div>
@@ -372,26 +389,16 @@ export function InventarioContent() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Categoría
                 </th>
-                {/* Conditional Styling Headers */}
                 <th className={cn(
-                    "px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider transition-opacity duration-300",
+                    "px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider",
                     !deductInventory && "opacity-40"
                 )}>
                   Stock
                 </th>
-                <th className={cn(
-                    "px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider transition-opacity duration-300",
-                    !deductInventory && "opacity-40"
-                )}>
-                  Mínimo
-                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Precio Unit.
                 </th>
-                <th className={cn(
-                    "px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider transition-opacity duration-300",
-                    !deductInventory && "opacity-40"
-                )}>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Estado
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -400,99 +407,108 @@ export function InventarioContent() {
               </tr>
               </thead>
               <tbody>
-              {filteredItems.map((item) => {
-                const isLowStock = item.stock <= item.minStock
-                return (
-                    <tr
-                        key={item.id}
-                        className={cn(
-                            "border-b border-border last:border-0 transition-all duration-300",
-                            isLowStock && deductInventory ? "bg-[#F59E0B]/5" : "hover:bg-accent",
-                        )}
-                    >
-                      <td className="px-4 py-4">
-                        <p className="text-sm font-medium text-foreground">{item.name}</p>
-                      </td>
-                      <td className="px-4 py-4">
-                        <span className="text-sm text-muted-foreground">{item.category}</span>
-                      </td>
+              {loading ? (
+                  <tr>
+                    <td colSpan={6} className="h-32 text-center text-muted-foreground">
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p>Cargando inventario...</p>
+                      </div>
+                    </td>
+                  </tr>
+              ) : filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="h-32 text-center text-muted-foreground">
+                      No se encontraron productos.
+                    </td>
+                  </tr>
+              ) : (
+                  filteredItems.map((item) => {
+                    const isLowStock = item.stock <= (item.minStock || 0)
+                    return (
+                        <tr
+                            key={item.id}
+                            className={cn(
+                                "border-b border-border last:border-0 transition-all duration-300",
+                                isLowStock && deductInventory ? "bg-[#F59E0B]/5" : "hover:bg-accent",
+                            )}
+                        >
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              {/* Imagen pequeña en tabla */}
+                              <div className="h-10 w-10 rounded-md bg-muted border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
+                                {item.imageUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={item.imageUrl} alt={item.name} className="h-full w-full object-cover" />
+                                ) : (
+                                    <Package className="h-5 w-5 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{item.name}</p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[150px]">
+                                  {item.description}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4">
+                            <span className="text-sm text-muted-foreground">{item.category}</span>
+                          </td>
 
-                      {/* Locked Column: Stock */}
-                      <td className={cn(
-                          "px-4 py-4 transition-all duration-300",
-                          !deductInventory && "opacity-40 grayscale select-none"
-                      )}>
-                      <span className={cn("text-sm font-medium", isLowStock ? "text-[#F59E0B]" : "text-foreground")}>
-                        {item.stock} {item.unit}
-                      </span>
-                      </td>
+                          <td className={cn(
+                              "px-4 py-4",
+                              !deductInventory && "opacity-40 grayscale select-none"
+                          )}>
+                          <span className={cn("text-sm font-medium", isLowStock ? "text-[#F59E0B]" : "text-foreground")}>
+                            {item.stock} {item.unit}
+                          </span>
+                          </td>
 
-                      {/* Locked Column: Min Stock */}
-                      <td className={cn(
-                          "px-4 py-4 transition-all duration-300",
-                          !deductInventory && "opacity-40 grayscale select-none"
-                      )}>
-                      <span className="text-sm text-muted-foreground">
-                        {item.minStock} {item.unit}
-                      </span>
-                      </td>
+                          <td className="px-4 py-4">
+                            <span className="text-sm text-foreground">{formatCurrency(item.unitPrice)}</span>
+                          </td>
 
-                      <td className="px-4 py-4">
-                        <span className="text-sm text-foreground">{formatCurrency(item.price)}</span>
-                      </td>
+                          <td className="px-4 py-4">
+                            {isLowStock ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#F59E0B]/10 text-[#F59E0B]">
+                              <AlertTriangle className="h-3 w-3" />
+                              Bajo
+                            </span>
+                            ) : (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#059669]/10 text-[#059669]">
+                              OK
+                            </span>
+                            )}
+                          </td>
 
-                      {/* Locked Column: State */}
-                      <td className={cn(
-                          "px-4 py-4 transition-all duration-300",
-                          !deductInventory && "opacity-40 grayscale select-none"
-                      )}>
-                        {isLowStock ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#F59E0B]/10 text-[#F59E0B]">
-                          <AlertTriangle className="h-3 w-3" />
-                          Bajo
-                        </span>
-                        ) : (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#059669]/10 text-[#059669]">
-                          OK
-                        </span>
-                        )}
-                      </td>
-
-                      {/* Split Actions: View and Edit */}
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleViewProduct(item)}
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-[#333333]"
-                              title="Ver detalle"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleEditProduct(item)}
-                              className="h-8 w-8 text-[#D4AF37] hover:text-foreground hover:bg-primary/20"
-                              title="Gestionar producto"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                )
-              })}
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleViewProduct(item)}
+                                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-[#333333]"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleEditProduct(item)}
+                                  className="h-8 w-8 text-[#D4AF37] hover:text-foreground hover:bg-primary/20"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                    )
+                  })
+              )}
               </tbody>
             </table>
           </div>
-
-          {filteredItems.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No se encontraron productos</p>
-              </div>
-          )}
         </div>
 
         {/* VIEW ONLY Modal */}
@@ -507,9 +523,10 @@ export function InventarioContent() {
             {selectedProduct && (
                 <div className="space-y-6 pt-4">
                   <div className="aspect-square w-40 mx-auto rounded-lg bg-background border border-border overflow-hidden flex items-center justify-center">
-                    {selectedProduct.image ? (
+                    {selectedProduct.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
-                            src={selectedProduct.image || "/placeholder.svg"}
+                            src={selectedProduct.imageUrl}
                             alt={selectedProduct.name}
                             className="w-full h-full object-cover"
                         />
@@ -520,7 +537,8 @@ export function InventarioContent() {
 
                   <div className="text-center">
                     <h3 className="text-lg font-semibold text-foreground">{selectedProduct.name}</h3>
-                    <p className="text-sm text-muted-foreground">{selectedProduct.category}</p>
+                    <p className="text-sm text-muted-foreground">{selectedProduct.description}</p>
+                    <p className="text-xs text-primary mt-1">{selectedProduct.category}</p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -530,7 +548,7 @@ export function InventarioContent() {
                     </div>
                     <div className="p-3 rounded-lg bg-background border border-border">
                       <p className="text-xs text-muted-foreground">Precio</p>
-                      <p className="text-lg font-semibold text-[#D4AF37]">{formatCurrency(selectedProduct.price)}</p>
+                      <p className="text-lg font-semibold text-[#D4AF37]">{formatCurrency(selectedProduct.unitPrice)}</p>
                     </div>
                   </div>
 
@@ -551,44 +569,32 @@ export function InventarioContent() {
           <DialogContent className="sm:max-w-[600px] bg-card border-border max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground">
-                Gestionar Producto
+                Editar Producto
               </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
-              {/* Image Upload Simulation */}
-              <div className="flex flex-col items-center justify-center gap-4 py-4 border-b border-border">
-                <div className="relative h-32 w-32 rounded-lg bg-background border border-border overflow-hidden group">
-                  {formData.image ? (
-                      <img src={formData.image} alt="Preview" className="w-full h-full object-cover" />
-                  ) : (
-                      <div className="flex h-full w-full items-center justify-center">
-                        <ImageIcon className="h-10 w-10 text-[#333333]" />
-                      </div>
-                  )}
-                  {/* Overlay for edit */}
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    <Pencil className="h-6 w-6 text-white" />
-                  </div>
-                </div>
-                <div className="w-full">
-                  <Label className="text-muted-foreground text-xs mb-2 block text-center">URL de Imagen (Simulado)</Label>
-                  <Input
-                      value={formData.image}
-                      onChange={(e) => setFormData({...formData, image: e.target.value})}
-                      placeholder="/path/to/image.png"
-                      className="bg-background border-border text-foreground text-xs h-8"
-                  />
-                </div>
-              </div>
-
               <div className="grid grid-cols-2 gap-4">
+
+                {/* Sección de Imagen */}
+                {renderImageFields()}
+
                 <div className="space-y-2 col-span-2">
                   <Label className="text-muted-foreground">Nombre del Producto</Label>
                   <Input
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="bg-background border-border text-foreground focus:border-[#D4AF37]"
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label className="text-muted-foreground">Descripción</Label>
+                  <Input
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      className="bg-background border-border text-foreground"
+                      placeholder="Detalles cortos..."
                   />
                 </div>
 
@@ -612,25 +618,6 @@ export function InventarioContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Unidad</Label>
-                  <Select
-                      value={formData.unit}
-                      onValueChange={(v) => setFormData({ ...formData, unit: v })}
-                  >
-                    <SelectTrigger className="bg-background border-border text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="unidades" className="text-foreground focus:bg-accent">Unidades</SelectItem>
-                      <SelectItem value="botellas" className="text-foreground focus:bg-accent">Botellas</SelectItem>
-                      <SelectItem value="paquetes" className="text-foreground focus:bg-accent">Paquetes</SelectItem>
-                      <SelectItem value="galones" className="text-foreground focus:bg-accent">Galones</SelectItem>
-                      <SelectItem value="kits" className="text-foreground focus:bg-accent">Kits</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
                   <Label className="text-muted-foreground">Stock Actual</Label>
                   <Input
                       type="number"
@@ -641,31 +628,11 @@ export function InventarioContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Stock Mínimo</Label>
-                  <Input
-                      type="number"
-                      value={formData.minStock}
-                      onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })}
-                      className="bg-background border-border text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Costo Compra</Label>
-                  <Input
-                      type="number"
-                      value={formData.cost}
-                      onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
-                      className="bg-background border-border text-foreground"
-                  />
-                </div>
-
-                <div className="space-y-2">
                   <Label className="text-muted-foreground">Precio Venta</Label>
                   <Input
                       type="number"
-                      value={formData.price}
-                      onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                      value={formData.unitPrice}
+                      onChange={(e) => setFormData({ ...formData, unitPrice: Number(e.target.value) })}
                       className="bg-background border-border text-foreground border-l-4 border-l-[#D4AF37]"
                   />
                 </div>
@@ -690,10 +657,11 @@ export function InventarioContent() {
                   </Button>
                   <Button
                       onClick={handleUpdateProduct}
+                      disabled={isSubmitting}
                       className="bg-primary text-[#0F0F0F] hover:bg-primary/90"
                   >
-                    <Save className="h-4 w-4 mr-2" />
-                    Guardar Cambios
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4 mr-2" />}
+                    Guardar
                   </Button>
                 </div>
               </DialogFooter>
@@ -701,22 +669,33 @@ export function InventarioContent() {
           </DialogContent>
         </Dialog>
 
-        {/* Create Product Modal - Same fields as Edit but blank */}
+        {/* Create Product Modal */}
         <Dialog open={newProductModal} onOpenChange={setNewProductModal}>
-          <DialogContent className="sm:max-w-[500px] bg-card border-border">
+          <DialogContent className="sm:max-w-[500px] bg-card border-border max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground">
                 Nuevo Producto
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
-              {/* Reusing structure for consistency */}
+
+              {renderImageFields()}
+
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Nombre del Producto *</Label>
                 <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="bg-background border-border text-foreground focus:border-[#D4AF37]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Descripción</Label>
+                <Input
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="bg-background border-border text-foreground"
                 />
               </div>
 
@@ -739,59 +718,35 @@ export function InventarioContent() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Unidad</Label>
-                  <Select
-                      value={formData.unit}
-                      onValueChange={(v) => setFormData({ ...formData, unit: v })}
-                  >
-                    <SelectTrigger className="bg-background border-border text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="unidades" className="text-foreground focus:bg-accent">Unidades</SelectItem>
-                      <SelectItem value="botellas" className="text-foreground focus:bg-accent">Botellas</SelectItem>
-                      <SelectItem value="paquetes" className="text-foreground focus:bg-accent">Paquetes</SelectItem>
-                      <SelectItem value="galones" className="text-foreground focus:bg-accent">Galones</SelectItem>
-                      <SelectItem value="kits" className="text-foreground focus:bg-accent">Kits</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-muted-foreground">Stock Inicial</Label>
                   <Input type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })} className="bg-background border-border text-foreground" />
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Stock Mínimo</Label>
-                  <Input type="number" value={formData.minStock} onChange={(e) => setFormData({ ...formData, minStock: Number(e.target.value) })} className="bg-background border-border text-foreground" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Costo</Label>
-                  <Input type="number" value={formData.cost} onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })} className="bg-background border-border text-foreground" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Precio Venta</Label>
-                  <Input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })} className="bg-background border-border text-foreground" />
+
+                <div className="space-y-2 col-span-2">
+                  <Label className="text-muted-foreground">Precio Venta ($)</Label>
+                  <Input type="number" value={formData.unitPrice} onChange={(e) => setFormData({ ...formData, unitPrice: Number(e.target.value) })} className="bg-background border-border text-foreground border-l-4 border-l-[#D4AF37]" />
                 </div>
               </div>
 
               <div className="flex gap-3 pt-4">
                 <Button variant="outline" onClick={() => setNewProductModal(false)} className="flex-1 border-border text-foreground hover:bg-accent bg-transparent">Cancelar</Button>
-                <Button onClick={handleCreateProduct} disabled={!formData.name || !formData.category} className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90">Crear Producto</Button>
+                <Button onClick={handleCreateProduct} disabled={!formData.name || !formData.category || isSubmitting} className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90">
+                  {isSubmitting ? "Guardando..." : "Crear Producto"}
+                </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
 
+        {/* Delete Confirmation */}
         <AlertDialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">¿Eliminar producto?</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta acción no se puede deshacer. El producto será eliminado permanentemente del inventario.
+                El producto se marcará como inactivo en el sistema pero no se perderá el historial de ventas.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
