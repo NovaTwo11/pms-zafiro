@@ -86,7 +86,7 @@ interface FolioDrawerProps {
   folio: Folio | undefined
   isOpen: boolean
   onClose: () => void
-  onUpdate?: () => void // Callback para refrescar al padre
+  onUpdate?: () => void
 }
 
 // --- Helpers de Mapeo ---
@@ -130,13 +130,13 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [editTransactionModalOpen, setEditTransactionModalOpen] = useState(false)
-  const [checkoutConfirmOpen, setCheckoutConfirmOpen] = useState(false) // Nuevo Dialog
+  const [checkoutConfirmOpen, setCheckoutConfirmOpen] = useState(false)
 
   // Datos del Folio
   const [transactions, setTransactions] = useState<TransactionItem[]>([])
   const [reservationId, setReservationId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [processing, setProcessing] = useState(false) // Estado de carga en acciones
+  const [processing, setProcessing] = useState(false)
 
   // Estado para selección
   const [selectedGroup, setSelectedGroup] = useState<GroupedItem | null>(null)
@@ -154,8 +154,17 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
     try {
       const { data } = await api.get(`/folios/${folio.id}`)
 
-      if (data.reservationId) {
-        setReservationId(data.reservationId)
+      console.log("Datos recibidos del folio:", data);
+
+      // 1. INTENTO ROBUSTO DE OBTENER EL ID (Normalización)
+      // Probamos data.reservationId (camelCase) y data.ReservationId (PascalCase)
+      const resId = data.reservationId || data.ReservationId;
+
+      if (resId) {
+        setReservationId(resId)
+        console.log("✅ ID de Reserva capturado:", resId);
+      } else {
+        console.warn("⚠️ ADVERTENCIA: No se encontró ID de reserva en la respuesta del backend");
       }
 
       const mappedTransactions = data.transactions.map((t: any) => ({
@@ -179,12 +188,13 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
     }
   }
 
+  // --- EFECTO DE LIMPIEZA VITAL ---
   useEffect(() => {
     if (isOpen && folio) {
       setTransactions([])
       setPaymentAmount("")
       setPaymentMethod("")
-      setReservationId(null)
+      setReservationId(null) // <--- ESTO ES OBLIGATORIO para evitar IDs "basura"
       fetchFolioData()
     }
   }, [isOpen, folio])
@@ -296,8 +306,8 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
       setPaymentModalOpen(false)
       setPaymentAmount("")
 
-      await fetchFolioData() // Recargar datos internos
-      onUpdate?.() // Avisar al padre para actualizar la grilla
+      await fetchFolioData()
+      onUpdate?.()
 
     } catch (error) {
       console.error(error)
@@ -307,15 +317,15 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
     }
   }
 
-  // Se abre el Dialog primero, y al confirmar se llama a esta función
+  // --- FUNCIÓN CHECK-OUT CORREGIDA (UI Optimista) ---
   const executeCheckOut = async () => {
-    // 1. Cerrar el modal INMEDIATAMENTE para evitar congelamientos visuales
+    // 1. Cerrar el modal INMEDIATAMENTE para evitar congelamientos
     setCheckoutConfirmOpen(false);
 
-    // 2. Validación rápida
+    // 2. Validación Previa
     if (!reservationId && isGuest) {
-      toast.error("Error de datos", {
-        description: "No se encontró el ID de la reserva. Recarga el folio."
+      toast.error("Error de Datos", {
+        description: "No se encontró el ID de la reserva. Intenta recargar el folio."
       });
       return;
     }
@@ -326,46 +336,48 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
     try {
       const idToCheckout = isGuest ? reservationId : folio.id;
 
-      console.log(`[Checkout] Enviando POST a /reservations/${idToCheckout}/checkout`);
+      console.log(`🚀 Enviando Check-out POST a: /reservations/${idToCheckout}/checkout`);
 
-      // 4. Enviar petición con cuerpo vacío {} para asegurar que Axios envíe los headers correctos
-      await api.post(`/reservations/${idToCheckout}/checkout`, {});
+      // 4. Petición con cuerpo vacío {} para asegurar headers JSON correctos en Axios
+      const response = await api.post(`/reservations/${idToCheckout}/checkout`, {});
 
       // 5. Éxito
-      toast.success("Check-out exitoso", { id: toastId });
+      toast.success("Check-out realizado con éxito", { id: toastId });
 
-      // Cerrar el drawer y actualizar
+      // Cerrar Drawer y actualizar UI
       onClose();
+
       if (onUpdate) {
         onUpdate();
       }
+
       router.refresh();
 
     } catch (err: any) {
-      console.error("[Checkout Error]", err);
+      console.error("🔥 Error Checkout:", err);
 
-      // Manejo de errores específico
-      const serverMsg = err.response?.data?.message;
+      const msg = err.response?.data?.message || "Error desconocido";
       const errorType = err.response?.data?.error;
 
+      // Convertir el toast de carga en toast de error
       if (errorType === "DeudaPendiente") {
         toast.error("Saldo Pendiente", {
-          id: toastId, // Reemplaza el toast de carga
-          description: serverMsg || "El folio debe estar en $0"
+          id: toastId,
+          description: `El folio tiene saldo pendiente. ${msg}`
         });
       } else if (err.response?.status === 404) {
-        toast.error("No encontrada", {
+        toast.error("No Encontrado", {
           id: toastId,
-          description: "La reserva o el folio no existen en el sistema."
+          description: "La reserva ya no existe o el ID es incorrecto."
         });
       } else {
-        toast.error("Error del sistema", {
+        toast.error("Error del Sistema", {
           id: toastId,
-          description: serverMsg || "No se pudo conectar con el servidor."
+          description: msg
         });
       }
     }
-    // No necesitamos 'finally { setProcessing(false) }' porque el modal ya se cerró al inicio.
+    // No necesitamos 'finally' porque el modal ya se cerró al principio.
   }
 
   const handleDeleteTransaction = async (txId: string) => {
@@ -420,7 +432,6 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                       <Button
                           variant="outline"
                           size="sm"
-                          // Cambiado para abrir el Dialog personalizado
                           onClick={() => setCheckoutConfirmOpen(true)}
                           disabled={!canCheckOut}
                           className={cn(
@@ -637,7 +648,6 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  {/* CORREGIDO: hover:bg-accent se adapta a Light/Dark automáticamente */}
                                   <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-accent hover:text-accent-foreground transition-colors">
                                     <MoreVertical className="h-4 w-4 text-muted-foreground" />
                                   </Button>
@@ -713,7 +723,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
           </DialogContent>
         </Dialog>
 
-        {/* --- Modal de Pagos (Existente) --- */}
+        {/* --- Modal de Pagos --- */}
         <Dialog open={paymentModalOpen} onOpenChange={setPaymentModalOpen}>
           <DialogContent className="sm:max-w-[400px] bg-card border-border">
             <DialogHeader>
@@ -733,7 +743,6 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                       placeholder="0"
                       className="pr-16 bg-background border-border text-foreground focus:border-[#D4AF37] text-lg transition-all duration-300"
                   />
-                  {/* Botón MAX */}
                   <Button
                       size="sm"
                       variant="ghost"
@@ -799,28 +808,26 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
           </DialogContent>
         </Dialog>
 
-        {/* --- Alert Dialog Confirmación Check-out (NUEVO) --- */}
+        {/* --- Alert Dialog Confirmación Check-out (CORREGIDO) --- */}
         <AlertDialog open={checkoutConfirmOpen} onOpenChange={setCheckoutConfirmOpen}>
           <AlertDialogContent className="bg-card border-border">
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">¿Confirmar salida del huésped?</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
-                Esta acción cerrará el folio, liberará la habitación y la marcará como <strong>SUCIA</strong> para limpieza.
-                <br /><br />
-                Esta acción no se puede deshacer.
+                Esta acción cerrará el folio, liberará la habitación y la marcará como <strong>SUCIA</strong>.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel className="border-border text-foreground hover:bg-accent">Cancelar</AlertDialogCancel>
+              <AlertDialogCancel className="border-border text-foreground hover:bg-accent">
+                Cancelar
+              </AlertDialogCancel>
+
+              {/* Botón de Confirmación LIMPIO (Sin preventDefault) */}
               <AlertDialogAction
-                  onClick={(e) => {
-                    e.preventDefault();
-                    executeCheckOut();
-                  }}
+                  onClick={() => executeCheckOut()}
                   className="bg-[#CF6679] text-white hover:bg-[#CF6679]/90 border-none"
-                  disabled={processing}
               >
-                {processing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <LogOut className="h-4 w-4 mr-2" />}
+                <LogOut className="h-4 w-4 mr-2" />
                 Confirmar Salida
               </AlertDialogAction>
             </AlertDialogFooter>
