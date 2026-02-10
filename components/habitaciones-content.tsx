@@ -318,8 +318,10 @@ export function HabitacionesContent() {
                                 <div className="flex items-center gap-2 mb-1 mt-1">
                                   {visualStatus === "blocked" ? <Lock className="h-4 w-4"/> : <User className="h-4 w-4"/>}
                                   <span className="font-bold text-sm truncate max-w-[120px]">
-                                                {reservation?.id ? "Huésped #" + reservation.confirmationCode.slice(-4) : "Bloqueada"}
-                                            </span>
+                                      {reservation?.id
+                                          ? "Huésped #" + (reservation.confirmationCode || "REF-????").slice(-4)
+                                          : "Bloqueada"}
+                                  </span>
                                 </div>
                                 {reservation && (
                                     <div className="flex items-center gap-1 text-[10px] opacity-90 mt-2">
