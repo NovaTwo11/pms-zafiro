@@ -319,46 +319,37 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
   // --- FUNCIÓN CHECK-OUT NUCLEAR (Sin Cierres Manuales) ---
   const executeCheckOut = async () => {
-    // 1. Validación básica
+    // 1. Validaciones
     if (!reservationId && isGuest) {
-      toast.error("Error de Datos", { description: "Falta ID de reserva." });
+      toast.error("Error", { description: "Falta ID de reserva" });
       return;
     }
 
-    // Feedback visual inicial
     const toastId = toast.loading("Procesando salida...");
 
     try {
       const idToCheckout = isGuest ? reservationId : folio.id;
-      console.log(`🚀 Checkout Nuclear para: ${idToCheckout}`);
 
       // 2. Petición al servidor
       await api.post(`/reservations/${idToCheckout}/checkout`, {});
 
-      // 3. Éxito
-      toast.success("Check-out exitoso. Recargando...", { id: toastId });
+      toast.success("Check-out exitoso", { id: toastId });
 
-      // 4. EL TRUCO: Romper el ciclo de eventos de React
-      // Forzamos al navegador a liberar el foco actual para evitar el error "aria-hidden"
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
+      // 3. SECUENCIA SEGURA (Gracias al onCloseAutoFocus ya no se congelará)
+      setCheckoutConfirmOpen(false); // Cerramos confirmación
+      onClose(); // Cerramos el Drawer principal
 
-      // 5. RECARGA DIRECTA (Sin cerrar modales)
-      // Usamos location.reload() en lugar de router.refresh() para limpiar
-      // completamente la memoria y el estado de la librería de UI.
+      // Pequeña pausa para que la animación de cierre sea visible
       setTimeout(() => {
-        window.location.reload();
-      }, 500);
+        if (onUpdate) onUpdate();
+        router.refresh();
+      }, 300);
 
     } catch (err: any) {
-      console.error("🔥 Error:", err);
-      const msg = err.response?.data?.message || "Error desconocido";
+      console.error(err);
+      const msg = err.response?.data?.message || "Error al procesar salida";
       toast.error("Error", { id: toastId, description: msg });
-
-      // Solo cerramos el modal de confirmación si hubo error,
-      // para permitir reintentar.
-      setCheckoutConfirmOpen(false);
+      // No cerramos nada si hay error para permitir reintentar
     }
   }
 
@@ -392,8 +383,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
   return (
       <>
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-          <SheetContent className="w-full sm:max-w-[500px] bg-card border-l border-border p-0 flex flex-col">
-
+          <SheetContent className="w-full sm:max-w-[500px] bg-card border-l border-border p-0 flex flex-col" onCloseAutoFocus={(e) => e.preventDefault()}>
             {/* Header */}
             <SheetHeader className="p-6 border-b border-border">
               <div className="flex items-start justify-between">
@@ -792,7 +782,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
         {/* --- Alert Dialog Confirmación Check-out (CORREGIDO) --- */}
         <AlertDialog open={checkoutConfirmOpen} onOpenChange={setCheckoutConfirmOpen}>
-          <AlertDialogContent className="bg-card border-border">
+          <AlertDialogContent className="bg-card border-border" onCloseAutoFocus={(e) => e.preventDefault()}>
             <AlertDialogHeader>
               <AlertDialogTitle className="text-foreground">¿Confirmar salida del huésped?</AlertDialogTitle>
               <AlertDialogDescription className="text-muted-foreground">
