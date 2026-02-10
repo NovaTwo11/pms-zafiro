@@ -317,64 +317,48 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
     }
   }
 
-  // --- FUNCIÓN CHECK-OUT CORREGIDA (UI Optimista) ---
-  // --- FUNCIÓN CHECK-OUT DEBUG (UI Controlada) ---
+  // --- FUNCIÓN CHECK-OUT NUCLEAR (Sin Cierres Manuales) ---
   const executeCheckOut = async () => {
-    // 1. NO cierres el modal inmediatamente. Queremos ver si entra a la función.
-    // setCheckoutConfirmOpen(false);
-
-    console.log("🏁 Iniciando proceso de Check-out...");
-
-    // 2. Validación de ID con Log
-    const idToCheckout = isGuest ? reservationId : folio.id;
-    console.log(`🔍 ID detectado para checkout: ${idToCheckout} (Tipo: ${isGuest ? 'Huésped' : 'Externo'})`);
-
-    if (!idToCheckout) {
-      console.error("❌ ERROR CRÍTICO: idToCheckout es null o undefined");
-      toast.error("Error de Datos", {
-        description: "No se encontró el ID de la reserva. Revisa la consola (F12)."
-      });
+    // 1. Validación básica
+    if (!reservationId && isGuest) {
+      toast.error("Error de Datos", { description: "Falta ID de reserva." });
       return;
     }
 
-    // 3. Feedback visual (Loading)
-    const toastId = toast.loading("Procesando salida... Por favor espera.");
+    // Feedback visual inicial
+    const toastId = toast.loading("Procesando salida...");
 
     try {
-      console.log(`🚀 Enviando petición POST a: /reservations/${idToCheckout}/checkout`);
+      const idToCheckout = isGuest ? reservationId : folio.id;
+      console.log(`🚀 Checkout Nuclear para: ${idToCheckout}`);
 
-      // Petición al backend
-      const response = await api.post(`/reservations/${idToCheckout}/checkout`, {});
+      // 2. Petición al servidor
+      await api.post(`/reservations/${idToCheckout}/checkout`, {});
 
-      console.log("✅ Respuesta del servidor:", response);
+      // 3. Éxito
+      toast.success("Check-out exitoso. Recargando...", { id: toastId });
 
-      // 4. Éxito: Actualizamos UI después de un pequeño delay para ver el mensaje
-      toast.success("Check-out exitoso. Actualizando...", { id: toastId });
+      // 4. EL TRUCO: Romper el ciclo de eventos de React
+      // Forzamos al navegador a liberar el foco actual para evitar el error "aria-hidden"
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
 
-      // Esperamos 1.5 segundos antes de cerrar y refrescar (Debug visual)
+      // 5. RECARGA DIRECTA (Sin cerrar modales)
+      // Usamos location.reload() en lugar de router.refresh() para limpiar
+      // completamente la memoria y el estado de la librería de UI.
       setTimeout(() => {
-        setCheckoutConfirmOpen(false); // Cerramos el modal de confirmación
-        onClose(); // Cerramos el Drawer principal
-
-        console.log("🔄 Ejecutando router.refresh()...");
-        if (onUpdate) onUpdate();
-        router.refresh();
-      }, 1500);
+        window.location.reload();
+      }, 500);
 
     } catch (err: any) {
-      console.error("🔥 Error en Check-out:", err);
-      console.log("Datos del error:", err.response?.data);
+      console.error("🔥 Error:", err);
+      const msg = err.response?.data?.message || "Error desconocido";
+      toast.error("Error", { id: toastId, description: msg });
 
-      const msg = err.response?.data?.message || "Error desconocido al procesar la salida";
-
-      // Convertir el toast de carga en error y mantenerlo visible
-      toast.error("Error en Check-out", {
-        id: toastId,
-        description: msg,
-        duration: 5000 // Duración larga para que alcances a leerlo
-      });
-
-      // NO cerramos el modal si hay error, para que el usuario pueda intentar de nuevo
+      // Solo cerramos el modal de confirmación si hubo error,
+      // para permitir reintentar.
+      setCheckoutConfirmOpen(false);
     }
   }
 
