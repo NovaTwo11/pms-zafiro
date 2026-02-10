@@ -318,66 +318,64 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
   }
 
   // --- FUNCIÓN CHECK-OUT CORREGIDA (UI Optimista) ---
+  // --- FUNCIÓN CHECK-OUT DEBUG (UI Controlada) ---
   const executeCheckOut = async () => {
-    // 1. Cerrar el modal INMEDIATAMENTE para evitar congelamientos
-    setCheckoutConfirmOpen(false);
+    // 1. NO cierres el modal inmediatamente. Queremos ver si entra a la función.
+    // setCheckoutConfirmOpen(false);
 
-    // 2. Validación Previa
-    if (!reservationId && isGuest) {
+    console.log("🏁 Iniciando proceso de Check-out...");
+
+    // 2. Validación de ID con Log
+    const idToCheckout = isGuest ? reservationId : folio.id;
+    console.log(`🔍 ID detectado para checkout: ${idToCheckout} (Tipo: ${isGuest ? 'Huésped' : 'Externo'})`);
+
+    if (!idToCheckout) {
+      console.error("❌ ERROR CRÍTICO: idToCheckout es null o undefined");
       toast.error("Error de Datos", {
-        description: "No se encontró el ID de la reserva. Intenta recargar el folio."
+        description: "No se encontró el ID de la reserva. Revisa la consola (F12)."
       });
       return;
     }
 
-    // 3. Feedback visual no bloqueante (Toast de carga)
-    const toastId = toast.loading("Procesando salida del huésped...");
+    // 3. Feedback visual (Loading)
+    const toastId = toast.loading("Procesando salida... Por favor espera.");
 
     try {
-      const idToCheckout = isGuest ? reservationId : folio.id;
+      console.log(`🚀 Enviando petición POST a: /reservations/${idToCheckout}/checkout`);
 
-      console.log(`🚀 Enviando Check-out POST a: /reservations/${idToCheckout}/checkout`);
-
-      // 4. Petición con cuerpo vacío {} para asegurar headers JSON correctos en Axios
+      // Petición al backend
       const response = await api.post(`/reservations/${idToCheckout}/checkout`, {});
 
-      // 5. Éxito
-      toast.success("Check-out realizado con éxito", { id: toastId });
+      console.log("✅ Respuesta del servidor:", response);
 
-      // Cerrar Drawer y actualizar UI
-      onClose();
+      // 4. Éxito: Actualizamos UI después de un pequeño delay para ver el mensaje
+      toast.success("Check-out exitoso. Actualizando...", { id: toastId });
 
-      if (onUpdate) {
-        onUpdate();
-      }
+      // Esperamos 1.5 segundos antes de cerrar y refrescar (Debug visual)
+      setTimeout(() => {
+        setCheckoutConfirmOpen(false); // Cerramos el modal de confirmación
+        onClose(); // Cerramos el Drawer principal
 
-      router.refresh();
+        console.log("🔄 Ejecutando router.refresh()...");
+        if (onUpdate) onUpdate();
+        router.refresh();
+      }, 1500);
 
     } catch (err: any) {
-      console.error("🔥 Error Checkout:", err);
+      console.error("🔥 Error en Check-out:", err);
+      console.log("Datos del error:", err.response?.data);
 
-      const msg = err.response?.data?.message || "Error desconocido";
-      const errorType = err.response?.data?.error;
+      const msg = err.response?.data?.message || "Error desconocido al procesar la salida";
 
-      // Convertir el toast de carga en toast de error
-      if (errorType === "DeudaPendiente") {
-        toast.error("Saldo Pendiente", {
-          id: toastId,
-          description: `El folio tiene saldo pendiente. ${msg}`
-        });
-      } else if (err.response?.status === 404) {
-        toast.error("No Encontrado", {
-          id: toastId,
-          description: "La reserva ya no existe o el ID es incorrecto."
-        });
-      } else {
-        toast.error("Error del Sistema", {
-          id: toastId,
-          description: msg
-        });
-      }
+      // Convertir el toast de carga en error y mantenerlo visible
+      toast.error("Error en Check-out", {
+        id: toastId,
+        description: msg,
+        duration: 5000 // Duración larga para que alcances a leerlo
+      });
+
+      // NO cerramos el modal si hay error, para que el usuario pueda intentar de nuevo
     }
-    // No necesitamos 'finally' porque el modal ya se cerró al principio.
   }
 
   const handleDeleteTransaction = async (txId: string) => {
@@ -822,14 +820,23 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                 Cancelar
               </AlertDialogCancel>
 
-              {/* Botón de Confirmación LIMPIO (Sin preventDefault) */}
-              <AlertDialogAction
-                  onClick={() => executeCheckOut()}
+                      {/* CAMBIO CRÍTICO:
+              Usamos un Button normal en lugar de AlertDialogAction.
+              Esto evita que la librería cierre el modal automáticamente y nos permite
+              controlar la ejecución de la función asíncrona.
+                       */}
+              <Button
+                  variant="destructive" // Esto le da el color rojo automáticamente si usas shadcn
+                  onClick={(e) => {
+                    // Log para confirmar que el click físico ocurrió
+                    console.log("🖱️ Click detectado en botón Confirmar");
+                    executeCheckOut();
+                  }}
                   className="bg-[#CF6679] text-white hover:bg-[#CF6679]/90 border-none"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Confirmar Salida
-              </AlertDialogAction>
+              </Button>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
