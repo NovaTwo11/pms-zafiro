@@ -11,7 +11,9 @@ import {
   Wrench,
   Lock,
   Plus,
-  Trash2
+  Trash2,
+  MoreVertical,
+  Pencil
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,7 +38,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { format, isSameDay, isWithinInterval, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
-import api from "@/lib/api" // Usando tu instancia de Axios configurada
+import api from "@/lib/api"
 import { toast } from "sonner"
 
 // Tipos
@@ -74,15 +76,19 @@ export function HabitacionesContent() {
   const [filterHousekeeping, setFilterHousekeeping] = useState<string>("all")
   const [filterOccupancy, setFilterOccupancy] = useState<"all" | "occupied" | "available">("all")
 
-  // Modal Crear
+  // Modal Crear/Editar
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [newRoomData, setNewRoomData] = useState<CreateRoomDto>({
+
+  // Estado para el formulario (usado para crear y editar)
+  const [roomFormData, setRoomFormData] = useState<CreateRoomDto>({
     number: "",
     floor: 1,
     category: "Doble",
     basePrice: 0,
   })
+  // ID de la habitación que se está editando (null si es crear)
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null)
 
   const today = new Date()
 
@@ -114,7 +120,6 @@ export function HabitacionesContent() {
 
   // --- LÓGICA VISUAL ---
   const getRoomVisuals = (room: RoomDto) => {
-    // Buscar reserva activa hoy (CheckIn <= Hoy < CheckOut)
     const reservation = reservations.find(r =>
         r.roomId === room.id &&
         r.status !== 'Cancelled' && r.status !== 'CheckedOut' &&
@@ -127,10 +132,10 @@ export function HabitacionesContent() {
     let visualStatus: VisualReservationStatus = "available"
 
     if (reservation) {
-      if (reservation.status === "CheckedIn") visualStatus = "check_in_debt" // Asumimos deuda por defecto visualmente
+      if (reservation.status === "CheckedIn") visualStatus = "check_in_debt"
       else if (reservation.status === "Confirmed") visualStatus = "confirmed_deposit"
       else if (reservation.status === "Pending") visualStatus = "confirmed_no_deposit"
-    } else if (room.status === "Blocked" as any) { // Casting por si usas el estado legacy
+    } else if (room.status === "Blocked" as any) {
       visualStatus = "blocked"
     }
 
@@ -141,28 +146,51 @@ export function HabitacionesContent() {
 
   // --- HANDLERS ---
   const handleStatusChange = async (roomId: string, newStatus: string) => {
-    // Optimistic Update
     setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as any } : r))
-
-    // NOTA: Implementar endpoint en backend si no existe, o actualizar room completo
-    // Aquí simulamos que funciona visualmente.
     toast.success(`Estado actualizado a ${newStatus}`)
+    // Aquí iría la llamada real al backend: await api.patch(...)
   }
 
-  const handleCreateRoom = async () => {
-    if (!newRoomData.number || newRoomData.basePrice <= 0) {
+  const handleOpenCreate = () => {
+    setEditingRoomId(null)
+    setRoomFormData({ number: "", floor: 1, category: "Doble", basePrice: 0 })
+    setIsCreateModalOpen(true)
+  }
+
+  const handleOpenEdit = (room: RoomDto) => {
+    setEditingRoomId(room.id)
+    setRoomFormData({
+      number: room.number,
+      floor: room.floor,
+      category: room.category,
+      basePrice: room.basePrice
+    })
+    setIsCreateModalOpen(true)
+  }
+
+  const handleSaveRoom = async () => {
+    if (!roomFormData.number || roomFormData.basePrice <= 0) {
       toast.warning("Revisa los datos ingresados")
       return
     }
     setIsSubmitting(true)
     try {
-      await api.post('/rooms', newRoomData)
-      toast.success("Habitación creada correctamente")
+      if (editingRoomId) {
+        // Editar
+        // Nota: Asegúrate de tener PUT /api/rooms/{id} en tu backend o usa POST si es upsert
+        // Por ahora asumimos que no hay endpoint de update completo en el controller que te di antes,
+        // pero idealmente deberías tenerlo. Si no, esto fallará.
+        // await api.put(`/rooms/${editingRoomId}`, roomFormData)
+        toast.info("La edición requiere implementar el endpoint PUT en el backend")
+      } else {
+        // Crear
+        await api.post('/rooms', roomFormData)
+        toast.success("Habitación creada correctamente")
+      }
       setIsCreateModalOpen(false)
       fetchData()
-      setNewRoomData({ number: "", floor: 1, category: "Doble", basePrice: 0 })
     } catch (error) {
-      toast.error("Error al crear la habitación")
+      toast.error("Error al guardar la habitación")
     } finally {
       setIsSubmitting(false)
     }
@@ -179,7 +207,7 @@ export function HabitacionesContent() {
     }
   }
 
-  // --- FILTRADO Y AGRUPACIÓN ---
+  // --- FILTRADO ---
   const filteredRooms = useMemo(() => {
     return rooms.filter(room => {
       const { visualStatus } = getRoomVisuals(room)
@@ -190,7 +218,6 @@ export function HabitacionesContent() {
     })
   }, [rooms, reservations, filterHousekeeping, filterOccupancy])
 
-  // Obtener pisos únicos de las habitaciones filtradas
   const distinctFloors = [...new Set(filteredRooms.map(r => r.floor))].sort((a,b) => a - b)
 
   if (loading) return <div className="p-10 text-center text-muted-foreground animate-pulse">Cargando PMS Zafiro...</div>
@@ -205,7 +232,7 @@ export function HabitacionesContent() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Button onClick={() => setIsCreateModalOpen(true)} className="bg-primary text-primary-foreground">
+            <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground">
               <Plus className="w-4 h-4 mr-2" /> Nueva Habitación
             </Button>
             <div className="h-10 w-px bg-border hidden sm:block"></div>
@@ -213,14 +240,14 @@ export function HabitacionesContent() {
               <div className="flex flex-col items-end">
                 <span className="text-xs text-muted-foreground">Sucias</span>
                 <span className="text-xl font-bold text-red-500">
-                        {rooms.filter(r => r.status === 'Dirty').length}
-                    </span>
+                    {rooms.filter(r => r.status === 'Dirty').length}
+                </span>
               </div>
               <div className="flex flex-col items-end">
                 <span className="text-xs text-muted-foreground">Libres</span>
                 <span className="text-xl font-bold text-emerald-500">
-                        {getRoomVisuals ? rooms.filter(r => getRoomVisuals(r).visualStatus === 'available').length : 0}
-                    </span>
+                    {getRoomVisuals ? rooms.filter(r => getRoomVisuals(r).visualStatus === 'available').length : 0}
+                </span>
               </div>
             </div>
           </div>
@@ -283,25 +310,42 @@ export function HabitacionesContent() {
                             <p className="text-xs font-mono text-muted-foreground mt-1">${room.basePrice.toLocaleString()}</p>
                           </div>
 
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="outline" size="sm" className={cn("h-7 gap-2 border text-[10px] px-2", hkConfig.color, hkConfig.bg, hkConfig.border)}>
-                                <HkIcon className="h-3 w-3" /> {hkConfig.label}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent>
-                              <DropdownMenuLabel>Estado Habitación</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Available")}>🟢 Limpia</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Dirty")}>🔴 Sucia</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(room.id, "TouchUp")}>🟠 Retoque</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Maintenance")}>🔵 Mantenimiento</DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-500" onClick={() => handleDeleteRoom(room.id)}>
-                                <Trash2 className="h-4 w-4 mr-2" /> Eliminar Hab.
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <div className="flex gap-1">
+                            {/* Botón Estado Rápido */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="icon" className={cn("h-7 w-7 border text-[10px]", hkConfig.color, hkConfig.bg, hkConfig.border)}>
+                                  <HkIcon className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent>
+                                <DropdownMenuLabel>Estado Limpieza</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Available")}>🟢 Limpia</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Dirty")}>🔴 Sucia</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(room.id, "TouchUp")}>🟠 Retoque</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Maintenance")}>🔵 Mantenimiento</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+
+                            {/* Menú de Acciones (Editar/Borrar) */}
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7">
+                                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleOpenEdit(room)}>
+                                  <Pencil className="mr-2 h-4 w-4" /> Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeleteRoom(room.id)}>
+                                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
 
                         {/* Card Bottom */}
@@ -346,26 +390,34 @@ export function HabitacionesContent() {
             </div>
         ))}
 
-        {/* Modal Nueva Habitación */}
+        {/* Modal Crear/Editar Habitación */}
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nueva Habitación</DialogTitle>
+              <DialogTitle>{editingRoomId ? "Editar Habitación" : "Nueva Habitación"}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Número</Label>
-                  <Input placeholder="Ej: 101" value={newRoomData.number} onChange={(e) => setNewRoomData({...newRoomData, number: e.target.value})} />
+                  <Input
+                      placeholder="Ej: 101"
+                      value={roomFormData.number}
+                      onChange={(e) => setRoomFormData({...roomFormData, number: e.target.value})}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Piso</Label>
-                  <Input type="number" value={newRoomData.floor} onChange={(e) => setNewRoomData({...newRoomData, floor: Number(e.target.value)})} />
+                  <Input
+                      type="number"
+                      value={roomFormData.floor}
+                      onChange={(e) => setRoomFormData({...roomFormData, floor: Number(e.target.value)})}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Categoría</Label>
-                <Select value={newRoomData.category} onValueChange={(v) => setNewRoomData({...newRoomData, category: v})}>
+                <Select value={roomFormData.category} onValueChange={(v) => setRoomFormData({...roomFormData, category: v})}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Doble">Doble</SelectItem>
@@ -377,12 +429,16 @@ export function HabitacionesContent() {
               </div>
               <div className="space-y-2">
                 <Label>Precio Base</Label>
-                <Input type="number" value={newRoomData.basePrice} onChange={(e) => setNewRoomData({...newRoomData, basePrice: Number(e.target.value)})} />
+                <Input
+                    type="number"
+                    value={roomFormData.basePrice}
+                    onChange={(e) => setRoomFormData({...roomFormData, basePrice: Number(e.target.value)})}
+                />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleCreateRoom} disabled={isSubmitting}>
+              <Button onClick={handleSaveRoom} disabled={isSubmitting}>
                 {isSubmitting ? "Guardando..." : "Guardar"}
               </Button>
             </DialogFooter>
