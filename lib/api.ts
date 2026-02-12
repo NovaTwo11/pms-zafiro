@@ -25,19 +25,19 @@ export const api = axios.create({
 
 export const dashboardApi = {
     getStats: async (): Promise<DashboardStats> => {
-        const response = await axios.get('/dashboard/stats');
+        const response = await api.get('/dashboard/stats');
         return response.data;
     },
     getRevenueHistory: async (): Promise<RevenueChartData[]> => {
-        const response = await axios.get('/dashboard/revenue-history');
+        const response = await api.get('/dashboard/revenue-history');
         return response.data;
     },
     getDemographics: async (): Promise<DemographicData[]> => {
-        const response = await axios.get('/dashboard/demographics');
+        const response = await api.get('/dashboard/demographics');
         return response.data;
     },
     getRecentActivity: async (): Promise<ActivityItem[]> => {
-        const response = await axios.get('/dashboard/recent-activity');
+        const response = await api.get('/dashboard/recent-activity');
         return response.data;
     }
 };
