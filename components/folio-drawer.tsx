@@ -31,10 +31,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import api from "@/lib/api"
+import { useCashierStore } from "@/lib/store";
 import { toast } from "sonner"
 
 // --- Tipos ---
@@ -126,6 +126,7 @@ const mapPaymentMethodToBackend = (method: string): number => {
 
 export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerProps) {
   const router = useRouter()
+  const { refreshReport } = useCashierStore()
 
   // Estados de Modales
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
@@ -308,6 +309,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
       setPaymentModalOpen(false)
       setPaymentAmount("")
 
+      await refreshReport()
       await fetchFolioData()
       onUpdate?.()
 

@@ -32,6 +32,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
+import { useCashierStore } from "@/lib/store"
 import {CashierShiftDto} from "@/types"; // Importamos API real
 
 // --- DATOS MOCK PARA OTRAS PESTAÑAS (NO TOCADOS) ---
@@ -49,6 +50,7 @@ export default function ReportesPage() {
   const [shifts, setShifts] = useState<CashierShiftDto[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"))
+  const { lastUpdate } = useCashierStore()
 
   // --- ESTADO PARA OTRAS PESTAÑAS ---
   const [movementModalOpen, setMovementModalOpen] = useState(false)
@@ -70,7 +72,7 @@ export default function ReportesPage() {
       }
     }
     fetchHistory()
-  }, [])
+  }, [lastUpdate])
 
   // 2. FILTRAR Y CALCULAR KPI BASADOS EN FECHA SELECCIONADA
   const dailyData = useMemo(() => {

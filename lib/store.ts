@@ -83,6 +83,7 @@ interface CashierState {
     isShiftOpen: boolean;
     currentShift: CashierShiftDto | null;
     isLoading: boolean;
+    lastUpdate: number;
     checkStatus: () => Promise<void>;
     setShift: (shift: CashierShiftDto | null) => void;
     refreshReport: () => Promise<void>; // Nueva acción para actualizar tras cobros
@@ -92,6 +93,7 @@ export const useCashierStore = create<CashierState>((set, get) => ({
     isShiftOpen: false,
     currentShift: null,
     isLoading: true,
+    lastUpdate: 0,
     setShift: (shift) => set({
         currentShift: shift,
         isShiftOpen: shift !== null && shift.status === 0
@@ -115,6 +117,7 @@ export const useCashierStore = create<CashierState>((set, get) => ({
         const { isShiftOpen } = get();
         if (isShiftOpen) {
             await get().checkStatus();
+            set({ lastUpdate: Date.now() });
         }
     }
 }))
