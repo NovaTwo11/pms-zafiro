@@ -60,10 +60,10 @@ export default function ReportesPage() {
   // 3. AGREGAR lastUpdate A LAS DEPENDENCIAS DEL EFECTO
   useEffect(() => {
     const fetchHistory = async () => {
-      // Opcional: Puedes quitar el setLoading(true) si no quieres que parpadee la carga
-      // setLoadingHistory(true)
+      setLoadingHistory(true)
       try {
-        const res = await api.get<CashierShiftDto[]>("/cashier/history")
+        // TRUCO: Añadimos ?t=timestamp para evitar el caché del navegador
+        const res = await api.get<CashierShiftDto[]>(`/cashier/history?t=${Date.now()}`)
         setShifts(res.data || [])
       } catch (error) {
         console.error("Error al cargar historial de caja", error)
@@ -74,7 +74,7 @@ export default function ReportesPage() {
 
     fetchHistory()
 
-  }, [lastUpdate]) // <--- ¡AQUÍ ESTÁ LA MAGIA! Esto hace que se recargue automáticamente.
+  }, [lastUpdate])
 
   // 4. FILTRAR Y CALCULAR KPI (Sin cambios en lógica)
   const dailyData = useMemo(() => {
