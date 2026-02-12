@@ -177,11 +177,8 @@ export function HabitacionesContent() {
     try {
       if (editingRoomId) {
         // Editar
-        // Nota: Asegúrate de tener PUT /api/rooms/{id} en tu backend o usa POST si es upsert
-        // Por ahora asumimos que no hay endpoint de update completo en el controller que te di antes,
-        // pero idealmente deberías tenerlo. Si no, esto fallará.
-        // await api.put(`/rooms/${editingRoomId}`, roomFormData)
-        toast.info("La edición requiere implementar el endpoint PUT en el backend")
+        await api.put(`/rooms/${editingRoomId}`, roomFormData);
+        toast.success("Habitación actualizada correctamente");
       } else {
         // Crear
         await api.post('/rooms', roomFormData)

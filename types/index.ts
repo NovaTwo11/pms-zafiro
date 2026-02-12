@@ -117,3 +117,27 @@ export interface Room extends Omit<RoomDto, 'category'> {
     // Propiedades derivadas en el cliente
     visualStatus?: VisualReservationStatus;
 }
+
+// ==========================================
+// 5. CRASHIER ENTITIES
+// ==========================================
+export interface CashierShiftDto {
+    id: string;
+    userId: string;
+    openedAt: string;
+    closedAt?: string;
+    startingAmount: number;
+    systemCalculatedAmount: number;
+    actualAmount: number;
+    status: number; // 0: Open, 1: Closed (Según tu Enum en Backend)
+}
+
+export interface CashierReportDto {
+    totalIncome: number;
+    totalCash: number;
+    totalCards: number;
+    totalTransfers: number;
+    totalRoomCharges: number;
+    totalTransactions: number;
+}
+

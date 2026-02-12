@@ -1,4 +1,6 @@
 import { create } from "zustand"
+import {CashierShiftDto} from "@/types";
+import {cashierApi} from "@/lib/api";
 
 // --- SESSION STORE (Simplificado: Solo usuario Admin) ---
 interface User {
@@ -11,6 +13,15 @@ interface User {
 interface SessionState {
   user: User | null
   setUser: (user: User | null) => void
+}
+
+// --- CASHIER STORE ---
+interface CashierState {
+    isShiftOpen: boolean;
+    currentShift: CashierShiftDto | null;
+    isLoading: boolean;
+    checkStatus: () => Promise<void>;
+    setShift: (shift: CashierShiftDto | null) => void;
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
@@ -74,4 +85,29 @@ export const useSidebarStore = create<SidebarState>((set) => ({
   isCollapsed: false,
   toggleSidebar: () => set((state) => ({ isCollapsed: !state.isCollapsed })),
   setCollapsed: (collapsed) => set({ isCollapsed: collapsed }),
+}))
+
+// --- CASHIER STORE ---
+export const useCashierStore = create<CashierState>((set) => ({
+    isShiftOpen: false,
+    currentShift: null,
+    isLoading: true,
+    setShift: (shift) => set({
+        currentShift: shift,
+        isShiftOpen: shift !== null && shift.status === 0 // Asumiendo 0 es Open
+    }),
+    checkStatus: async () => {
+        set({ isLoading: true });
+        try {
+            const shift = await cashierApi.getStatus();
+            set({
+                currentShift: shift,
+                isShiftOpen: shift !== null && shift.status === 0
+            });
+        } catch (e) {
+            set({ currentShift: null, isShiftOpen: false });
+        } finally {
+            set({ isLoading: false });
+        }
+    }
 }))

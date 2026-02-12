@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Bell, Search, LogOut, Moon, Sun, Check, Clock } from "lucide-react"
+import { Bell, Search, LogOut, Moon, Sun, Check, Clock, Banknote } from "lucide-react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,9 +15,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { useSessionStore, useSidebarStore } from "@/lib/store"
+import { useSessionStore, useSidebarStore, useCashierStore } from "@/lib/store"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
+import { CashierManagementModal } from "@/components/cashier-management-modal"
 
 // Datos de prueba para las notificaciones
 const notifications = [
@@ -54,8 +55,18 @@ const notifications = [
 export function Topbar() {
   const { user, setUser } = useSessionStore()
   const { isCollapsed } = useSidebarStore()
+
+  // Integración Store de Caja
+  const { isShiftOpen, checkStatus } = useCashierStore()
+  const [showCashierModal, setShowCashierModal] = React.useState(false)
+
   const { setTheme, theme } = useTheme()
   const router = useRouter()
+
+  // Verificar estado de caja al montar el componente (inicio de la app)
+  React.useEffect(() => {
+    checkStatus()
+  }, [checkStatus])
 
   const handleLogout = () => {
     setUser(null)
@@ -85,6 +96,30 @@ export function Topbar() {
         </div>
 
         <div className="flex items-center gap-2">
+
+          {/* --- INTEGRACIÓN BOTÓN DE CAJA --- */}
+          <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowCashierModal(true)}
+              className={cn(
+                  "mr-2 border-dashed border-2 hidden md:flex transition-colors duration-300",
+                  isShiftOpen
+                      ? "border-green-500 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"
+                      : "border-red-400 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+              )}
+          >
+            <Banknote className="mr-2 h-4 w-4" />
+            {isShiftOpen ? "Caja Abierta" : "Caja Cerrada"}
+          </Button>
+
+          {/* Modal de Gestión de Caja */}
+          <CashierManagementModal
+              isOpen={showCashierModal}
+              onClose={() => setShowCashierModal(false)}
+          />
+          {/* ---------------------------------- */}
+
           {/* Toggle Modo Oscuro */}
           <Button
               variant="ghost"
