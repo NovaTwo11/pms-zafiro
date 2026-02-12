@@ -10,14 +10,11 @@ import {
   Scale,
   Globe,
   Printer,
-  Eye,
   DollarSign,
   TrendingUp,
   TrendingDown,
-  Minus,
   Plus,
   Edit,
-  ShieldOff,
   CheckCircle2,
   AlertTriangle
 } from "lucide-react"
@@ -32,8 +29,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { api } from "@/lib/api"
-import { useCashierStore } from "@/lib/store"
-import {CashierShiftDto} from "@/types"; // Importamos API real
+import { CashierShiftDto } from "@/types"
+import { useCashierStore } from "@/lib/store" // <--- 1. IMPORTAR EL STORE
 
 // --- DATOS MOCK PARA OTRAS PESTAÑAS (NO TOCADOS) ---
 const foreignerGuests = [
@@ -46,11 +43,13 @@ const defaultContractTemplate = `CONTRATO DE HOSPEDAJE... (Texto largo omitido p
 export default function ReportesPage() {
   const [activeTab, setActiveTab] = useState("auditoria")
 
-  // --- ESTADO PARA AUDITORÍA REAL ---
+  // --- 2. OBTENER lastUpdate DEL STORE ---
+  // Esta variable cambia cada vez que haces refreshReport() desde cualquier lugar de la app
+  const { lastUpdate } = useCashierStore()
+
   const [shifts, setShifts] = useState<CashierShiftDto[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"))
-  const { lastUpdate } = useCashierStore()
 
   // --- ESTADO PARA OTRAS PESTAÑAS ---
   const [movementModalOpen, setMovementModalOpen] = useState(false)
@@ -58,10 +57,11 @@ export default function ReportesPage() {
   const [contractTemplate, setContractTemplate] = useState(defaultContractTemplate)
   const [isEditingContract, setIsEditingContract] = useState(false)
 
-  // 1. CARGAR HISTORIAL REAL DEL BACKEND
+  // 3. AGREGAR lastUpdate A LAS DEPENDENCIAS DEL EFECTO
   useEffect(() => {
     const fetchHistory = async () => {
-      setLoadingHistory(true)
+      // Opcional: Puedes quitar el setLoading(true) si no quieres que parpadee la carga
+      // setLoadingHistory(true)
       try {
         const res = await api.get<CashierShiftDto[]>("/cashier/history")
         setShifts(res.data || [])
@@ -71,39 +71,47 @@ export default function ReportesPage() {
         setLoadingHistory(false)
       }
     }
-    fetchHistory()
-  }, [lastUpdate])
 
-  // 2. FILTRAR Y CALCULAR KPI BASADOS EN FECHA SELECCIONADA
+    fetchHistory()
+
+  }, [lastUpdate]) // <--- ¡AQUÍ ESTÁ LA MAGIA! Esto hace que se recargue automáticamente.
+
+  // 4. FILTRAR Y CALCULAR KPI (Sin cambios en lógica)
   const dailyData = useMemo(() => {
     const targetDate = parseISO(selectedDate)
 
-    // Filtrar turnos que se abrieron o cerraron en la fecha seleccionada
     const dayShifts = shifts.filter(s => {
+      // Ajuste: Aseguramos que parseISO maneje bien la fecha UTC que viene del back
       const openDate = parseISO(s.openedAt)
+      // Nota: isSameDay usa la zona horaria local del navegador.
+      // Si el servidor envía UTC y tú estás en Colombia, esto suele funcionar bien
+      // siempre que la fecha de apertura sea "hoy" en tu hora local.
       return isSameDay(openDate, targetDate)
     })
 
-    // Calcular acumulados del día
     const saldoInicial = dayShifts.reduce((acc, s) => acc + s.startingAmount, 0)
+
+    // Aquí es donde tu corrección del backend (MapToDto) brilla:
+    // systemCalculatedAmount ya trae (Base + Pagos) actualizados en tiempo real.
     const saldoSistema = dayShifts.reduce((acc, s) => acc + s.systemCalculatedAmount, 0)
+
     const saldoReal = dayShifts.reduce((acc, s) => acc + s.actualAmount, 0)
 
-    // Ventas = Lo que dice el sistema que hay MENOS lo que había de base
     const ventas = saldoSistema - saldoInicial
 
-    // Diferencia = Lo que contó el humano MENOS lo que dice el sistema
-    // (Solo cuenta si el turno está cerrado, status === 1)
     const closedShifts = dayShifts.filter(s => s.status === 1)
+
+    // Diferencia solo aplica para turnos CERRADOS.
+    // Para turnos ABIERTOS, asumimos diferencia 0 (o podrías mostrar 'En curso')
     const diferencia = closedShifts.reduce((acc, s) => acc + (s.actualAmount - s.systemCalculatedAmount), 0)
 
     return {
       shifts: dayShifts,
       saldoInicial,
-      ventas, // Asumimos que ventas incluye abonos por simplificación del modelo actual
-      gastos: 0, // TODO: Implementar módulo de gastos en backend
+      ventas,
+      gastos: 0,
       saldoEsperado: saldoSistema,
-      saldoReal: closedShifts.length > 0 ? saldoReal : saldoSistema, // Si no hay cerrados, asumimos perfecto
+      saldoReal: closedShifts.length > 0 ? saldoReal : saldoSistema,
       diferencia
     }
   }, [shifts, selectedDate])
@@ -121,7 +129,6 @@ export default function ReportesPage() {
   // --- HANDLERS (MOCK) ---
   const handleExportTRA = () => alert("Reporte TRA generado y descargado exitosamente")
   const handleExportSIRE = () => alert("Reporte SIRE de extranjeros generado y descargado exitosamente")
-  const handleAnonymize = () => { if (confirm("¿Seguro?")) alert("Datos anonimizados") }
   const generateContract = () => alert("Contrato generado exitosamente.")
   const handleAddMovement = () => { setMovementModalOpen(false); alert("Movimiento registrado (Mock)") }
 
@@ -145,10 +152,9 @@ export default function ReportesPage() {
             </TabsTrigger>
           </TabsList>
 
-          {/* --- AUDITORÍA DE CAJA (CONECTADO AL BACKEND) --- */}
+          {/* --- AUDITORÍA DE CAJA --- */}
           <TabsContent value="auditoria" className="mt-6 space-y-6">
 
-            {/* Date Selector */}
             <div className="flex flex-wrap items-center gap-4">
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Fecha del Reporte</Label>
@@ -167,7 +173,7 @@ export default function ReportesPage() {
               </Button>
             </div>
 
-            {/* KPI Cards (Dinámicas) */}
+            {/* KPI Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
@@ -175,7 +181,7 @@ export default function ReportesPage() {
                     <DollarSign className="h-5 w-5 text-[#3B82F6]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Saldo Inicial (Bases)</p>
+                    <p className="text-xs text-muted-foreground">Saldo Inicial</p>
                     <p className="text-xl font-semibold text-foreground">
                       {loadingHistory ? "..." : formatCurrency(dailyData.saldoInicial)}
                     </p>
@@ -189,7 +195,7 @@ export default function ReportesPage() {
                     <TrendingUp className="h-5 w-5 text-[#059669]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Ventas Totales</p>
+                    <p className="text-xs text-muted-foreground">Ventas (Abonos)</p>
                     <p className="text-xl font-semibold text-[#059669]">
                       {loadingHistory ? "..." : formatCurrency(dailyData.ventas)}
                     </p>
@@ -203,7 +209,7 @@ export default function ReportesPage() {
                     <TrendingDown className="h-5 w-5 text-[#CF6679]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Gastos Registrados</p>
+                    <p className="text-xs text-muted-foreground">Gastos</p>
                     <p className="text-xl font-semibold text-[#CF6679]">
                       {formatCurrency(dailyData.gastos)}
                     </p>
@@ -217,7 +223,7 @@ export default function ReportesPage() {
                     <Calculator className="h-5 w-5 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Saldo Esperado Sistema</p>
+                    <p className="text-xs text-muted-foreground">Saldo Esperado</p>
                     <p className="text-xl font-semibold text-[#D4AF37]">
                       {loadingHistory ? "..." : formatCurrency(dailyData.saldoEsperado)}
                     </p>
@@ -226,7 +232,7 @@ export default function ReportesPage() {
               </div>
             </div>
 
-            {/* Listado de Turnos del Día (Detalle Real) */}
+            {/* Listado de Turnos */}
             <div className="rounded-lg border border-border bg-card p-6">
               <h3 className="font-[family-name:var(--font-heading)] text-lg text-foreground mb-4">
                 Desglose de Turnos ({dailyData.shifts.length})
@@ -239,8 +245,8 @@ export default function ReportesPage() {
                       <TableHead>Estado</TableHead>
                       <TableHead>Horario</TableHead>
                       <TableHead>Base</TableHead>
-                      <TableHead>Sistema</TableHead>
-                      <TableHead>Real (Arqueo)</TableHead>
+                      <TableHead>Sistema (Calculado)</TableHead>
+                      <TableHead>Real (Contado)</TableHead>
                       <TableHead className="text-right">Diferencia</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -254,6 +260,8 @@ export default function ReportesPage() {
                     ) : (
                         dailyData.shifts.map((shift) => {
                           const diff = shift.actualAmount - shift.systemCalculatedAmount;
+                          const isClosed = shift.status === 1; // Asumiendo 1 = Closed
+
                           return (
                               <TableRow key={shift.id}>
                                 <TableCell>
@@ -267,15 +275,17 @@ export default function ReportesPage() {
                                   {formatTime(shift.openedAt)} - {shift.closedAt ? formatTime(shift.closedAt) : "..."}
                                 </TableCell>
                                 <TableCell>{formatCurrency(shift.startingAmount)}</TableCell>
-                                <TableCell>{formatCurrency(shift.systemCalculatedAmount)}</TableCell>
+                                <TableCell className="text-[#D4AF37] font-medium">{formatCurrency(shift.systemCalculatedAmount)}</TableCell>
                                 <TableCell className="font-medium">
-                                  {shift.status === 1 ? formatCurrency(shift.actualAmount) : "-"}
+                                  {isClosed ? formatCurrency(shift.actualAmount) : "-"}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  {shift.status === 1 && (
+                                  {isClosed ? (
                                       <span className={cn("font-bold", diff === 0 ? "text-green-600" : "text-red-500")}>
-                                                    {diff > 0 ? "+" : ""}{formatCurrency(diff)}
-                                                </span>
+                                          {diff > 0 ? "+" : ""}{formatCurrency(diff)}
+                                      </span>
+                                  ) : (
+                                      <span className="text-muted-foreground text-xs">En curso</span>
                                   )}
                                 </TableCell>
                               </TableRow>
@@ -289,7 +299,7 @@ export default function ReportesPage() {
               {/* Total Diferencia del Día */}
               <div className="mt-6 p-4 rounded-lg border border-border bg-background">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Balance de Arqueos del Día</p>
+                  <p className="text-sm text-muted-foreground">Balance de Arqueos (Solo Cerrados)</p>
                   <div className="flex items-center gap-4">
                     <span className="text-sm text-muted-foreground">Diferencia Total:</span>
                     <p className={cn(
@@ -305,9 +315,8 @@ export default function ReportesPage() {
             </div>
           </TabsContent>
 
-          {/* --- CUMPLIMIENTO LEGAL (MANTENIDO) --- */}
+          {/* --- CUMPLIMIENTO LEGAL (Sin Cambios) --- */}
           <TabsContent value="legal" className="mt-6 space-y-6">
-            {/* ... (Contenido original sin cambios) ... */}
             <div className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -331,7 +340,6 @@ export default function ReportesPage() {
                   <Download className="h-4 w-4 mr-2" /> Exportar SIRE
                 </Button>
               </div>
-              {/* Tabla Extranjeros Mock */}
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -355,7 +363,7 @@ export default function ReportesPage() {
             </div>
           </TabsContent>
 
-          {/* --- CONTRATOS (MANTENIDO) --- */}
+          {/* --- CONTRATOS (Sin Cambios) --- */}
           <TabsContent value="contratos" className="mt-6 space-y-6">
             <div className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-center justify-between mb-4">
