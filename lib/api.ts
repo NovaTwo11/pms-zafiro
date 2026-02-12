@@ -1,11 +1,14 @@
 import axios from 'axios';
-import {Product, CreateProductDto, UpdateProductDto, CashierShiftDto, CashierReportDto} from '@/types'; // Asegúrate de tener estos tipos definidos
+import {Product, CreateProductDto, UpdateProductDto, CashierShiftDto, CashierReportDto} from '@/types';
 
-console.log("API URL ACTUAL:", process.env.NEXT_PUBLIC_API_URL); // <--- AGREGA ESTO
-// Selecciona la URL de la variable de entorno o usa localhost como respaldo
+// 1. Re-exportamos los tipos para que los componentes puedan importarlos desde aquí
+export type { CashierShiftDto, CashierReportDto };
+
+console.log("API URL ACTUAL:", process.env.NEXT_PUBLIC_API_URL);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5100/api';
 
-const api = axios.create({
+// 2. AGREGAMOS 'export' AQUÍ para permitir import { api } from ...
+export const api = axios.create({
     baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
@@ -14,10 +17,9 @@ const api = axios.create({
 
 export const cashierApi = {
     getStatus: async () => {
-        // Retorna 204 (null) si no hay caja, o el objeto si hay
         try {
             const response = await api.get<CashierShiftDto>('/cashier/status');
-            return response.data || null; // Manejo del NoContent
+            return response.data || null;
         } catch (error) {
             return null;
         }
@@ -36,7 +38,6 @@ export const cashierApi = {
     }
 };
 
-// Definimos el servicio de productos aquí para mantener el código limpio en los componentes
 export const productsApi = {
     getAll: async () => {
         const response = await api.get<Product[]>('/products');
@@ -57,7 +58,7 @@ export const productsApi = {
     delete: async (id: string) => {
         await api.delete(`/products/${id}`);
     }
-
 };
 
+// Mantenemos el default por si algún archivo antiguo lo usa
 export default api;
