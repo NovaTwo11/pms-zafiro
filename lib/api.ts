@@ -1,13 +1,13 @@
 import axios from 'axios';
 import {Product, CreateProductDto, UpdateProductDto, CashierShiftDto, CashierReportDto} from '@/types';
 
-// 1. Re-exportamos los tipos para que los componentes puedan importarlos desde aquí
+// 1. Re-exportamos los tipos
 export type { CashierShiftDto, CashierReportDto };
 
 console.log("API URL ACTUAL:", process.env.NEXT_PUBLIC_API_URL);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5100/api';
 
-// 2. AGREGAMOS 'export' AQUÍ para permitir import { api } from ...
+// 2. Exportamos instancia de axios
 export const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -26,6 +26,11 @@ export const cashierApi = {
     },
     openShift: async (startingAmount: number) => {
         const response = await api.post<CashierShiftDto>('/cashier/open', { startingAmount });
+        return response.data;
+    },
+    // --- NUEVO MÉTODO PARA MOVIMIENTOS ---
+    addMovement: async (data: { type: string; amount: number; description: string }) => {
+        const response = await api.post('/cashier/movement', data);
         return response.data;
     },
     getReport: async () => {
@@ -60,5 +65,4 @@ export const productsApi = {
     }
 };
 
-// Mantenemos el default por si algún archivo antiguo lo usa
 export default api;

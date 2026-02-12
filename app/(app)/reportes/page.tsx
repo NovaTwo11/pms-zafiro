@@ -23,16 +23,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { api } from "@/lib/api"
+import { api, cashierApi } from "@/lib/api" // Importamos cashierApi
 import { CashierShiftDto } from "@/types"
-import { useCashierStore } from "@/lib/store" // <--- 1. IMPORTAR EL STORE
+import { useCashierStore } from "@/lib/store"
+import { toast } from "sonner" // Usamos sonner para feedback real
 
-// --- DATOS MOCK PARA OTRAS PESTAÑAS (NO TOCADOS) ---
+// --- DATOS MOCK PARA OTRAS PESTAÑAS ---
 const foreignerGuests = [
   { id: "f1", name: "John Smith", nationality: "Estados Unidos", passport: "US123456789", entryDate: new Date(2026, 0, 3), checkIn: new Date(2026, 0, 5), checkOut: new Date(2026, 0, 8), room: "203" },
   { id: "f2", name: "Marie Dupont", nationality: "Francia", passport: "FR987654321", entryDate: new Date(2026, 0, 4), checkIn: new Date(2026, 0, 5), checkOut: new Date(2026, 0, 10), room: "305" },
@@ -43,75 +44,76 @@ const defaultContractTemplate = `CONTRATO DE HOSPEDAJE... (Texto largo omitido p
 export default function ReportesPage() {
   const [activeTab, setActiveTab] = useState("auditoria")
 
-  // --- 2. OBTENER lastUpdate DEL STORE ---
-  // Esta variable cambia cada vez que haces refreshReport() desde cualquier lugar de la app
-  const { lastUpdate } = useCashierStore()
+  // Obtener lastUpdate del store para reaccionar a cambios globales (apertura/cierre/movimientos)
+  const { lastUpdate, checkStatus } = useCashierStore()
 
   const [shifts, setShifts] = useState<CashierShiftDto[]>([])
   const [loadingHistory, setLoadingHistory] = useState(true)
   const [selectedDate, setSelectedDate] = useState(format(new Date(), "yyyy-MM-dd"))
 
-  // --- ESTADO PARA OTRAS PESTAÑAS ---
+  // --- ESTADO PARA MOVIMIENTOS ---
   const [movementModalOpen, setMovementModalOpen] = useState(false)
-  const [newMovement, setNewMovement] = useState({ type: "ingreso", description: "", amount: "" })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [newMovement, setNewMovement] = useState({ type: "egreso", description: "", amount: "" })
+
+  // --- ESTADO PARA CONTRATOS ---
   const [contractTemplate, setContractTemplate] = useState(defaultContractTemplate)
   const [isEditingContract, setIsEditingContract] = useState(false)
 
-  // 3. AGREGAR lastUpdate A LAS DEPENDENCIAS DEL EFECTO
+  // Cargar historial cuando cambie lastUpdate (o la fecha seleccionada si quisieras filtrar en backend)
   useEffect(() => {
     const fetchHistory = async () => {
       setLoadingHistory(true)
       try {
-        // TRUCO: Añadimos ?t=timestamp para evitar el caché del navegador
+        // Añadimos timestamp para evitar caché agresivo
         const res = await api.get<CashierShiftDto[]>(`/cashier/history?t=${Date.now()}`)
         setShifts(res.data || [])
       } catch (error) {
         console.error("Error al cargar historial de caja", error)
+        toast.error("No se pudo cargar el historial de caja")
       } finally {
         setLoadingHistory(false)
       }
     }
 
     fetchHistory()
-
   }, [lastUpdate])
 
-  // 4. FILTRAR Y CALCULAR KPI (Sin cambios en lógica)
+  // Filtrar y Calcular KPI
   const dailyData = useMemo(() => {
     const targetDate = parseISO(selectedDate)
 
     const dayShifts = shifts.filter(s => {
-      // Ajuste: Aseguramos que parseISO maneje bien la fecha UTC que viene del back
+      // Validamos que s.openedAt exista
+      if (!s.openedAt) return false
       const openDate = parseISO(s.openedAt)
-      // Nota: isSameDay usa la zona horaria local del navegador.
-      // Si el servidor envía UTC y tú estás en Colombia, esto suele funcionar bien
-      // siempre que la fecha de apertura sea "hoy" en tu hora local.
       return isSameDay(openDate, targetDate)
     })
 
     const saldoInicial = dayShifts.reduce((acc, s) => acc + s.startingAmount, 0)
 
-    // Aquí es donde tu corrección del backend (MapToDto) brilla:
-    // systemCalculatedAmount ya trae (Base + Pagos) actualizados en tiempo real.
-    const saldoSistema = dayShifts.reduce((acc, s) => acc + s.systemCalculatedAmount, 0)
+    // systemCalculatedAmount viene del backend = (Base + Ingresos - Egresos)
+    const saldoEsperado = dayShifts.reduce((acc, s) => acc + s.systemCalculatedAmount, 0)
 
+    // Lo que el cajero contó físicamente (solo relevante si está cerrado)
     const saldoReal = dayShifts.reduce((acc, s) => acc + s.actualAmount, 0)
 
-    const ventas = saldoSistema - saldoInicial
+    // Ventas Netas aproximadas (Saldo Final Esperado - Base Inicial)
+    // Nota: Esto incluye (Ventas - Gastos).
+    const flujoNeto = saldoEsperado - saldoInicial
 
-    const closedShifts = dayShifts.filter(s => s.status === 1)
+    const closedShifts = dayShifts.filter(s => s.status === 1) // 1 = Closed
 
-    // Diferencia solo aplica para turnos CERRADOS.
-    // Para turnos ABIERTOS, asumimos diferencia 0 (o podrías mostrar 'En curso')
+    // Diferencia real (Sobrante/Faltante)
     const diferencia = closedShifts.reduce((acc, s) => acc + (s.actualAmount - s.systemCalculatedAmount), 0)
 
     return {
       shifts: dayShifts,
       saldoInicial,
-      ventas,
-      gastos: 0,
-      saldoEsperado: saldoSistema,
-      saldoReal: closedShifts.length > 0 ? saldoReal : saldoSistema,
+      flujoNeto,
+      saldoEsperado,
+      // Si hay turnos cerrados, mostramos la suma de lo real, si no, mostramos lo esperado (asumiendo que cuadra)
+      saldoReal: closedShifts.length > 0 ? saldoReal : saldoEsperado,
       diferencia
     }
   }, [shifts, selectedDate])
@@ -124,13 +126,45 @@ export default function ReportesPage() {
     }).format(amount)
   }
 
-  const formatTime = (dateStr: string) => format(parseISO(dateStr), "HH:mm", { locale: es })
+  const formatTime = (dateStr: string) => {
+    if (!dateStr) return "-"
+    return format(parseISO(dateStr), "HH:mm", { locale: es })
+  }
 
-  // --- HANDLERS (MOCK) ---
-  const handleExportTRA = () => alert("Reporte TRA generado y descargado exitosamente")
-  const handleExportSIRE = () => alert("Reporte SIRE de extranjeros generado y descargado exitosamente")
-  const generateContract = () => alert("Contrato generado exitosamente.")
-  const handleAddMovement = () => { setMovementModalOpen(false); alert("Movimiento registrado (Mock)") }
+  // --- HANDLER REAL PARA AGREGAR MOVIMIENTO ---
+  const handleAddMovement = async () => {
+    if (!newMovement.amount || !newMovement.description) {
+      toast.warning("Por favor complete monto y descripción")
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await cashierApi.addMovement({
+        type: newMovement.type,
+        amount: Number(newMovement.amount),
+        description: newMovement.description
+      })
+
+      toast.success("Movimiento registrado correctamente")
+      setMovementModalOpen(false)
+      setNewMovement({ type: "egreso", description: "", amount: "" }) // Reset form
+
+      // CRUCIAL: Actualizar el estado global para que se recarguen los datos
+      checkStatus()
+
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al registrar el movimiento. Verifica que la caja esté abierta.")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // --- HANDLERS MOCK (Reportes PDF) ---
+  const handleExportTRA = () => toast.info("Reporte TRA generado y descargado exitosamente")
+  const handleExportSIRE = () => toast.info("Reporte SIRE generado y descargado exitosamente")
+  const generateContract = () => toast.success("Contrato enviado a impresión.")
 
   return (
       <div className="space-y-6 animate-in fade-in duration-500">
@@ -155,7 +189,7 @@ export default function ReportesPage() {
           {/* --- AUDITORÍA DE CAJA --- */}
           <TabsContent value="auditoria" className="mt-6 space-y-6">
 
-            <div className="flex flex-wrap items-center gap-4">
+            <div className="flex flex-wrap items-end gap-4 justify-between">
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Fecha del Reporte</Label>
                 <Input
@@ -165,16 +199,20 @@ export default function ReportesPage() {
                     className="w-[200px] bg-card border-border text-foreground focus:border-[#D4AF37]"
                 />
               </div>
-              <Button onClick={() => setMovementModalOpen(true)} className="mt-6 bg-[#059669] text-white hover:bg-[#059669]/90">
-                <Plus className="h-4 w-4 mr-2" /> Registrar Gasto/Ingreso
-              </Button>
-              <Button variant="outline" className="mt-6 border-border text-foreground hover:bg-accent bg-transparent">
-                <Printer className="h-4 w-4 mr-2" /> Imprimir
-              </Button>
+
+              <div className="flex gap-2">
+                <Button onClick={() => setMovementModalOpen(true)} className="bg-[#059669] text-white hover:bg-[#059669]/90">
+                  <Plus className="h-4 w-4 mr-2" /> Registrar Gasto/Ingreso
+                </Button>
+                <Button variant="outline" className="border-border text-foreground hover:bg-accent bg-transparent">
+                  <Printer className="h-4 w-4 mr-2" /> Imprimir
+                </Button>
+              </div>
             </div>
 
             {/* KPI Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Saldo Inicial */}
               <div className="rounded-lg border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center">
@@ -189,43 +227,46 @@ export default function ReportesPage() {
                 </div>
               </div>
 
+              {/* Flujo Neto (Ventas - Gastos) */}
               <div className="rounded-lg border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-[#059669]/10 flex items-center justify-center">
                     <TrendingUp className="h-5 w-5 text-[#059669]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Ventas (Abonos)</p>
-                    <p className="text-xl font-semibold text-[#059669]">
-                      {loadingHistory ? "..." : formatCurrency(dailyData.ventas)}
+                    <p className="text-xs text-muted-foreground">Flujo Neto (Inc. Gastos)</p>
+                    <p className={cn("text-xl font-semibold", dailyData.flujoNeto >= 0 ? "text-[#059669]" : "text-red-500")}>
+                      {loadingHistory ? "..." : formatCurrency(dailyData.flujoNeto)}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border bg-card p-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-[#CF6679]/10 flex items-center justify-center">
-                    <TrendingDown className="h-5 w-5 text-[#CF6679]" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Gastos</p>
-                    <p className="text-xl font-semibold text-[#CF6679]">
-                      {formatCurrency(dailyData.gastos)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
+              {/* Saldo Esperado */}
               <div className="rounded-lg border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Calculator className="h-5 w-5 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Saldo Esperado</p>
+                    <p className="text-xs text-muted-foreground">Debería Haber (Sistema)</p>
                     <p className="text-xl font-semibold text-[#D4AF37]">
                       {loadingHistory ? "..." : formatCurrency(dailyData.saldoEsperado)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Diferencia (Solo cierres) */}
+              <div className="rounded-lg border border-border bg-card p-5">
+                <div className="flex items-center gap-3">
+                  <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", dailyData.diferencia === 0 ? "bg-green-100" : "bg-red-100")}>
+                    {dailyData.diferencia === 0 ? <CheckCircle2 className="h-5 w-5 text-green-600"/> : <AlertTriangle className="h-5 w-5 text-red-600"/>}
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Diferencia (Cierres)</p>
+                    <p className={cn("text-xl font-semibold", dailyData.diferencia === 0 ? "text-green-600" : "text-red-600")}>
+                      {formatCurrency(dailyData.diferencia)}
                     </p>
                   </div>
                 </div>
@@ -245,7 +286,7 @@ export default function ReportesPage() {
                       <TableHead>Estado</TableHead>
                       <TableHead>Horario</TableHead>
                       <TableHead>Base</TableHead>
-                      <TableHead>Sistema (Calculado)</TableHead>
+                      <TableHead>Sistema (Neto)</TableHead>
                       <TableHead>Real (Contado)</TableHead>
                       <TableHead className="text-right">Diferencia</TableHead>
                     </TableRow>
@@ -260,7 +301,7 @@ export default function ReportesPage() {
                     ) : (
                         dailyData.shifts.map((shift) => {
                           const diff = shift.actualAmount - shift.systemCalculatedAmount;
-                          const isClosed = shift.status === 1; // Asumiendo 1 = Closed
+                          const isClosed = shift.status === 1; // 1 = Closed
 
                           return (
                               <TableRow key={shift.id}>
@@ -282,8 +323,8 @@ export default function ReportesPage() {
                                 <TableCell className="text-right">
                                   {isClosed ? (
                                       <span className={cn("font-bold", diff === 0 ? "text-green-600" : "text-red-500")}>
-                                          {diff > 0 ? "+" : ""}{formatCurrency(diff)}
-                                      </span>
+                                {diff > 0 ? "+" : ""}{formatCurrency(diff)}
+                              </span>
                                   ) : (
                                       <span className="text-muted-foreground text-xs">En curso</span>
                                   )}
@@ -295,27 +336,10 @@ export default function ReportesPage() {
                   </TableBody>
                 </Table>
               </div>
-
-              {/* Total Diferencia del Día */}
-              <div className="mt-6 p-4 rounded-lg border border-border bg-background">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">Balance de Arqueos (Solo Cerrados)</p>
-                  <div className="flex items-center gap-4">
-                    <span className="text-sm text-muted-foreground">Diferencia Total:</span>
-                    <p className={cn(
-                        "text-xl font-bold flex items-center gap-2",
-                        dailyData.diferencia === 0 ? "text-[#059669]" : "text-[#CF6679]"
-                    )}>
-                      {dailyData.diferencia === 0 ? <CheckCircle2 className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
-                      {formatCurrency(dailyData.diferencia)}
-                    </p>
-                  </div>
-                </div>
-              </div>
             </div>
           </TabsContent>
 
-          {/* --- CUMPLIMIENTO LEGAL (Sin Cambios) --- */}
+          {/* --- CUMPLIMIENTO LEGAL --- */}
           <TabsContent value="legal" className="mt-6 space-y-6">
             <div className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-start justify-between mb-4">
@@ -363,7 +387,7 @@ export default function ReportesPage() {
             </div>
           </TabsContent>
 
-          {/* --- CONTRATOS (Sin Cambios) --- */}
+          {/* --- CONTRATOS --- */}
           <TabsContent value="contratos" className="mt-6 space-y-6">
             <div className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-center justify-between mb-4">
@@ -388,31 +412,53 @@ export default function ReportesPage() {
         <Dialog open={movementModalOpen} onOpenChange={setMovementModalOpen}>
           <DialogContent className="sm:max-w-[400px] bg-card border-border">
             <DialogHeader>
-              <DialogTitle>Registrar Movimiento Manual</DialogTitle>
+              <DialogTitle>Registrar Movimiento de Caja</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <div className="space-y-2">
-                <Label>Tipo</Label>
+                <Label>Tipo de Movimiento</Label>
                 <Select value={newMovement.type} onValueChange={(v) => setNewMovement({ ...newMovement, type: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ingreso">Ingreso</SelectItem>
-                    <SelectItem value="egreso">Egreso</SelectItem>
+                    <SelectItem value="ingreso">Ingreso (Entrada)</SelectItem>
+                    <SelectItem value="egreso">Egreso (Gasto/Retiro)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Descripción</Label>
-                <Input value={newMovement.description} onChange={(e) => setNewMovement({ ...newMovement, description: e.target.value })} />
-              </div>
+
               <div className="space-y-2">
                 <Label>Monto</Label>
-                <Input type="number" value={newMovement.amount} onChange={(e) => setNewMovement({ ...newMovement, amount: e.target.value })} />
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                  <Input
+                      type="number"
+                      className="pl-7"
+                      placeholder="0"
+                      value={newMovement.amount}
+                      onChange={(e) => setNewMovement({ ...newMovement, amount: e.target.value })}
+                  />
+                </div>
               </div>
-              <div className="flex gap-3 pt-4">
+
+              <div className="space-y-2">
+                <Label>Descripción / Motivo</Label>
+                <Input
+                    placeholder="Ej. Compra de insumos de aseo"
+                    value={newMovement.description}
+                    onChange={(e) => setNewMovement({ ...newMovement, description: e.target.value })}
+                />
+              </div>
+
+              <DialogFooter className="pt-4 flex gap-2">
                 <Button variant="outline" onClick={() => setMovementModalOpen(false)} className="flex-1">Cancelar</Button>
-                <Button onClick={handleAddMovement} className="flex-1 bg-[#059669]">Registrar</Button>
-              </div>
+                <Button
+                    onClick={handleAddMovement}
+                    className={cn("flex-1 text-white", newMovement.type === 'ingreso' ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700")}
+                    disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Registrando..." : "Registrar"}
+                </Button>
+              </DialogFooter>
             </div>
           </DialogContent>
         </Dialog>
