@@ -42,6 +42,29 @@ export const dashboardApi = {
     }
 };
 
+export interface CheckInResponse {
+    message: string;
+    folioId: string;
+    status: string;
+}
+
+export const checkInReservation = async (id: string): Promise<CheckInResponse> => {
+    const response = await fetch(`${API_URL}/reservations/${id}/checkin`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            // 'Authorization': `Bearer ${token}` // Si usas auth
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al realizar Check-in');
+    }
+
+    return response.json();
+};
+
 export const cashierApi = {
     getStatus: async () => {
         try {
