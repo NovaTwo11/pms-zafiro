@@ -12,7 +12,6 @@ import {
   Printer,
   DollarSign,
   TrendingUp,
-  TrendingDown,
   Plus,
   Edit,
   CheckCircle2,
@@ -28,12 +27,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
-import { api, cashierApi } from "@/lib/api" // Importamos cashierApi
+import { api, cashierApi } from "@/lib/api"
 import { CashierShiftDto } from "@/types"
 import { useCashierStore } from "@/lib/store"
-import { toast } from "sonner" // Usamos sonner para feedback real
+import { toast } from "sonner"
 
-// --- DATOS MOCK PARA OTRAS PESTAÑAS ---
 const foreignerGuests = [
   { id: "f1", name: "John Smith", nationality: "Estados Unidos", passport: "US123456789", entryDate: new Date(2026, 0, 3), checkIn: new Date(2026, 0, 5), checkOut: new Date(2026, 0, 8), room: "203" },
   { id: "f2", name: "Marie Dupont", nationality: "Francia", passport: "FR987654321", entryDate: new Date(2026, 0, 4), checkIn: new Date(2026, 0, 5), checkOut: new Date(2026, 0, 10), room: "305" },
@@ -43,8 +41,6 @@ const defaultContractTemplate = `CONTRATO DE HOSPEDAJE... (Texto largo omitido p
 
 export default function ReportesPage() {
   const [activeTab, setActiveTab] = useState("auditoria")
-
-  // Obtener lastUpdate del store para reaccionar a cambios globales (apertura/cierre/movimientos)
   const { lastUpdate, checkStatus } = useCashierStore()
 
   const [shifts, setShifts] = useState<CashierShiftDto[]>([])
@@ -60,12 +56,10 @@ export default function ReportesPage() {
   const [contractTemplate, setContractTemplate] = useState(defaultContractTemplate)
   const [isEditingContract, setIsEditingContract] = useState(false)
 
-  // Cargar historial cuando cambie lastUpdate (o la fecha seleccionada si quisieras filtrar en backend)
   useEffect(() => {
     const fetchHistory = async () => {
       setLoadingHistory(true)
       try {
-        // Añadimos timestamp para evitar caché agresivo
         const res = await api.get<CashierShiftDto[]>(`/cashier/history?t=${Date.now()}`)
         setShifts(res.data || [])
       } catch (error) {
@@ -84,35 +78,31 @@ export default function ReportesPage() {
     const targetDate = parseISO(selectedDate)
 
     const dayShifts = shifts.filter(s => {
-      // Validamos que s.openedAt exista
       if (!s.openedAt) return false
       const openDate = parseISO(s.openedAt)
       return isSameDay(openDate, targetDate)
     })
 
+    // CORRECCIÓN VISUAL: Sumamos todas las bases, pero entenderemos esto como "Total Bases" del día.
     const saldoInicial = dayShifts.reduce((acc, s) => acc + s.startingAmount, 0)
 
-    // systemCalculatedAmount viene del backend = (Base + Ingresos - Egresos)
+    // systemCalculatedAmount = Base + Ingresos - Egresos
     const saldoEsperado = dayShifts.reduce((acc, s) => acc + s.systemCalculatedAmount, 0)
 
-    // Lo que el cajero contó físicamente (solo relevante si está cerrado)
     const saldoReal = dayShifts.reduce((acc, s) => acc + s.actualAmount, 0)
 
-    // Ventas Netas aproximadas (Saldo Final Esperado - Base Inicial)
-    // Nota: Esto incluye (Ventas - Gastos).
+    // Flujo Neto: Lo que "se movió" (Ventas - Gastos), sin contar las bases
+    // Flujo Neto = (Saldo Esperado - Bases Totales)
     const flujoNeto = saldoEsperado - saldoInicial
 
     const closedShifts = dayShifts.filter(s => s.status === 1) // 1 = Closed
-
-    // Diferencia real (Sobrante/Faltante)
     const diferencia = closedShifts.reduce((acc, s) => acc + (s.actualAmount - s.systemCalculatedAmount), 0)
 
     return {
       shifts: dayShifts,
-      saldoInicial,
+      saldoInicial, // Ahora se etiquetará como "Total Bases"
       flujoNeto,
       saldoEsperado,
-      // Si hay turnos cerrados, mostramos la suma de lo real, si no, mostramos lo esperado (asumiendo que cuadra)
       saldoReal: closedShifts.length > 0 ? saldoReal : saldoEsperado,
       diferencia
     }
@@ -131,7 +121,6 @@ export default function ReportesPage() {
     return format(parseISO(dateStr), "HH:mm", { locale: es })
   }
 
-  // --- HANDLER REAL PARA AGREGAR MOVIMIENTO ---
   const handleAddMovement = async () => {
     if (!newMovement.amount || !newMovement.description) {
       toast.warning("Por favor complete monto y descripción")
@@ -148,9 +137,7 @@ export default function ReportesPage() {
 
       toast.success("Movimiento registrado correctamente")
       setMovementModalOpen(false)
-      setNewMovement({ type: "egreso", description: "", amount: "" }) // Reset form
-
-      // CRUCIAL: Actualizar el estado global para que se recarguen los datos
+      setNewMovement({ type: "egreso", description: "", amount: "" })
       checkStatus()
 
     } catch (error) {
@@ -161,7 +148,6 @@ export default function ReportesPage() {
     }
   }
 
-  // --- HANDLERS MOCK (Reportes PDF) ---
   const handleExportTRA = () => toast.info("Reporte TRA generado y descargado exitosamente")
   const handleExportSIRE = () => toast.info("Reporte SIRE generado y descargado exitosamente")
   const generateContract = () => toast.success("Contrato enviado a impresión.")
@@ -212,14 +198,16 @@ export default function ReportesPage() {
 
             {/* KPI Cards */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {/* Saldo Inicial */}
+
+              {/* CORRECCIÓN: Etiqueta "Total Bases (Aperturas)" */}
               <div className="rounded-lg border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center">
                     <DollarSign className="h-5 w-5 text-[#3B82F6]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Saldo Inicial</p>
+                    {/* Cambio de texto para evitar confusión */}
+                    <p className="text-xs text-muted-foreground">Total Bases (Aperturas)</p>
                     <p className="text-xl font-semibold text-foreground">
                       {loadingHistory ? "..." : formatCurrency(dailyData.saldoInicial)}
                     </p>
@@ -227,14 +215,14 @@ export default function ReportesPage() {
                 </div>
               </div>
 
-              {/* Flujo Neto (Ventas - Gastos) */}
+              {/* Flujo Neto */}
               <div className="rounded-lg border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-[#059669]/10 flex items-center justify-center">
                     <TrendingUp className="h-5 w-5 text-[#059669]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Flujo Neto (Inc. Gastos)</p>
+                    <p className="text-xs text-muted-foreground">Ventas Netas (Hoy)</p>
                     <p className={cn("text-xl font-semibold", dailyData.flujoNeto >= 0 ? "text-[#059669]" : "text-red-500")}>
                       {loadingHistory ? "..." : formatCurrency(dailyData.flujoNeto)}
                     </p>
@@ -249,7 +237,7 @@ export default function ReportesPage() {
                     <Calculator className="h-5 w-5 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Debería Haber (Sistema)</p>
+                    <p className="text-xs text-muted-foreground">Total Recaudado (Teórico)</p>
                     <p className="text-xl font-semibold text-[#D4AF37]">
                       {loadingHistory ? "..." : formatCurrency(dailyData.saldoEsperado)}
                     </p>
@@ -257,7 +245,7 @@ export default function ReportesPage() {
                 </div>
               </div>
 
-              {/* Diferencia (Solo cierres) */}
+              {/* Diferencia */}
               <div className="rounded-lg border border-border bg-card p-5">
                 <div className="flex items-center gap-3">
                   <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center", dailyData.diferencia === 0 ? "bg-green-100" : "bg-red-100")}>
@@ -339,7 +327,7 @@ export default function ReportesPage() {
             </div>
           </TabsContent>
 
-          {/* --- CUMPLIMIENTO LEGAL --- */}
+          {/* ... Resto de Tabs (Legal, Contratos) ... */}
           <TabsContent value="legal" className="mt-6 space-y-6">
             <div className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-start justify-between mb-4">
@@ -387,7 +375,6 @@ export default function ReportesPage() {
             </div>
           </TabsContent>
 
-          {/* --- CONTRATOS --- */}
           <TabsContent value="contratos" className="mt-6 space-y-6">
             <div className="rounded-lg border border-border bg-card p-6">
               <div className="flex items-center justify-between mb-4">

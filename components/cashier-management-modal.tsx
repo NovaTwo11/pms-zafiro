@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCashierStore } from "@/lib/store"
 import { cashierApi} from "@/lib/api"
-import { toast } from "sonner" // O tu librería de notificaciones
+import { toast } from "sonner"
 import { Banknote, LockKeyhole, Calculator, AlertCircle, RefreshCw } from "lucide-react"
 import {CashierReportDto} from "@/types";
 
@@ -57,6 +57,8 @@ export function CashierManagementModal({ isOpen, onClose }: CashierManagementMod
             setShift(shift);
             toast.success("Caja abierta correctamente");
             onClose();
+            // Opcional: Recargar también al abrir si quieres ver cambios inmediatos
+            // window.location.reload();
         } catch (error) {
             toast.error("Error al abrir la caja");
         } finally {
@@ -72,7 +74,13 @@ export function CashierManagementModal({ isOpen, onClose }: CashierManagementMod
             setShift(null); // Limpiamos el turno actual
             await checkStatus(); // Revalidamos
             toast.success(`Turno cerrado. Diferencia: ${shift.actualAmount - shift.systemCalculatedAmount}`);
+
             onClose();
+
+            // --- CORRECCIÓN SOLICITADA: RECARGA AUTOMÁTICA ---
+            // Esto asegura que los reportes y la UI se actualicen por completo
+            window.location.reload();
+
         } catch (error) {
             toast.error("Error al cerrar la caja");
         } finally {
