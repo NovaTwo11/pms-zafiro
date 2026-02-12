@@ -1,5 +1,13 @@
 import axios from 'axios';
-import {Product, CreateProductDto, UpdateProductDto, CashierShiftDto, CashierReportDto} from '@/types';
+import {
+    Product,
+    CreateProductDto,
+    UpdateProductDto,
+    CashierShiftDto,
+    CashierReportDto,
+    DashboardStats,
+    RevenueChartData, DemographicData, ActivityItem
+} from '@/types';
 
 // 1. Re-exportamos los tipos
 export type { CashierShiftDto, CashierReportDto };
@@ -14,6 +22,25 @@ export const api = axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+export const dashboardApi = {
+    getStats: async (): Promise<DashboardStats> => {
+        const response = await axios.get('/dashboard/stats');
+        return response.data;
+    },
+    getRevenueHistory: async (): Promise<RevenueChartData[]> => {
+        const response = await axios.get('/dashboard/revenue-history');
+        return response.data;
+    },
+    getDemographics: async (): Promise<DemographicData[]> => {
+        const response = await axios.get('/dashboard/demographics');
+        return response.data;
+    },
+    getRecentActivity: async (): Promise<ActivityItem[]> => {
+        const response = await axios.get('/dashboard/recent-activity');
+        return response.data;
+    }
+};
 
 export const cashierApi = {
     getStatus: async () => {

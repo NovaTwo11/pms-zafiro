@@ -141,3 +141,42 @@ export interface CashierReportDto {
     totalTransactions: number;
 }
 
+// ==========================================
+// 6. DASHBOARD ENTITIES
+// ==========================================
+
+export interface RoomStatusCounts {
+    clean: number;
+    dirty: number;
+    maintenance: number;
+    occupied: number;
+}
+
+export interface DashboardStats {
+    occupancyRate: number;
+    totalRevenue: number;
+    checkInsPending: number;
+    checkOutsPending: number;
+    roomStatusCounts: RoomStatusCounts;
+}
+
+export interface RevenueChartData {
+    name: string
+    ingresos: number
+    gastos: number
+}
+
+export interface DemographicData {
+    name: string
+    value: number
+}
+
+export interface ActivityItem {
+    id: string
+    user: string
+    action: string
+    time: string
+    amount: string
+    avatar: string
+    initials: string
+}

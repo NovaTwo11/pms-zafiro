@@ -1,18 +1,13 @@
 "use client"
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts"
+import type { RevenueChartData } from "@/types"
 
-const data = [
-    { name: "Lun", ingresos: 450000, gastos: 120000 },
-    { name: "Mar", ingresos: 320000, gastos: 80000 },
-    { name: "Mié", ingresos: 550000, gastos: 150000 },
-    { name: "Jue", ingresos: 480000, gastos: 90000 },
-    { name: "Vie", ingresos: 890000, gastos: 200000 },
-    { name: "Sáb", ingresos: 1250000, gastos: 350000 },
-    { name: "Dom", ingresos: 980000, gastos: 280000 },
-]
+interface RevenueChartProps {
+    data: RevenueChartData[]
+    totalToday: number
+}
 
-// Componente personalizado para el Tooltip (la cajita flotante)
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
@@ -25,7 +20,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                                 className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: entry.color }}
                             />
-                            <span className="text-muted-foreground w-16">{entry.name}:</span>
+                            <span className="text-muted-foreground w-16 capitalize">{entry.name}:</span>
                             <span className="font-mono font-medium text-foreground">
                 {new Intl.NumberFormat("es-CO", {
                     style: "currency",
@@ -42,17 +37,27 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null
 }
 
-export function RevenueChart() {
+export function RevenueChart({ data, totalToday }: RevenueChartProps) {
+    const formattedTotal = new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        maximumFractionDigits: 0,
+    }).format(totalToday)
+
     return (
         <div className="rounded-lg border border-border bg-card p-6 flex flex-col h-[400px]">
-            <div className="mb-4">
-                <h3 className="font-[family-name:var(--font-heading)] text-lg font-semibold text-foreground">
-                    Balance Semanal
-                </h3>
-                <p className="text-xs text-muted-foreground">Comparativa de flujos de caja</p>
+            <div className="mb-4 flex justify-between items-start">
+                <div>
+                    <h3 className="font-serif text-lg font-semibold text-foreground">
+                        Ingresos Semanales
+                    </h3>
+                    <p className="text-xs text-muted-foreground">Comportamiento últimos 7 días</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-sm font-medium text-[#D4AF37]">Hoy: {formattedTotal}</p>
+                </div>
             </div>
 
-            {/* Contenedor responsivo que ocupa el resto de la altura */}
             <div className="flex-1 w-full min-h-0">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -86,13 +91,8 @@ export function RevenueChart() {
                             radius={[4, 4, 0, 0]}
                             maxBarSize={50}
                         />
-                        <Bar
-                            dataKey="gastos"
-                            name="Gastos"
-                            fill="#CF6679"
-                            radius={[4, 4, 0, 0]}
-                            maxBarSize={50}
-                        />
+                        {/* Si en el futuro implementas gastos, descomenta esta línea */}
+                        {/* <Bar dataKey="gastos" name="Gastos" fill="#CF6679" radius={[4, 4, 0, 0]} maxBarSize={50} /> */}
                     </BarChart>
                 </ResponsiveContainer>
             </div>

@@ -1,68 +1,47 @@
 "use client"
 
 import { CheckCircle2, AlertCircle, Wrench } from "lucide-react"
+import type { RoomStatusCounts } from "@/types"
 
-const cleaningData = {
-  clean: 15,
-  dirty: 8,
-  maintenance: 2,
+interface CleaningWidgetProps {
+    counts: RoomStatusCounts
 }
 
-const rooms = [
-  { number: "102", status: "dirty", floor: 1 },
-  { number: "105", status: "dirty", floor: 1 },
-  { number: "201", status: "dirty", floor: 2 },
-  { number: "204", status: "dirty", floor: 2 },
-  { number: "303", status: "maintenance", floor: 3 },
-]
+export function CleaningWidget({ counts }: CleaningWidgetProps) {
+    // Asegurar valores por defecto
+    const clean = counts?.clean || 0
+    const dirty = counts?.dirty || 0
+    const maintenance = counts?.maintenance || 0
 
-export function CleaningWidget() {
-  return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h3 className="font-serif text-lg font-semibold text-foreground">Estado de Limpieza</h3>
-      <p className="text-sm text-muted-foreground">Resumen del housekeeping</p>
+    return (
+        <div className="rounded-lg border border-border bg-card p-6 h-full flex flex-col">
+            <div>
+                <h3 className="font-serif text-lg font-semibold text-foreground">Limpieza</h3>
+                <p className="text-sm text-muted-foreground">Estado de habitaciones</p>
+            </div>
 
-      {/* Summary */}
-      <div className="mt-4 grid grid-cols-3 gap-4">
-        <div className="flex items-center gap-3 rounded-lg bg-[#059669]/10 p-3">
-          <CheckCircle2 className="h-5 w-5 text-[#059669]" />
-          <div>
-            <p className="text-2xl font-semibold text-[#059669]">{cleaningData.clean}</p>
-            <p className="text-xs text-muted-foreground">Limpias</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg bg-[#F59E0B]/10 p-3">
-          <AlertCircle className="h-5 w-5 text-[#F59E0B]" />
-          <div>
-            <p className="text-2xl font-semibold text-[#F59E0B]">{cleaningData.dirty}</p>
-            <p className="text-xs text-muted-foreground">Sucias</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg bg-[#CF6679]/10 p-3">
-          <Wrench className="h-5 w-5 text-[#CF6679]" />
-          <div>
-            <p className="text-2xl font-semibold text-[#CF6679]">{cleaningData.maintenance}</p>
-            <p className="text-xs text-muted-foreground">Manten.</p>
-          </div>
-        </div>
-      </div>
+            <div className="mt-auto grid grid-cols-3 gap-3 pt-6">
+                {/* Limpias */}
+                <div className="flex flex-col items-center justify-center rounded-lg border border-[#059669]/20 bg-[#059669]/5 p-3 text-center transition-colors hover:bg-[#059669]/10">
+                    <CheckCircle2 className="mb-2 h-6 w-6 text-[#059669]" />
+                    <p className="text-2xl font-bold text-[#059669]">{clean}</p>
+                    <p className="text-xs text-muted-foreground font-medium">Listas</p>
+                </div>
 
-      {/* Pending Rooms */}
-      <div className="mt-4">
-        <p className="text-sm font-medium text-foreground mb-2">Pendientes de atención</p>
-        <div className="flex flex-wrap gap-2">
-          {rooms.map((room) => (
-            <span
-              key={room.number}
-              className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium ${
-                room.status === "dirty" ? "bg-[#F59E0B]/10 text-[#F59E0B]" : "bg-[#CF6679]/10 text-[#CF6679]"
-              }`}
-            >
-              {room.number}
-            </span>
-          ))}
+                {/* Sucias */}
+                <div className="flex flex-col items-center justify-center rounded-lg border border-[#F59E0B]/20 bg-[#F59E0B]/5 p-3 text-center transition-colors hover:bg-[#F59E0B]/10">
+                    <AlertCircle className="mb-2 h-6 w-6 text-[#F59E0B]" />
+                    <p className="text-2xl font-bold text-[#F59E0B]">{dirty}</p>
+                    <p className="text-xs text-muted-foreground font-medium">Sucias</p>
+                </div>
+
+                {/* Mantenimiento */}
+                <div className="flex flex-col items-center justify-center rounded-lg border border-[#CF6679]/20 bg-[#CF6679]/5 p-3 text-center transition-colors hover:bg-[#CF6679]/10">
+                    <Wrench className="mb-2 h-6 w-6 text-[#CF6679]" />
+                    <p className="text-2xl font-bold text-[#CF6679]">{maintenance}</p>
+                    <p className="text-xs text-muted-foreground font-medium">Mant.</p>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  )
+    )
 }

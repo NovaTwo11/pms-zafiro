@@ -2,59 +2,69 @@
 
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts"
 
-const data = [
-  { name: "Ocupadas", value: 19, color: "#D4AF37" },
-  { name: "Disponibles", value: 5, color: "#333333" },
-  { name: "Mantenimiento", value: 1, color: "#CF6679" },
-]
+interface OccupancyChartProps {
+  percentage: number
+}
 
-export function OccupancyChart() {
-  const total = data.reduce((sum, item) => sum + item.value, 0)
-  const occupied = data.find((d) => d.name === "Ocupadas")?.value || 0
-  const percentage = Math.round((occupied / total) * 100)
+export function OccupancyChart({ percentage }: OccupancyChartProps) {
+  // Asegurar que percentage es un número válido entre 0 y 100
+  const safePercentage = Math.min(Math.max(percentage || 0, 0), 100)
+
+  const data = [
+    { name: "Ocupadas", value: safePercentage, color: "#D4AF37" },
+    { name: "Disponibles", value: 100 - safePercentage, color: "#333333" },
+  ]
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <h3 className="font-serif text-lg font-semibold text-foreground">Estado de Habitaciones</h3>
-      <p className="text-sm text-muted-foreground">Distribución actual</p>
+      <div className="rounded-lg border border-border bg-card p-6 h-full">
+        <h3 className="font-serif text-lg font-semibold text-foreground">Estado Actual</h3>
+        <p className="text-sm text-muted-foreground">Ocupación vs Disponibilidad</p>
 
-      <div className="mt-4 flex items-center gap-8">
-        <div className="relative h-[180px] w-[180px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={55}
-                outerRadius={80}
-                paddingAngle={2}
-                dataKey="value"
-                strokeWidth={0}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-          {/* Center text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-bold text-[#D4AF37]">{percentage}%</span>
-            <span className="text-xs text-muted-foreground">Ocupación</span>
+        <div className="mt-6 flex items-center justify-center gap-8">
+          <div className="relative h-[160px] w-[160px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                    data={data}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={75}
+                    startAngle={90}
+                    endAngle={-270}
+                    dataKey="value"
+                    strokeWidth={0}
+                >
+                  {data.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            {/* Indicador Central */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-bold text-[#D4AF37]">{safePercentage}%</span>
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Ocupado</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#D4AF37]" />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-foreground">Ocupadas</span>
+                <span className="text-xs text-muted-foreground">{safePercentage}%</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-3 w-3 rounded-full bg-[#333333]" />
+              <div className="flex flex-col">
+                <span className="text-sm font-medium text-foreground">Libres</span>
+                <span className="text-xs text-muted-foreground">{100 - safePercentage}%</span>
+              </div>
+            </div>
           </div>
         </div>
-
-        <div className="flex flex-col gap-3">
-          {data.map((item) => (
-            <div key={item.name} className="flex items-center gap-3">
-              <div className="h-3 w-3 rounded-full" style={{ backgroundColor: item.color }} />
-              <span className="text-sm text-muted-foreground">{item.name}</span>
-              <span className="ml-auto text-sm font-medium text-foreground">{item.value}</span>
-            </div>
-          ))}
-        </div>
       </div>
-    </div>
   )
 }
