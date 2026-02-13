@@ -4,6 +4,7 @@ import { Inter, Outfit } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { Providers } from "@/components/providers"
 
 const inter = Inter({
     subsets: ["latin"],
@@ -18,7 +19,7 @@ const outfit = Outfit({
 export const metadata: Metadata = {
     title: "Hotel Zafiro - PMS",
     description: "Sistema de Gestión Hotelera de Lujo",
-    generator: "v0.app",
+    generator: "Holdan López",
 }
 
 export const viewport: Viewport = {
@@ -35,7 +36,7 @@ export default function RootLayout({
         <body
             className={`${inter.variable} ${outfit.variable} font-sans antialiased bg-background text-foreground`}
         >
-        <ThemeProvider
+        <Providers
             attribute="class"
             defaultTheme="dark"
             enableSystem
@@ -43,7 +44,7 @@ export default function RootLayout({
         >
             {children}
             <Analytics />
-        </ThemeProvider>
+        </Providers>
         </body>
         </html>
     )

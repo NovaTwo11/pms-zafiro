@@ -15,7 +15,7 @@ import {
   startOfDay // <--- IMPORTANTE
 } from "date-fns"
 import { es } from "date-fns/locale"
-import { CheckinWizard } from "@/components/checkin-wizard"
+import { CheckInWizard } from "@/components/checkin-wizard" // Corregido el nombre del componente (PascalCase)
 import { ChevronLeft, ChevronRight, Plus, Lock, DollarSign, Calendar as CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -24,19 +24,27 @@ import { NewReservationModal } from "./new-reservation-modal"
 import { RateModifierModal } from "./rate-modifier-modal"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import api from "@/lib/api"
+import api from "@/lib/api" // Asegúrate de que api exporte una instancia de axios o fetch wrapper
 
 // Importamos los tipos centralizados
+// Si falta alguno en @/types, defínelo aquí temporalmente o agrégalo a types/index.ts
 import {
   Room as RoomType,
   ReservationDto as ReservationType,
-  BackendReservationStatus,
-  VisualReservationStatus,
   RoomDto
 } from "@/types"
 
 // --- TYPES LOCALES ---
 type ViewMode = "day" | "week" | "month"
+// Definimos VisualReservationStatus aquí si no está en types
+export type VisualReservationStatus =
+    | "check_in_paid"
+    | "check_in_debt"
+    | "confirmed_deposit"
+    | "confirmed_no_deposit"
+    | "blocked"
+    | "history"
+    | "available"
 
 export type ReservationSegment = {
   roomId: string
@@ -89,8 +97,8 @@ const getStatusStyles = (status: VisualReservationStatus) => {
   }
 }
 
-const getCategoryColor = (category: string) => {
-  const cat = category.toLowerCase()
+const getCategoryColor = (category: string | undefined) => {
+  const cat = (category || "").toLowerCase()
   if (cat.includes("estándar") || cat.includes("standard")) return "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-400/20 dark:bg-blue-400/5"
   if (cat.includes("superior")) return "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-400/20 dark:bg-purple-400/5"
   if (cat.includes("deluxe") || cat.includes("triple")) return "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:border-amber-400/20 dark:bg-amber-400/5"
@@ -134,13 +142,17 @@ export function CronogramaContent() {
     const fetchData = async () => {
       try {
         setLoading(true)
+        // Usamos una interfaz genérica para api.get si no tienes los tipos exactos de axios
         const [roomsRes, resRes] = await Promise.all([
-          api.get<RoomDto[]>('/rooms'),
-          api.get<ReservationType[]>('/reservations')
+          api.get('/rooms'),
+          api.get('/reservations')
         ])
 
         // 1. Organizar Habitaciones
-        const sortedRooms: RoomType[] = roomsRes.data.map(dto => ({
+        // Casteamos roomsRes.data as RoomDto[]
+        const roomsData = roomsRes as unknown as RoomDto[]
+
+        const sortedRooms: RoomType[] = roomsData.map(dto => ({
           ...dto,
           category: dto.category // Aseguramos compatibilidad de tipos
         })).sort((a, b) =>
@@ -159,11 +171,13 @@ export function CronogramaContent() {
         setFloors(floorGroups.sort((a, b) => a.name.localeCompare(b.name)))
 
         // 2. Mapear Reservas
-        const mappedReservations: TimelineReservation[] = resRes.data
+        const reservationsData = resRes as unknown as ReservationType[]
+
+        const mappedReservations: TimelineReservation[] = reservationsData
             .filter(r => r.status !== "Cancelled" as any)
             .map(r => {
-              const start = r.checkIn ? parseISO(r.checkIn) : new Date()
-              const end = r.checkOut ? parseISO(r.checkOut) : addDays(new Date(), 1)
+              const start = r.checkIn ? parseISO(r.checkIn.toString()) : new Date()
+              const end = r.checkOut ? parseISO(r.checkOut.toString()) : addDays(new Date(), 1)
 
               return {
                 id: r.id,
@@ -204,7 +218,7 @@ export function CronogramaContent() {
 
       } catch (error) {
         console.error("Error loading timeline:", error)
-        toast.error("Error cargando datos")
+        toast.error("Error cargando datos del cronograma")
       } finally {
         setLoading(false)
       }
@@ -285,7 +299,12 @@ export function CronogramaContent() {
     }
   }
 
-  if (loading) return <div className="flex h-full items-center justify-center text-muted-foreground animate-pulse">Cargando Zafiro PMS...</div>
+  if (loading) return (
+      <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground animate-pulse">
+        <CalendarIcon className="h-8 w-8 animate-bounce" />
+        <span>Cargando Cronograma Zafiro...</span>
+      </div>
+  )
 
   return (
       <div className="space-y-4 h-full flex flex-col bg-background text-foreground p-2">
@@ -466,7 +485,7 @@ export function CronogramaContent() {
           </div>
         </div>
 
-        {/* LEYENDA (Restaurada) */}
+        {/* LEYENDA */}
         <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] sm:text-xs bg-card py-2 px-4 rounded-full border border-border w-fit mx-auto shadow-sm shrink-0">
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> <span className="text-muted-foreground">Al día</span></div>
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div> <span className="text-muted-foreground">Deuda</span></div>
@@ -495,21 +514,17 @@ export function CronogramaContent() {
         )}
 
         {checkinWizardData && checkinWizardData.reservation && (
-            <CheckinWizard
+            <CheckInWizard
                 isOpen={checkinWizardData.isOpen}
                 onClose={() => setCheckinWizardData(null)}
                 reservation={{
                   id: checkinWizardData.reservation.id,
                   guestName: checkinWizardData.reservation.guestName,
-                  roomNumber: checkinWizardData.reservation.segments[0].roomId, // Simplificación: usa el primer cuarto
+                  roomNumber: checkinWizardData.reservation.segments[0].roomId,
                   checkIn: checkinWizardData.reservation.segments[0].startDate,
                   checkOut: checkinWizardData.reservation.segments[0].endDate,
                   totalAmount: checkinWizardData.reservation.totalValue,
                   paidAmount: checkinWizardData.reservation.paidAmount
-                }}
-                onComplete={() => {
-                  toast.success("Check-in completado")
-                  setCheckinWizardData(null)
                 }}
             />
         )}

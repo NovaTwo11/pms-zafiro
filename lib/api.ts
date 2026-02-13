@@ -8,6 +8,7 @@ import {
     DashboardStats,
     RevenueChartData, DemographicData, ActivityItem
 } from '@/types';
+import {GuestFormData} from "@/components/checkin-wizard";
 
 // 1. Re-exportamos los tipos
 export type { CashierShiftDto, CashierReportDto };
@@ -47,6 +48,25 @@ export interface CheckInResponse {
     folioId: string;
     status: string;
 }
+
+export const updateGuestInfo = async (
+    reservationId: string,
+    data: { mainGuest: GuestFormData, companions: GuestFormData[] }
+) => {
+    // Ajusta la URL según tu controlador de backend real.
+    // Opción A: Si tienes un endpoint específico para actualizar datos de la reserva
+    const response = await fetch(`${API_URL}/reservations/${reservationId}/guest-details`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        throw new Error('Error actualizando información del huésped');
+    }
+
+    return response.json();
+};
 
 export const checkInReservation = async (id: string): Promise<CheckInResponse> => {
     const response = await fetch(`${API_URL}/reservations/${id}/checkin`, {
