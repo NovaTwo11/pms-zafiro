@@ -82,6 +82,35 @@ const extractData = (response: any): any[] => {
   return [];
 }
 
+// Nueva función inteligente que determina el color basado en el SALDO
+const determineVisualStatus = (
+    backendStatus: string,
+    balance: number,
+    paidAmount: number
+): VisualReservationStatus => {
+
+  // 1. Estados que no dependen de dinero
+  if (backendStatus === "Blocked") return "blocked"
+  if (backendStatus === "Cancelled") return "history" // O un color gris
+  if (backendStatus === "CheckedOut") return "history"
+
+  // 2. Si está DENTRO del hotel (CheckedIn)
+  if (backendStatus === "CheckedIn") {
+    // Si el balance es menor o igual a 100 pesos (tolerancia), está PAGADO (Verde)
+    // Si debe más de 100, está EN DEUDA (Rojo)
+    return balance <= 100 ? "check_in_paid" : "check_in_debt"
+  }
+
+  // 3. Si es FUTURA (Confirmed/Pending)
+  if (backendStatus === "Confirmed" || backendStatus === "Pending") {
+    // Si ha pagado algo (ej. 50% anticipo) -> Azul
+    // Si no ha pagado nada -> Naranja
+    return paidAmount > 0 ? "confirmed_deposit" : "confirmed_no_deposit"
+  }
+
+  return "available"
+}
+
 // --- UTILIDADES VISUALES ---
 const formatPriceShort = (price: number) => {
   if (price >= 1000000) return `${(price / 1000000).toFixed(1).replace(/\.0$/, '')}M`
@@ -216,9 +245,9 @@ export function CronogramaContent() {
                 guestName: r.mainGuestName || "Huésped",
                 guestId: r.mainGuestId,
                 confirmationCode: r.code || r.confirmationCode || "???",
-                status: mapBackendStatus(r.status),
+                status: determineVisualStatus(r.status, r.balance || 0, r.paidAmount || 0),
                 totalValue: r.totalAmount || 0,
-                paidAmount: 0,
+                paidAmount: r.paidAmount || 0,
                 adults: r.adults,
                 children: r.children,
                 segments: segments // Asignamos la lista calculada

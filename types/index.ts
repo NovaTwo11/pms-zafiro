@@ -57,6 +57,8 @@ export interface ReservationDto {
     totalAmount: number;
     adults: number;
     children: number;
+    paidAmount?: number;
+    balance?: number;
 }
 
 // GET /api/products
