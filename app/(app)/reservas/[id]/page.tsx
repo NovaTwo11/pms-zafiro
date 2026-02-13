@@ -1,13 +1,16 @@
 import { ReservationDetailsContent } from "@/components/reservation-details-content"
 
-interface PageProps {
-    params: Promise<{
-        id: string
-    }>
-}
+export default async function ReservationPage({
+                                                  params
+                                              }: {
+    params: Promise<{ id: string }>
+}) {
+    // En Next.js 15, 'params' es una promesa
+    const resolvedParams = await params;
 
-export default async function ReservationPage({ params }: PageProps) {
-    const { id } = await params;
-
-    return <ReservationDetailsContent reservationId={id} />
+    return (
+        <div className="h-full">
+            <ReservationDetailsContent reservationId={resolvedParams.id} />
+        </div>
+    )
 }

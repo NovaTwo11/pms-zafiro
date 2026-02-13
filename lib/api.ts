@@ -151,6 +151,10 @@ export const productsApi = {
 };
 
 export const reservationsApi = {
+    getById: async (id: string) => {
+        const response = await api.get(`/reservations/${id}`);
+        return response.data;
+    },
     checkout: async (id: string) => {
         const response = await api.post(`/reservations/${id}/checkout`);
         return response.data;

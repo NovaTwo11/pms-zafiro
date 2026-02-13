@@ -22,7 +22,6 @@ interface ReservationGuestListProps {
     guests: any[]
     maxGuests: number
     onAddGuest?: () => void
-    // MODIFICADO: Ahora aceptamos cualquier dato (el objeto guest), no solo string
     onEditGuest?: (guestData: any) => void
     onSignGuest?: (id: string, isSigned: boolean) => void
 }
@@ -36,7 +35,7 @@ export function ReservationGuestList({
                                      }: ReservationGuestListProps) {
 
     const renderField = (value: string | undefined, placeholder: string) => {
-        if (!value) return <span className="text-[#555] italic">{placeholder}</span>
+        if (!value) return <span className="text-muted-foreground italic">{placeholder}</span>
         return <span className="text-foreground">{value}</span>
     }
 
@@ -57,10 +56,10 @@ export function ReservationGuestList({
             <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-border">
                 <div className="space-y-1">
                     <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
-                        <User className="h-4 w-4 text-[#D4AF37]" /> Lista de Ocupantes
+                        <User className="h-4 w-4 text-primary" /> Lista de Ocupantes
                     </CardTitle>
                     <CardDescription className="text-xs text-muted-foreground">
-                        Ocupación: <span className={cn("font-medium", isLimitReached ? "text-red-400" : "text-foreground")}>
+                        Ocupación: <span className={cn("font-medium", isLimitReached ? "text-destructive" : "text-foreground")}>
                             {guests.length}
                         </span> de <span className="text-foreground font-medium">{maxGuests}</span> permitidos
                     </CardDescription>
@@ -71,8 +70,8 @@ export function ReservationGuestList({
                     className={cn(
                         "text-xs h-8 transition-colors",
                         isLimitReached
-                            ? "border-border text-[#555] cursor-not-allowed bg-transparent"
-                            : "border-[#D4AF37] text-[#D4AF37] bg-primary/5 hover:bg-primary/10"
+                            ? "border-border text-muted-foreground cursor-not-allowed bg-transparent"
+                            : "border-primary text-primary bg-primary/5 hover:bg-primary/10"
                     )}
                     onClick={isLimitReached ? undefined : onAddGuest}
                     disabled={isLimitReached}
@@ -93,12 +92,12 @@ export function ReservationGuestList({
                             <AccordionItem
                                 key={index}
                                 value={`guest-${index}`}
-                                className="border border-border rounded-lg bg-[#262626] overflow-hidden transition-all hover:border-[#555]"
+                                className="border border-border rounded-lg bg-card overflow-hidden transition-all hover:border-accent-foreground/30"
                             >
-                                <AccordionTrigger className="hover:no-underline px-4 py-3 data-[state=open]:bg-card">
+                                <AccordionTrigger className="hover:no-underline px-4 py-3 data-[state=open]:bg-muted/40">
                                     <div className="flex items-center gap-4 w-full text-left pr-4">
                                         <Avatar className="h-10 w-10 border border-border">
-                                            <AvatarFallback className="bg-background text-[#D4AF37] font-bold text-xs">
+                                            <AvatarFallback className="bg-muted text-primary font-bold text-xs">
                                                 {guest.primerNombre?.[0]}{guest.primerApellido?.[0]}
                                             </AvatarFallback>
                                         </Avatar>
@@ -109,7 +108,7 @@ export function ReservationGuestList({
                                                     {guest.primerNombre} {guest.primerApellido}
                                                 </p>
                                                 {guest.esTitular && (
-                                                    <Badge variant="secondary" className="bg-primary/20 text-[#D4AF37] border-0 text-[9px] px-1.5 h-4">
+                                                    <Badge variant="secondary" className="bg-primary/10 text-primary border-0 text-[9px] px-1.5 h-4">
                                                         TITULAR
                                                     </Badge>
                                                 )}
@@ -121,8 +120,11 @@ export function ReservationGuestList({
                                             </div>
                                         </div>
 
-                                        {isSigned && <FileSignature className="h-4 w-4 text-[#D4AF37]" title="Firmado" />}
-
+                                        {isSigned && (
+                                            <span title="Firmado" className="flex items-center">
+                                                <FileSignature className="h-4 w-4 text-primary" />
+                                            </span>
+                                        )}
                                         {isComplete ? (
                                             <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
                                         ) : (
@@ -134,49 +136,49 @@ export function ReservationGuestList({
                                 <AccordionContent className="bg-card border-t border-border px-4 py-4">
                                     <div className="space-y-4">
                                         <div className="space-y-1.5">
-                                            <div className="flex justify-between text-[10px] uppercase font-semibold text-[#737373]">
+                                            <div className="flex justify-between text-[10px] uppercase font-semibold text-muted-foreground">
                                                 <span>Integridad del Perfil</span>
                                                 <span className={isComplete ? "text-green-500" : "text-orange-400"}>{completion}%</span>
                                             </div>
-                                            <Progress value={completion} className="h-1.5 bg-[#333333]" indicatorColor={isComplete ? "bg-green-500" : "bg-orange-400"} />
+                                            <Progress value={completion} className="h-1.5 bg-border" indicatorColor={isComplete ? "bg-green-500" : "bg-orange-400"} />
                                         </div>
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <div className="bg-[#262626] p-2 rounded border border-border flex items-center gap-3">
+                                            <div className="bg-muted p-2 rounded border border-border flex items-center gap-3">
                                                 <div className="h-8 w-8 rounded-full bg-card flex items-center justify-center text-muted-foreground">
                                                     <Mail className="h-4 w-4" />
                                                 </div>
                                                 <div className="overflow-hidden w-full">
-                                                    <p className="text-[10px] text-[#737373] uppercase">Correo</p>
+                                                    <p className="text-[10px] text-muted-foreground uppercase">Correo</p>
                                                     <p className="text-xs text-foreground truncate" title={guest.correo}>
                                                         {renderField(guest.correo, "No registrado")}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="bg-[#262626] p-2 rounded border border-border flex items-center gap-3">
+                                            <div className="bg-muted p-2 rounded border border-border flex items-center gap-3">
                                                 <div className="h-8 w-8 rounded-full bg-card flex items-center justify-center text-muted-foreground">
                                                     <Phone className="h-4 w-4" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] text-[#737373] uppercase">Teléfono</p>
+                                                    <p className="text-[10px] text-muted-foreground uppercase">Teléfono</p>
                                                     <p className="text-xs text-foreground">
                                                         {renderField(guest.telefono, "No registrado")}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="bg-[#262626] p-2 rounded border border-border flex items-center gap-3 md:col-span-2">
+                                            <div className="bg-muted p-2 rounded border border-border flex items-center gap-3 md:col-span-2">
                                                 <div className="h-8 w-8 rounded-full bg-card flex items-center justify-center text-muted-foreground">
                                                     <MapPin className="h-4 w-4" />
                                                 </div>
                                                 <div className="grid grid-cols-2 w-full gap-4">
                                                     <div>
-                                                        <p className="text-[10px] text-[#737373] uppercase">Origen</p>
+                                                        <p className="text-[10px] text-muted-foreground uppercase">Origen</p>
                                                         <p className="text-xs text-foreground">
                                                             {renderField(guest.ciudadOrigen, "--")}, {renderField(guest.paisOrigen, "--")}
                                                         </p>
                                                     </div>
                                                     <div>
-                                                        <p className="text-[10px] text-[#737373] uppercase">Residencia</p>
+                                                        <p className="text-[10px] text-muted-foreground uppercase">Residencia</p>
                                                         <p className="text-xs text-foreground">
                                                             {renderField(guest.ciudadResidencia, "--")}, {renderField(guest.paisResidencia, "--")}
                                                         </p>
@@ -192,8 +194,8 @@ export function ReservationGuestList({
                                                 className={cn(
                                                     "flex-1 border-border text-xs h-8",
                                                     isSigned
-                                                        ? "text-green-500 hover:text-green-400 hover:bg-green-900/10 border-green-900/30"
-                                                        : "text-foreground hover:bg-[#333333]"
+                                                        ? "text-green-600 hover:text-green-700 hover:bg-green-500/10 border-green-500/30 dark:text-green-500 dark:hover:text-green-400 dark:hover:bg-green-900/20"
+                                                        : "text-foreground hover:bg-accent hover:text-accent-foreground"
                                                 )}
                                                 onClick={() => onSignGuest?.(guest.id, isSigned)}
                                             >
@@ -204,12 +206,10 @@ export function ReservationGuestList({
                                                 )}
                                             </Button>
 
-                                            {/* BOTÓN DE EDITAR FUNCIONAL */}
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                                // Pasamos el objeto COMPLETO del huésped
+                                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-accent"
                                                 onClick={() => onEditGuest?.(guest)}
                                             >
                                                 <Edit className="h-4 w-4" />
@@ -217,12 +217,14 @@ export function ReservationGuestList({
 
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground">
+                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-accent">
                                                         ...
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" className="bg-card border-border text-foreground">
-                                                    <DropdownMenuItem className="text-xs cursor-pointer text-red-400 hover:bg-red-900/20">Eliminar Huésped</DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-xs cursor-pointer text-destructive hover:bg-destructive/10 focus:bg-destructive/10 focus:text-destructive">
+                                                        Eliminar Huésped
+                                                    </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </div>
@@ -234,7 +236,7 @@ export function ReservationGuestList({
                 </Accordion>
 
                 {guests.length === 0 && (
-                    <div className="text-center py-8 text-[#737373]">
+                    <div className="text-center py-8 text-muted-foreground">
                         <User className="h-10 w-10 mx-auto mb-2 opacity-20" />
                         <p className="text-sm">No hay huéspedes registrados</p>
                     </div>
