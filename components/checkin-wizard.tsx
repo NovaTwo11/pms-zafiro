@@ -52,6 +52,7 @@ interface CheckinWizardProps {
     totalAmount: number
     paidAmount: number
   }
+  onComplete?: (data?: any) => void
 }
 
 const countries = ["Colombia", "Estados Unidos", "España", "México", "Argentina", "Brasil", "Chile", "Perú", "Ecuador", "Venezuela"]
