@@ -102,24 +102,20 @@ export function NewReservationModal({
 
     try {
       if (activeTab === "reservation") {
-        // Payload para Reservas Manuales (Apunta a /reservations para evitar el 404)
+        // Concatenamos el nombre porque el Backend actualmente espera MainGuestName
+        const fullName = `${formData.primerNombre} ${formData.segundoNombre} ${formData.primerApellido} ${formData.segundoApellido}`.replace(/\s+/g, ' ').trim();
+
+        // Payload EXACTO para encajar en CreateReservationDto.cs de tu Backend
         const payload = {
           roomId: formData.roomId,
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
           adults: formData.adults,
           children: formData.children,
+          mainGuestName: fullName, // <-- Importante: Lo mapeamos a lo que el Backend ya sabe leer
+          mainGuestId: null, // Asumimos null para que el backend maneje el invitado
           status: "Confirmed",
-          guest: {
-            primerNombre: formData.primerNombre,
-            segundoNombre: formData.segundoNombre,
-            primerApellido: formData.primerApellido,
-            segundoApellido: formData.segundoApellido,
-            numeroId: formData.docNumber,
-            telefono: formData.phone,
-            correo: formData.email
-          },
-          notes: formData.notes
+          specialRequests: formData.notes
         }
 
         await api.post('/reservations', payload)
@@ -137,31 +133,26 @@ export function NewReservationModal({
           roomId: formData.roomId,
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
+          adults: 0,
+          children: 0,
+          mainGuestName: "BLOQUEO MANTENIMIENTO",
+          mainGuestId: null,
           status: "Blocked",
-          guest: {
-            primerNombre: "BLOQUEO",
-            primerApellido: "MANTENIMIENTO",
-            numeroId: "BLK-000",
-            telefono: "0000000"
-          },
-          notes: `Motivo: ${formData.maintenanceReason} - ${formData.notes}`,
+          specialRequests: `Motivo: ${formData.maintenanceReason} - ${formData.notes}`
         }
 
         await api.post('/reservations', payload)
         toast.success("Habitación bloqueada por mantenimiento")
       }
 
-      // Disparar evento para que el Cronograma recargue los datos sin F5
+      // Disparar evento para que el Cronograma recargue los datos
       window.dispatchEvent(new Event("refresh-timeline"))
       onClose()
 
     } catch (error: any) {
       console.error("Error creando reserva:", error)
-      const msg = error.response?.status === 404
-          ? "Error: Endpoint no encontrado (404). Verifica que Backend esté corriendo en /api/reservations."
-          : error.response?.data?.message || "Verifica la disponibilidad de la habitación."
-
-      toast.error("Error en la solicitud", { description: msg })
+      const msg = error.response?.data?.message || "Verifica la disponibilidad de la habitación."
+      toast.error("Error al procesar", { description: msg })
     } finally {
       setIsSubmitting(false)
     }

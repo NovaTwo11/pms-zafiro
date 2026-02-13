@@ -159,6 +159,13 @@ export function CronogramaContent() {
 
   const gridRef = useRef<HTMLDivElement>(null)
 
+  // --- ESCUCHAR EVENTOS GLOBALES ---
+  useEffect(() => {
+    const handleRefresh = () => setRefreshTrigger(prev => prev + 1);
+    window.addEventListener("refresh-timeline", handleRefresh);
+    return () => window.removeEventListener("refresh-timeline", handleRefresh);
+  }, []);
+
   // --- FETCHING ---
   useEffect(() => {
     const fetchData = async () => {
@@ -517,7 +524,9 @@ export function CronogramaContent() {
                         )
 
                         return (
-                            <div key={room.id} className="flex border-b h-[72px] relative group bg-background">
+                            // ¡AQUÍ ESTÁ LA CLASE group PARA ILUMINAR TODA LA FILA!
+                            <div key={room.id} className="flex border-b h-[72px] relative group bg-background hover:bg-accent/30 transition-colors duration-200">
+
                               {/* COLUMNA INFO */}
                               <div className="w-[180px] shrink-0 border-r px-4 flex flex-col justify-center sticky left-0 z-30 bg-background group-hover:bg-accent/50 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                                 <div className="flex items-center justify-between w-full mb-1">
@@ -535,6 +544,8 @@ export function CronogramaContent() {
                               <div className="flex relative z-0">
                                 {days.map((day, idx) => {
                                   const isOccupied = isDateOccupied(room.id, day);
+                                  const price = getRoomPrice(room, day);
+
                                   return (
                                       <div
                                           key={idx}
@@ -542,15 +553,23 @@ export function CronogramaContent() {
                                           onDragOver={(e) => { if (!isOccupied) e.preventDefault() }}
                                           onDrop={(e) => { if (!isOccupied) handleDrop(e, room.id) }}
                                           className={cn(
-                                              "min-w-[48px] w-12 border-r transition-colors duration-300",
-                                              // Sombra/Fondo nativo del DÍA ACTUAL dentro de la celda de la matriz
+                                              "min-w-[48px] w-12 border-r transition-colors duration-300 relative",
                                               isToday(day) && !isOccupied && "bg-primary/5 ring-1 ring-inset ring-primary/20",
                                               isOccupied
                                                   ? (isToday(day) ? "bg-muted/30 cursor-not-allowed opacity-50 ring-1 ring-inset ring-primary/20" : "bg-muted/10 cursor-not-allowed opacity-50")
-                                                  : "cursor-pointer hover:bg-accent"
+                                                  : "cursor-pointer"
                                           )}
                                           onClick={() => !isOccupied && setNewReservationModal({ isOpen: true, roomId: room.id, date: day, type: "reservation" })}
-                                      />
+                                      >
+                                        {/* EFECTO HOVER DE PRECIO SUTIL VINCULADO AL GRUPO DE LA FILA */}
+                                        {!isOccupied && (
+                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0">
+                                                  <span className="text-[9.5px] font-bold text-muted-foreground/60 select-none">
+                                                      ${formatPriceShort(price)}
+                                                  </span>
+                                            </div>
+                                        )}
+                                      </div>
                                   )
                                 })}
 
