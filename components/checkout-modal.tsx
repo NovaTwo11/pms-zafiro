@@ -122,8 +122,10 @@ export function CheckoutModal({
   // Filtros
   const filteredRooms = activeFolios.filter(
       (folio) =>
-          folio.roomNumber.includes(roomSearch) ||
-          folio.guestName.toLowerCase().includes(roomSearch.toLowerCase())
+          // Usamos el operador ?. (optional chaining) y ?? (nullish coalescing)
+          // para evitar el error si los datos vienen vacíos
+          (folio.roomNumber?.includes(roomSearch) ?? false) ||
+          (folio.guestName?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false)
   )
 
   const filteredPasadias = availablePasadias.filter(
