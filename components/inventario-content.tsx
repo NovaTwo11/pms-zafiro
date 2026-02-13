@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils"
 import { productsApi } from "@/lib/api"
 import { toast } from "sonner"
 
-// INTERFAZ EXTENDIDA PARA EL FRONTEND (Evita conflictos con @/types)
+// INTERFAZ EXTENDIDA PARA EL FRONTEND
 interface InventoryItem {
   id: string;
   name: string;
@@ -44,12 +44,12 @@ interface InventoryItem {
   stock: number;
   category: string;
   isActive: boolean;
+  isStockTracked: boolean; // Control individual de inventario físico
   createdAt?: string;
-  // Campos opcionales o visuales
   imageUrl?: string;
-  minStock?: number; // Visual por ahora
-  unit?: string;     // Visual por ahora
-  cost?: number;     // Visual por ahora
+  minStock?: number;
+  unit?: string;
+  cost?: number;
 }
 
 const categories = ["Bebidas", "Licores", "Snacks", "Cocina", "Amenities", "Servicios"]
@@ -58,7 +58,6 @@ export function InventarioContent() {
   const [products, setProducts] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [deductInventory, setDeductInventory] = useState(true)
 
   // Estados de modales
   const [selectedProduct, setSelectedProduct] = useState<InventoryItem | null>(null)
@@ -80,16 +79,15 @@ export function InventarioContent() {
     unitPrice: 0,
     cost: 0,
     imageUrl: "",
+    isStockTracked: true, // Por defecto se asume que es físico
   })
 
   // --- Cargar datos ---
   const fetchProducts = async () => {
     setLoading(true)
     try {
-      // Llamada a la API real
       const data = await productsApi.getAll()
 
-      // Mapeo seguro para adaptar la respuesta de la API a nuestra interfaz de UI
       const mappedData: InventoryItem[] = data.map((p: any) => ({
         id: p.id,
         name: p.name,
@@ -99,10 +97,11 @@ export function InventarioContent() {
         category: p.category,
         isActive: p.isActive,
         createdAt: p.createdAt,
-        imageUrl: p.imageUrl || "", // Mapeamos la URL del backend
-        minStock: 5, // Valor por defecto UI
-        unit: "unidades", // Valor por defecto UI
-        cost: 0 // Valor por defecto UI
+        imageUrl: p.imageUrl || "",
+        isStockTracked: p.isStockTracked ?? true, // Mapeo de la variable
+        minStock: 5,
+        unit: "unidades",
+        cost: 0
       }))
 
       setProducts(mappedData)
@@ -126,8 +125,9 @@ export function InventarioContent() {
           item.category.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const lowStockItems = products.filter((item) => item.stock <= (item.minStock || 0))
-  const totalValue = products.reduce((sum, item) => sum + item.stock * item.unitPrice, 0)
+  // Cálculos condicionados al tipo de producto (solo cuentan los físicos)
+  const lowStockItems = products.filter((item) => item.isStockTracked && item.stock <= (item.minStock || 0))
+  const totalValue = products.reduce((sum, item) => item.isStockTracked ? sum + (item.stock * item.unitPrice) : sum, 0)
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-CO", {
@@ -156,6 +156,7 @@ export function InventarioContent() {
       unitPrice: product.unitPrice,
       cost: product.cost || 0,
       imageUrl: product.imageUrl || "",
+      isStockTracked: product.isStockTracked ?? true,
     })
     setEditModalOpen(true)
   }
@@ -171,6 +172,7 @@ export function InventarioContent() {
       unitPrice: 0,
       cost: 0,
       imageUrl: "",
+      isStockTracked: true,
     })
   }
 
@@ -201,7 +203,8 @@ export function InventarioContent() {
         unitPrice: formData.unitPrice,
         stock: formData.stock,
         category: formData.category,
-        imageUrl: formData.imageUrl // Enviamos la URL al backend
+        imageUrl: formData.imageUrl,
+        isStockTracked: formData.isStockTracked
       }
 
       await productsApi.create(payload)
@@ -230,7 +233,8 @@ export function InventarioContent() {
         stock: formData.stock,
         category: formData.category,
         isActive: selectedProduct.isActive,
-        imageUrl: formData.imageUrl // Actualizamos la URL
+        imageUrl: formData.imageUrl,
+        isStockTracked: formData.isStockTracked
       }
 
       await productsApi.update(selectedProduct.id, payload)
@@ -316,24 +320,8 @@ export function InventarioContent() {
           </div>
         </div>
 
-        {/* Stats Section */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-lg border border-border bg-card p-5 sm:col-span-2 lg:col-span-1 transition-all duration-300 hover:border-[#444444]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">Descontar Inventario</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {deductInventory ? "Las ventas descuentan stock" : "Ventas sin control de stock"}
-                </p>
-              </div>
-              <Switch
-                  checked={deductInventory}
-                  onCheckedChange={setDeductInventory}
-                  className="data-[state=checked]:bg-primary"
-              />
-            </div>
-          </div>
-
+        {/* Stats Section (Actualizado para excluir el switch global) */}
+        <div className="grid gap-4 sm:grid-cols-3">
           <div className="rounded-lg border border-border bg-card p-5 transition-all duration-300 hover:border-[#444444]">
             <div className="flex items-center gap-3">
               <div className="h-10 w-10 rounded-lg bg-[#3B82F6]/10 flex items-center justify-center">
@@ -343,7 +331,7 @@ export function InventarioContent() {
                 <p className="text-2xl font-semibold text-foreground">
                   {loading ? "..." : products.length}
                 </p>
-                <p className="text-xs text-muted-foreground">Productos Activos</p>
+                <p className="text-xs text-muted-foreground">Catálogo de Ítems</p>
               </div>
             </div>
           </div>
@@ -357,7 +345,7 @@ export function InventarioContent() {
                 <p className="text-2xl font-semibold text-[#F59E0B]">
                   {loading ? "..." : lowStockItems.length}
                 </p>
-                <p className="text-xs text-muted-foreground">Stock Bajo</p>
+                <p className="text-xs text-muted-foreground">Físicos con Stock Bajo</p>
               </div>
             </div>
           </div>
@@ -371,7 +359,7 @@ export function InventarioContent() {
                 <p className="text-lg font-semibold text-foreground">
                   {loading ? "..." : formatCurrency(totalValue)}
                 </p>
-                <p className="text-xs text-muted-foreground">Valor Estimado</p>
+                <p className="text-xs text-muted-foreground">Valor Estimado en Bodega</p>
               </div>
             </div>
           </div>
@@ -389,10 +377,7 @@ export function InventarioContent() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Categoría
                 </th>
-                <th className={cn(
-                    "px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider",
-                    !deductInventory && "opacity-40"
-                )}>
+                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Stock
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -424,18 +409,14 @@ export function InventarioContent() {
                   </tr>
               ) : (
                   filteredItems.map((item) => {
-                    const isLowStock = item.stock <= (item.minStock || 0)
+                    const isLowStock = item.isStockTracked && item.stock <= (item.minStock || 0)
                     return (
                         <tr
                             key={item.id}
-                            className={cn(
-                                "border-b border-border last:border-0 transition-all duration-300",
-                                isLowStock && deductInventory ? "bg-[#F59E0B]/5" : "hover:bg-accent",
-                            )}
+                            className="border-b border-border hover:bg-accent transition-all duration-300"
                         >
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-3">
-                              {/* Imagen pequeña en tabla */}
                               <div className="h-10 w-10 rounded-md bg-muted border border-border overflow-hidden flex-shrink-0 flex items-center justify-center">
                                 {item.imageUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -456,29 +437,31 @@ export function InventarioContent() {
                             <span className="text-sm text-muted-foreground">{item.category}</span>
                           </td>
 
-                          <td className={cn(
-                              "px-4 py-4",
-                              !deductInventory && "opacity-40 grayscale select-none"
-                          )}>
-                          <span className={cn("text-sm font-medium", isLowStock ? "text-[#F59E0B]" : "text-foreground")}>
-                            {item.stock} {item.unit}
-                          </span>
+                          {/* Columna Dinámica de Stock */}
+                          <td className="px-4 py-4">
+                            {item.isStockTracked ? (
+                                <span className={cn("text-sm font-medium", isLowStock ? "text-[#F59E0B]" : "text-foreground")}>
+                                  {item.stock} {item.unit}
+                                </span>
+                            ) : (
+                                <span className="text-sm font-medium text-muted-foreground/60 italic">Ilimitado (Servicio)</span>
+                            )}
                           </td>
 
                           <td className="px-4 py-4">
                             <span className="text-sm text-foreground">{formatCurrency(item.unitPrice)}</span>
                           </td>
 
+                          {/* Columna Dinámica de Estado */}
                           <td className="px-4 py-4">
-                            {isLowStock ? (
+                            {!item.isStockTracked ? (
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-500">Servicio</span>
+                            ) : isLowStock ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-[#F59E0B]/10 text-[#F59E0B]">
-                              <AlertTriangle className="h-3 w-3" />
-                              Bajo
-                            </span>
+                                  <AlertTriangle className="h-3 w-3" /> Bajo
+                                </span>
                             ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#059669]/10 text-[#059669]">
-                              OK
-                            </span>
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-[#059669]/10 text-[#059669]">OK</span>
                             )}
                           </td>
 
@@ -544,7 +527,9 @@ export function InventarioContent() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-3 rounded-lg bg-background border border-border">
                       <p className="text-xs text-muted-foreground">Stock</p>
-                      <p className="text-lg font-semibold text-foreground">{selectedProduct.stock} {selectedProduct.unit}</p>
+                      <p className="text-lg font-semibold text-foreground">
+                        {selectedProduct.isStockTracked ? `${selectedProduct.stock} ${selectedProduct.unit}` : 'Ilimitado (Servicio)'}
+                      </p>
                     </div>
                     <div className="p-3 rounded-lg bg-background border border-border">
                       <p className="text-xs text-muted-foreground">Precio</p>
@@ -578,6 +563,19 @@ export function InventarioContent() {
 
                 {/* Sección de Imagen */}
                 {renderImageFields()}
+
+                {/* SWITCH DE STOCK TRACKING */}
+                <div className="col-span-2 flex items-center justify-between p-3 border border-border rounded-lg bg-background">
+                  <div>
+                    <Label className="text-foreground">Controlar Inventario Físico</Label>
+                    <p className="text-xs text-muted-foreground">Desactiva esta opción si es un servicio sin cantidad límite.</p>
+                  </div>
+                  <Switch
+                      checked={formData.isStockTracked}
+                      onCheckedChange={(v) => setFormData({ ...formData, isStockTracked: v })}
+                      className="data-[state=checked]:bg-primary"
+                  />
+                </div>
 
                 <div className="space-y-2 col-span-2">
                   <Label className="text-muted-foreground">Nombre del Producto</Label>
@@ -618,16 +616,19 @@ export function InventarioContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Stock Actual</Label>
+                  <Label className={cn("text-muted-foreground", !formData.isStockTracked && "opacity-50")}>
+                    Stock Actual
+                  </Label>
                   <Input
                       type="number"
+                      disabled={!formData.isStockTracked}
                       value={formData.stock}
                       onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
                       className="bg-background border-border text-foreground"
                   />
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-2">
                   <Label className="text-muted-foreground">Precio Venta</Label>
                   <Input
                       type="number"
@@ -679,7 +680,21 @@ export function InventarioContent() {
             </DialogHeader>
             <div className="space-y-4 pt-4">
 
+              {/* Sección de Imagen */}
               {renderImageFields()}
+
+              {/* SWITCH DE STOCK TRACKING */}
+              <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-background">
+                <div>
+                  <Label className="text-foreground">Controlar Inventario Físico</Label>
+                  <p className="text-xs text-muted-foreground">Desactiva esta opción si es un servicio.</p>
+                </div>
+                <Switch
+                    checked={formData.isStockTracked}
+                    onCheckedChange={(v) => setFormData({ ...formData, isStockTracked: v })}
+                    className="data-[state=checked]:bg-primary"
+                />
+              </div>
 
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Nombre del Producto *</Label>
@@ -720,13 +735,26 @@ export function InventarioContent() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground">Stock Inicial</Label>
-                  <Input type="number" value={formData.stock} onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })} className="bg-background border-border text-foreground" />
+                  <Label className={cn("text-muted-foreground", !formData.isStockTracked && "opacity-50")}>
+                    Stock Inicial
+                  </Label>
+                  <Input
+                      type="number"
+                      disabled={!formData.isStockTracked}
+                      value={formData.stock}
+                      onChange={(e) => setFormData({ ...formData, stock: Number(e.target.value) })}
+                      className="bg-background border-border text-foreground"
+                  />
                 </div>
 
                 <div className="space-y-2 col-span-2">
                   <Label className="text-muted-foreground">Precio Venta ($)</Label>
-                  <Input type="number" value={formData.unitPrice} onChange={(e) => setFormData({ ...formData, unitPrice: Number(e.target.value) })} className="bg-background border-border text-foreground border-l-4 border-l-[#D4AF37]" />
+                  <Input
+                      type="number"
+                      value={formData.unitPrice}
+                      onChange={(e) => setFormData({ ...formData, unitPrice: Number(e.target.value) })}
+                      className="bg-background border-border text-foreground border-l-4 border-l-[#D4AF37]"
+                  />
                 </div>
               </div>
 

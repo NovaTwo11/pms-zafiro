@@ -8,23 +8,57 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { format } from "date-fns"
 
+export type RateModifierPayload = {
+    roomId?: string;
+    category?: string;
+    startDate: string;
+    endDate: string;
+    price: number;
+}
+
+interface RoomBasicInfo {
+    id: string;
+    number: string;
+    category?: string;
+}
+
 interface RateModifierModalProps {
     isOpen: boolean
     onClose: () => void
-    onSave: (roomId: string | "ALL", startDate: Date, endDate: Date, newPrice: number) => void
-    roomCategories: string[]
+    onSave: (payload: RateModifierPayload) => void
+    rooms: RoomBasicInfo[]
 }
 
-export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: RateModifierModalProps) {
-    const [scope, setScope] = useState<"ALL" | string>("ALL")
+export function RateModifierModal({ isOpen, onClose, onSave, rooms }: RateModifierModalProps) {
+    const [applyTo, setApplyTo] = useState<"ALL" | "CATEGORY" | "ROOM">("ALL")
+    const [selectedCategory, setSelectedCategory] = useState<string>("")
+    const [selectedRoom, setSelectedRoom] = useState<string>("")
+
     const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"))
     const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"))
     const [price, setPrice] = useState("")
 
+    // Extraer categorías únicas de la lista de habitaciones
+    const roomCategories = Array.from(new Set(rooms.map(r => r.category || "General")));
+
     const handleSave = () => {
         if (!price || isNaN(Number(price))) return alert("Ingrese un precio válido")
-        onSave(scope, new Date(startDate), new Date(endDate), Number(price))
-        onClose()
+
+        const payload: RateModifierPayload = {
+            startDate,
+            endDate,
+            price: Number(price)
+        };
+
+        if (applyTo === "CATEGORY") {
+            if (!selectedCategory) return alert("Seleccione una categoría")
+            payload.category = selectedCategory;
+        } else if (applyTo === "ROOM") {
+            if (!selectedRoom) return alert("Seleccione una habitación")
+            payload.roomId = selectedRoom;
+        }
+
+        onSave(payload)
     }
 
     return (
@@ -68,7 +102,7 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
 
                     <div className="space-y-2">
                         <Label>Aplicar a</Label>
-                        <Select value={scope} onValueChange={setScope}>
+                        <Select value={applyTo} onValueChange={(val: any) => setApplyTo(val)}>
                             {/* CAMBIO EN TRIGGER:
                                - 'text-white' -> 'text-foreground'
                                - 'border-[#333]' -> 'border-input'
@@ -79,12 +113,47 @@ export function RateModifierModal({ isOpen, onClose, onSave, roomCategories }: R
                             <SelectContent>
                                 {/* El contenido del Select usa bg-popover por defecto en shadcn */}
                                 <SelectItem value="ALL">Todas las habitaciones</SelectItem>
-                                {roomCategories.map((cat) => (
-                                    <SelectItem key={cat} value={cat}>Categoría: {cat}</SelectItem>
-                                ))}
+                                <SelectItem value="CATEGORY">Por Categoría</SelectItem>
+                                <SelectItem value="ROOM">Habitación Específica</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {/* SELECTOR CONDICIONAL: CATEGORÍAS */}
+                    {applyTo === "CATEGORY" && (
+                        <div className="space-y-2 animate-in fade-in zoom-in duration-200">
+                            <Label>Seleccionar Categoría</Label>
+                            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                                <SelectTrigger className="bg-background border-input text-foreground">
+                                    <SelectValue placeholder="Elija una categoría" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {roomCategories.map((cat) => (
+                                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {/* SELECTOR CONDICIONAL: HABITACIÓN ESPECÍFICA */}
+                    {applyTo === "ROOM" && (
+                        <div className="space-y-2 animate-in fade-in zoom-in duration-200">
+                            <Label>Seleccionar Habitación</Label>
+                            <Select value={selectedRoom} onValueChange={setSelectedRoom}>
+                                <SelectTrigger className="bg-background border-input text-foreground">
+                                    <SelectValue placeholder="Elija una habitación" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {rooms.map((room) => (
+                                        <SelectItem key={room.id} value={room.id}>
+                                            Habitación {room.number} ({room.category})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <Label>Nuevo Precio por Noche</Label>

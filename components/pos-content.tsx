@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { ProductGrid } from "./product-grid"
 import { Ticket } from "./ticket"
 import { CheckoutModal, ActiveFolio, PaymentMethodType } from "./checkout-modal"
-import { usePOSStore, useCashierStore } from "@/lib/store" // Importamos useCashierStore
+import { usePOSStore, useCashierStore } from "@/lib/store"
 import api from "@/lib/api"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -20,20 +20,17 @@ interface CashierShift {
   status: 0 | 1; // 0=Open, 1=Closed según Enum Backend
 }
 
-// --- Datos Mock Productos ---
-const categories = [
-  { id: "all", name: "Todo" },
-  { id: "bebidas", name: "Bebidas" },
-  { id: "platos", name: "Platos" },
-]
-
-const products = [
-  { id: "p1", name: "Coca-Cola", price: 6000, category: "bebidas", image: "/refreshing-cola-can.png" },
-  { id: "p2", name: "Agua Mineral", price: 4000, category: "bebidas", image: "/mineral-water-bottle.jpg" },
-  { id: "p3", name: "Cerveza Club", price: 8000, category: "bebidas", image: "/amber-beer-bottle.png" },
-  { id: "p11", name: "Hamburguesa Clásica", price: 32000, category: "platos", image: "/classic-hamburger.jpg" },
-  { id: "p12", name: "Club Sandwich", price: 28000, category: "platos", image: "/club-sandwich.jpg" },
-]
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  unitPrice: number;
+  stock: number;
+  category: string;
+  imageUrl?: string;
+  isActive: boolean;
+  isStockTracked: boolean;
+}
 
 export function POSContent() {
   // --- Estados de Negocio ---
@@ -48,6 +45,10 @@ export function POSContent() {
   const [shift, setShift] = useState<CashierShift | null>(null)
   const [activeFolios, setActiveFolios] = useState<ActiveFolio[]>([])
 
+  // Nuevos estados para Inventario Real
+  const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<{id: string, name: string}[]>([{ id: "all", name: "Todo" }])
+
   const [loading, setLoading] = useState(true)
   const [openShiftModalOpen, setOpenShiftModalOpen] = useState(false)
   const [closeShiftModalOpen, setCloseShiftModalOpen] = useState(false)
@@ -61,7 +62,6 @@ export function POSContent() {
       // 1. Turno (Cashier)
       try {
         const { data: shiftData } = await api.get("/cashier/status")
-        // El backend devuelve null o 204 si no hay turno, o un objeto si hay
         if (shiftData && shiftData.status === 0) { // 0 = Open
           setShift(shiftData)
         } else {
@@ -81,6 +81,25 @@ export function POSContent() {
         console.error("Error cargando folios", e)
         toast.error("No se pudieron cargar los huéspedes activos")
       }
+
+      // 3. Productos Reales e Inventario
+      try {
+        const { data: productsData } = await api.get("/products");
+        const activeProducts = productsData.filter((p: Product) => p.isActive);
+        setProducts(activeProducts);
+
+        // Extraer categorías únicas dinámicamente
+        const uniqueCats = Array.from(new Set(activeProducts.map((p: Product) => p.category)));
+        const catList = [
+          { id: "all", name: "Todo" },
+          ...uniqueCats.map(c => ({ id: c as string, name: c as string }))
+        ];
+        setCategories(catList);
+      } catch (e) {
+        console.error("Error cargando inventario", e);
+        toast.error("Error al cargar el inventario");
+      }
+
     } finally {
       setLoading(false)
     }
@@ -122,12 +141,21 @@ export function POSContent() {
     }
   }
 
-  const handleProductClick = (product: typeof products[0]) => {
+  const handleProductClick = (product: any) => {
     if (!shift) {
       toast.error("Debes abrir caja antes de vender")
       setOpenShiftModalOpen(true)
       return
     }
+
+    // Validación opcional: Descomenta si deseas evitar vender sin stock desde el frontend
+    /*
+    if (product.isStockTracked && product.stock <= 0) {
+      toast.error(`El producto ${product.name} no tiene stock disponible`);
+      return;
+    }
+    */
+
     addItem({
       id: product.id,
       name: product.name,
@@ -139,7 +167,7 @@ export function POSContent() {
   // --- Lógica Principal de Cobro ---
   const handlePaymentComplete = async (paymentData: {
     method: PaymentMethodType,
-    methodId: number, // <--- Recibimos el ID mapeado del modal (1, 2, 4...)
+    methodId: number,
     folioId?: string,
     finalAmount: number,
     discount: number
@@ -149,9 +177,6 @@ export function POSContent() {
 
     let targetFolioId = paymentData.folioId
 
-    // Validación: Si es cargo a habitación, DEBE tener folio.
-    // Si es pago directo, idealmente también (a un folio 'Público' o 'Mostrador'),
-    // pero por ahora exigiremos folio de huésped o pasadía.
     if (!targetFolioId) {
       toast.error("Seleccione un folio/habitación para registrar la venta.")
       return
@@ -160,38 +185,32 @@ export function POSContent() {
     const loadingToast = toast.loading("Procesando venta...")
 
     try {
-      // PASO 1: Registrar los consumos (Charges)
-      // Esto genera la deuda en el folio.
-      // Type = 0 (Charge)
+      // PASO 1: Registrar los consumos (Charges) e INYECTAR productId
       const chargePromises = items.map(item => {
         return api.post(`/folios/${targetFolioId}/transactions`, {
           amount: item.price * item.quantity,
-          description: item.name, // "Coca Cola x2"
+          description: item.name,
           type: 0, // Charge
           quantity: item.quantity,
           unitPrice: item.price,
-          category: "Restaurante", // Opcional
+          category: "Restaurante",
           cashierShiftId: shift.id,
-          paymentMethod: 0 // None (es un cargo, no un pago aún)
+          paymentMethod: 0, // None
+          productId: item.id // <--- VITAL: Conecta POS con el Inventario Real en el backend
         })
       })
 
       await Promise.all(chargePromises)
 
-      // PASO 2: Si NO es "RoomCharge" (crédito), registramos el PAGO inmediato.
-      // Esto salda la deuda generada en el paso 1.
+      // PASO 2: Registrar el PAGO inmediato si no es crédito a habitación
       if (paymentData.method !== "RoomCharge") {
-
         await api.post(`/folios/${targetFolioId}/transactions`, {
           amount: paymentData.finalAmount,
           description: `Pago POS - ${paymentData.method === 'Cash' ? 'Efectivo' : 'Tarjeta/Otro'}`,
-          type: 1, // Payment (Enum Backend)
+          type: 1, // Payment
           quantity: 1,
           unitPrice: paymentData.finalAmount,
-
-          // AQUÍ USAMOS EL ID QUE VIENE DEL MODAL
           paymentMethod: paymentData.methodId,
-
           cashierShiftId: shift.id
         })
       }
@@ -203,8 +222,8 @@ export function POSContent() {
       setCheckoutOpen(false)
 
       // Actualizamos datos de fondo
-      checkStatus() // Para que reportes se entere del nuevo ingreso
-      initData()    // Para refrescar saldos de habitaciones
+      checkStatus()
+      initData()
 
     } catch (error) {
       console.error(error)
@@ -212,6 +231,21 @@ export function POSContent() {
       toast.error("Error al procesar la venta. Intente de nuevo.")
     }
   }
+
+  // Preparamos los productos mapeados para el renderizado del componente ProductGrid
+  const mappedProducts = products.map(p => ({
+    id: p.id,
+    name: p.name,
+    price: p.unitPrice,
+    category: p.category,
+    image: p.imageUrl || "/file.svg", // Fallback de imagen
+    stock: p.stock,
+    isStockTracked: p.isStockTracked
+  }));
+
+  const filteredProducts = selectedCategory === "all"
+      ? mappedProducts
+      : mappedProducts.filter(p => p.category === selectedCategory);
 
   if (loading) return <div className="h-screen flex items-center justify-center animate-pulse">Cargando sistema POS...</div>
 
@@ -256,7 +290,7 @@ export function POSContent() {
 
             <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
               <ProductGrid
-                  products={selectedCategory === "all" ? products : products.filter(p => p.category === selectedCategory)}
+                  products={filteredProducts}
                   onProductClick={handleProductClick}
               />
             </div>

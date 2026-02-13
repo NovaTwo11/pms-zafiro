@@ -71,6 +71,7 @@ export interface Product {
     category: string;
     imageUrl?: string;
     isActive: boolean;
+    isStockTracked: boolean;
     createdAt: string;
 }
 
@@ -92,6 +93,7 @@ export interface CreateProductDto {
     stock: number;
     category: string;
     imageUrl?: string;
+    isStockTracked: boolean;
 }
 
 export interface UpdateProductDto extends CreateProductDto {

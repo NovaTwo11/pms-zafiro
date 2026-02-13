@@ -22,7 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { ReservationPopover } from "./reservation-popover"
 import { NewReservationModal } from "./new-reservation-modal"
-import { RateModifierModal } from "./rate-modifier-modal"
+import { RateModifierModal, RateModifierPayload } from "./rate-modifier-modal" // Asegúrate de importar RateModifierPayload
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import api, { reservationsApi } from "@/lib/api"
@@ -178,18 +178,32 @@ export function CronogramaContent() {
         ])
 
         const roomsRaw = extractData(roomsRes)
-        const sortedRooms: RoomType[] = roomsRaw.map((dto: any) => ({
-          id: dto.id,
-          number: dto.number,
-          category: dto.category,
-          status: dto.status,
-          floor: dto.floor || 1,
-          basePrice: dto.basePrice
-        })).sort((a: any, b: any) =>
+
+        // Mapeo de Precios Especiales
+        const pricesMap: Record<string, number> = {};
+
+        const sortedRooms: RoomType[] = roomsRaw.map((dto: any) => {
+          if (dto.priceOverrides && Array.isArray(dto.priceOverrides)) {
+            dto.priceOverrides.forEach((override: any) => {
+              const dateStr = override.date.split('T')[0];
+              pricesMap[`${dto.id}-${dateStr}`] = override.price;
+            });
+          }
+
+          return {
+            id: dto.id,
+            number: dto.number,
+            category: dto.category,
+            status: dto.status,
+            floor: dto.floor || 1,
+            basePrice: dto.basePrice
+          }
+        }).sort((a: any, b: any) =>
             a.floor === b.floor ? a.number.localeCompare(b.number) : a.floor - b.floor
         )
 
         setRooms(sortedRooms)
+        setCustomPrices(pricesMap)
 
         const groups: Record<string, RoomType[]> = {}
         sortedRooms.forEach(room => {
@@ -328,6 +342,17 @@ export function CronogramaContent() {
   }
 
   // --- ACCIONES DE BACKEND ---
+  const handleSaveRates = async (payload: RateModifierPayload) => {
+    try {
+      await api.post('/rooms/rates', payload);
+      toast.success("Tarifas especiales guardadas y aplicadas.");
+      setRateModalOpen(false);
+      setRefreshTrigger(prev => prev + 1); // Recargar grilla
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Ocurrió un error guardando las tarifas");
+    }
+  }
+
   const handleCheckIn = (reservationId: string) => {
     const res = reservations.find(r => r.id === reservationId)
     if (res && res.segments.length > 0) {
@@ -545,6 +570,7 @@ export function CronogramaContent() {
                                 {days.map((day, idx) => {
                                   const isOccupied = isDateOccupied(room.id, day);
                                   const price = getRoomPrice(room, day);
+                                  const isPriceOverridden = price !== room.basePrice;
 
                                   return (
                                       <div
@@ -555,6 +581,7 @@ export function CronogramaContent() {
                                           className={cn(
                                               "min-w-[48px] w-12 border-r transition-colors duration-300 relative",
                                               isToday(day) && !isOccupied && "bg-primary/5 ring-1 ring-inset ring-primary/20",
+                                              isPriceOverridden && !isOccupied && "bg-green-500/5",
                                               isOccupied
                                                   ? (isToday(day) ? "bg-muted/30 cursor-not-allowed opacity-50 ring-1 ring-inset ring-primary/20" : "bg-muted/10 cursor-not-allowed opacity-50")
                                                   : "cursor-pointer"
@@ -564,7 +591,10 @@ export function CronogramaContent() {
                                         {/* EFECTO HOVER DE PRECIO SUTIL VINCULADO AL GRUPO DE LA FILA */}
                                         {!isOccupied && (
                                             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-0">
-                                                  <span className="text-[9.5px] font-bold text-muted-foreground/60 select-none">
+                                                  <span className={cn(
+                                                      "text-[9.5px] font-bold select-none",
+                                                      isPriceOverridden ? "text-green-600 dark:text-green-400" : "text-muted-foreground/60"
+                                                  )}>
                                                       ${formatPriceShort(price)}
                                                   </span>
                                             </div>
@@ -645,8 +675,8 @@ export function CronogramaContent() {
         <RateModifierModal
             isOpen={rateModalOpen}
             onClose={() => setRateModalOpen(false)}
-            onSave={() => {}}
-            roomCategories={Array.from(new Set(rooms.map(r => r.category as string)))}
+            onSave={handleSaveRates}
+            rooms={rooms}
         />
 
         {newReservationModal && (
