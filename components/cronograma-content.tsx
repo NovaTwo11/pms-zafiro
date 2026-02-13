@@ -478,14 +478,18 @@ export function CronogramaContent() {
                 <div className="flex">
                   {days.map((day, idx) => (
                       <div key={idx} className={cn(
-                          "min-w-[48px] w-12 border-r py-2 text-center flex flex-col justify-center transition-colors duration-300",
-                          // Marcador nativo del DÍA ACTUAL (Usa el color primario de global.css)
-                          isToday(day) ? "bg-primary/10 border-b-2 border-b-primary text-primary" : "bg-card"
-                      )}>
-                        <span className={cn("text-[10px] uppercase font-medium", isToday(day) ? "text-primary" : "text-muted-foreground")}>
-                          {format(day, "EEE", { locale: es })}
+                          "min-w-[48px] w-12 border-r py-2 text-center flex flex-col justify-center transition-all duration-300",
+                          // Resalte premium para el DÍA ACTUAL: Fondo sólido primario y texto en contraste
+                          isToday(day)
+                              ? "bg-primary text-primary-foreground border-b-2 border-primary shadow-md relative z-10"
+                              : "bg-card text-foreground")}>
+                        <span className={cn("text-[10px] uppercase font-medium",
+                            isToday(day) ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                          {format(day, "EEE", {locale: es})}
                         </span>
-                        <span className={cn("text-sm font-bold", isToday(day) ? "text-primary" : "")}>
+                        <span className={cn(
+                            "text-sm font-bold",
+                            isToday(day) ? "text-primary-foreground" : "text-foreground")}>
                           {format(day, "d")}
                         </span>
                       </div>
@@ -499,7 +503,8 @@ export function CronogramaContent() {
                     <div key={floor.name}>
                       {/* SEPARADOR PISO */}
                       <div className="flex sticky left-0 w-full z-20 border-y bg-muted/50">
-                        <div className="w-[180px] shrink-0 sticky left-0 z-30 bg-muted border-r px-4 py-1 flex items-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
+                        <div
+                            className="w-[180px] shrink-0 sticky left-0 z-30 bg-muted border-r px-4 py-1 flex items-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                           <span className="text-[10px] font-bold uppercase text-primary">{floor.name}</span>
                         </div>
                         <div className="flex-1 bg-muted/50 py-1"></div>
@@ -507,7 +512,7 @@ export function CronogramaContent() {
 
                       {floor.rooms.map((room) => {
                         const roomSegments = reservations.flatMap(res =>
-                            res.segments.map((seg, idx) => ({ reservation: res, segment: seg, idx }))
+                            res.segments.map((seg, idx) => ({reservation: res, segment: seg, idx }))
                                 .filter(item => item.segment.roomId === room.id)
                         )
 
