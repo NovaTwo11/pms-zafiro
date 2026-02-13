@@ -8,7 +8,6 @@ import {
   Search,
   Building2,
   Percent,
-  DollarSign,
   X,
   Users,
   ArrowLeft,
@@ -516,6 +515,12 @@ export function CheckoutModal({
                                     Cliente: {selectedPasadia.alias}
                                   </p>
                               )}
+                              {/* NUEVO: Feedback Visual para Ventas Directas */}
+                              {!selectedRoom && !selectedPasadia && ["Cash", "CreditCard", "Transfer"].includes(paymentMethod) && (
+                                  <p className="text-sm text-[#059669] font-medium pt-1">
+                                    Tipo: Venta Directa (Público General)
+                                  </p>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -552,7 +557,7 @@ export function CheckoutModal({
                                               : "bg-[#D4AF37] hover:bg-[#B5952F] text-white",
                               )}
                           >
-                            Confirmar {formatCurrency(finalTotal)}
+                            Confirmar {(!selectedRoom && !selectedPasadia && ["Cash", "CreditCard", "Transfer"].includes(paymentMethod)) ? `Venta Directa (${formatCurrency(finalTotal)})` : formatCurrency(finalTotal)}
                           </Button>
                         </div>
                       </div>

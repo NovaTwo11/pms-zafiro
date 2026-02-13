@@ -177,42 +177,64 @@ export function POSContent() {
 
     let targetFolioId = paymentData.folioId
 
-    if (!targetFolioId) {
-      toast.error("Seleccione un folio/habitación para registrar la venta.")
-      return
-    }
-
     const loadingToast = toast.loading("Procesando venta...")
 
     try {
-      // PASO 1: Registrar los consumos (Charges) e INYECTAR productId
-      const chargePromises = items.map(item => {
-        return api.post(`/folios/${targetFolioId}/transactions`, {
-          amount: item.price * item.quantity,
-          description: item.name,
-          type: 0, // Charge
-          quantity: item.quantity,
-          unitPrice: item.price,
-          category: "Restaurante",
-          cashierShiftId: shift.id,
-          paymentMethod: 0, // None
-          productId: item.id // <--- VITAL: Conecta POS con el Inventario Real en el backend
-        })
-      })
+      // --- FLUJO 1: VENTA DIRECTA (Público General) ---
+      if (!targetFolioId && ["Cash", "CreditCard", "Transfer"].includes(paymentData.method)) {
 
-      await Promise.all(chargePromises)
-
-      // PASO 2: Registrar el PAGO inmediato si no es crédito a habitación
-      if (paymentData.method !== "RoomCharge") {
-        await api.post(`/folios/${targetFolioId}/transactions`, {
-          amount: paymentData.finalAmount,
-          description: `Pago POS - ${paymentData.method === 'Cash' ? 'Efectivo' : 'Tarjeta/Otro'}`,
-          type: 1, // Payment
-          quantity: 1,
-          unitPrice: paymentData.finalAmount,
+        const payload = {
+          totalAmount: paymentData.finalAmount,
           paymentMethod: paymentData.methodId,
-          cashierShiftId: shift.id
+          items: items.map(item => ({
+            productId: item.id,
+            description: item.name,
+            unitPrice: item.price,
+            quantity: item.quantity
+          }))
+        };
+
+        await api.post('/cashier/direct-sale', payload);
+
+      }
+      // --- FLUJO 2: VENTA A FOLIO (Huésped / Pasadía) ---
+      else {
+
+        if (!targetFolioId) {
+          toast.dismiss(loadingToast);
+          toast.error("Seleccione un folio/habitación para registrar la venta.");
+          return;
+        }
+
+        // PASO 1: Registrar los consumos (Charges) e INYECTAR productId
+        const chargePromises = items.map(item => {
+          return api.post(`/folios/${targetFolioId}/transactions`, {
+            amount: item.price * item.quantity,
+            description: item.name,
+            type: 0, // Charge
+            quantity: item.quantity,
+            unitPrice: item.price,
+            category: "Restaurante",
+            cashierShiftId: shift.id,
+            paymentMethod: 0, // None
+            productId: item.id // Conecta POS con el Inventario Real en el backend
+          })
         })
+
+        await Promise.all(chargePromises)
+
+        // PASO 2: Registrar el PAGO inmediato si no es crédito a habitación
+        if (paymentData.method !== "RoomCharge" && paymentData.method !== "DayPass") {
+          await api.post(`/folios/${targetFolioId}/transactions`, {
+            amount: paymentData.finalAmount,
+            description: `Pago POS - ${paymentData.method === 'Cash' ? 'Efectivo' : 'Tarjeta/Otro'}`,
+            type: 1, // Payment
+            quantity: 1,
+            unitPrice: paymentData.finalAmount,
+            paymentMethod: paymentData.methodId,
+            cashierShiftId: shift.id
+          })
+        }
       }
 
       toast.dismiss(loadingToast)
