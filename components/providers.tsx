@@ -2,41 +2,29 @@
 
 import { useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { type ThemeProviderProps } from "next-themes"
 
-// Configuración básica del cliente de Query
-function makeQueryClient() {
-    return new QueryClient({
+export function Providers({ children, ...props }: ThemeProviderProps) {
+    // useState asegura que el QueryClient se cree una sola vez por sesión de cliente
+    const [queryClient] = useState(() => new QueryClient({
         defaultOptions: {
             queries: {
-                staleTime: 60 * 1000, // Los datos se consideran frescos por 1 minuto
+                // Evita re-fetch agresivo mientras el usuario llena formularios
+                staleTime: 60 * 1000,
+                refetchOnWindowFocus: false,
             },
         },
-    })
-}
-
-let browserQueryClient: QueryClient | undefined = undefined
-
-function getQueryClient() {
-    if (typeof window === "undefined") {
-        // Server: siempre crea un nuevo cliente
-        return makeQueryClient()
-    } else {
-        // Browser: reutiliza el cliente existente si ya tenemos uno
-        if (!browserQueryClient) browserQueryClient = makeQueryClient()
-        return browserQueryClient
-    }
-}
-
-export function Providers({ children, ...props }: ThemeProviderProps) {
-    const queryClient = getQueryClient()
+    }))
 
     return (
         <QueryClientProvider client={queryClient}>
             <NextThemesProvider {...props}>
                 {children}
             </NextThemesProvider>
+            {/* Devtools: útil para depurar si los datos llegan o no. Se elimina en prod automáticamente */}
+            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-right" />
         </QueryClientProvider>
     )
 }

@@ -49,41 +49,56 @@ export interface CheckInResponse {
     status: string;
 }
 
-export const updateGuestInfo = async (
-    reservationId: string,
-    data: { mainGuest: GuestFormData, companions: GuestFormData[] }
-) => {
-    // Ajusta la URL según tu controlador de backend real.
-    // Opción A: Si tienes un endpoint específico para actualizar datos de la reserva
-    const response = await fetch(`${API_URL}/reservations/${reservationId}/guest-details`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-        throw new Error('Error actualizando información del huésped');
-    }
-
-    return response.json();
-};
-
-export const checkInReservation = async (id: string): Promise<CheckInResponse> => {
-    const response = await fetch(`${API_URL}/reservations/${id}/checkin`, {
-        method: 'POST',
+export async function updateGuestInfo(reservationId: string, data: GuestFormData & { companions: GuestFormData[] }) {
+    const res = await fetch(`${API_URL}/reservations/${reservationId}/guests`, {
+        method: "PUT",
         headers: {
-            'Content-Type': 'application/json',
-            // 'Authorization': `Bearer ${token}` // Si usas auth
+            "Content-Type": "application/json",
         },
-    });
+        body: JSON.stringify({
+            // Mapeo para coincidir con el DTO de C#
+            nacionalidad: data.nacionalidad,
+            tipoId: data.tipoId,
+            numeroId: data.numeroId,
+            primerNombre: data.primerNombre,
+            primerApellido: data.primerApellido,
+            segundoNombre: data.segundoNombre,
+            segundoApellido: data.segundoApellido,
+            telefono: data.telefono,
+            correo: data.correo,
+            direccion: data.direccion,
+            ciudadOrigen: data.ciudadOrigen,
+            // Mapear acompañantes
+            companions: data.companions?.map(c => ({
+                primerNombre: c.primerNombre,
+                primerApellido: c.primerApellido,
+                numeroId: c.numeroId,
+                nacionalidad: c.nacionalidad
+            })) || []
+        }),
+    })
 
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al realizar Check-in');
+    if (!res.ok) {
+        const error = await res.text()
+        throw new Error(error || "Error al actualizar información del huésped")
     }
 
-    return response.json();
-};
+    return res.json()
+}
+
+export async function checkInReservation(id: string) {
+    const res = await fetch(`${API_URL}/reservations/${id}/checkin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+    })
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || "Error al realizar Check-in")
+    }
+
+    return res.json()
+}
 
 export const cashierApi = {
     getStatus: async () => {

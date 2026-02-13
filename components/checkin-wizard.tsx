@@ -10,7 +10,7 @@ import {
   CreditCard, DollarSign, Wallet, Loader2
 } from "lucide-react"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import { checkInReservation, updateGuestInfo } from "@/lib/api" // Asumimos que existe updateGuestInfo
+import { checkInReservation, updateGuestInfo } from "@/lib/api"
 
 // --- INTERFACES ---
 export interface GuestFormData {
@@ -61,7 +61,6 @@ const documentTypes = [
   { value: "PA", label: "Pasaporte" },
   { value: "TI", label: "Tarjeta de Identidad" },
 ]
-const occupations = ["Empleado", "Independiente", "Empresario", "Estudiante", "Jubilado", "Turista", "Otro"]
 
 export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardProps) {
   const router = useRouter()
@@ -70,24 +69,26 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   // --- ESTADOS FINANCIEROS ---
   const [localPaidAmount, setLocalPaidAmount] = useState(reservation.paidAmount)
   const pendingAmount = reservation.totalAmount - localPaidAmount
-  const hasDebt = pendingAmount > 0
+  const hasDebt = pendingAmount > 100 // Margen de error de $100 pesos
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("efectivo")
 
   // --- ESTADOS DEL WIZARD ---
+  // Si hay deuda, iniciamos en paso 0 (Pagos), sino en paso 1 (Datos)
   const [currentStep, setCurrentStep] = useState(hasDebt ? 0 : 1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // Datos del Titular
   const [mainGuest, setMainGuest] = useState<GuestFormData>({
     id: "main",
     nacionalidad: "Colombia",
     tipoId: "CC",
     numeroId: "",
     fechaCumpleanos: "",
-    primerNombre: "",
-    primerApellido: "",
+    primerNombre: reservation.guestName.split(" ")[0] || "",
+    primerApellido: reservation.guestName.split(" ").slice(1).join(" ") || "",
     segundoNombre: "",
     segundoApellido: "",
     genero: "",
@@ -100,6 +101,8 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   })
 
   const [companions, setCompanions] = useState<GuestFormData[]>([])
+
+  // Firma y Legal
   const [signature, setSignature] = useState<string>("")
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [dataPolicyAccepted, setDataPolicyAccepted] = useState(false)
@@ -116,14 +119,6 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
         mainGuest.primerNombre &&
         mainGuest.primerApellido &&
         mainGuest.telefono
-        // Puedes agregar más campos obligatorios según regla de negocio
-    )
-  }
-
-  const areCompanionsValid = () => {
-    if (companions.length === 0) return true;
-    return companions.every(c =>
-        c.tipoId && c.numeroId && c.primerNombre && c.primerApellido
     )
   }
 
@@ -139,14 +134,17 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) return
 
-    // Aquí idealmente llamarías a una API de registro de pago (Transactions)
-    // Por ahora simulamos la actualización local para permitir el flujo
+    // TODO: Conectar con API real POST /api/folios/{id}/transactions
     const newPaid = localPaidAmount + amount
     setLocalPaidAmount(newPaid)
     setIsPaymentModalOpen(false)
-    toast.success("Pago registrado localmente", { description: "Recuerde validar en caja." })
+    toast.success("Pago registrado localmente", { description: "El saldo ha sido actualizado para este proceso." })
 
-    if (reservation.totalAmount - newPaid <= 0) setCurrentStep(1)
+    // Si ya no hay deuda, permitir avanzar
+    if (reservation.totalAmount - newPaid <= 100) {
+      // Pequeño delay para UX
+      setTimeout(() => setCurrentStep(1), 500)
+    }
   }
 
   const addCompanion = () => {
@@ -158,6 +156,8 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
       fechaCumpleanos: "",
       primerNombre: "",
       primerApellido: "",
+      segundoNombre: "",
+      segundoApellido: "",
       genero: "",
       telefono: ""
     }])
@@ -173,22 +173,44 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     setIsSubmitting(true)
 
     try {
-      // 1. Actualizar datos del huésped principal (y acompañantes si el backend lo soporta)
-      // await updateGuestInfo(reservation.id, { ...mainGuest, companions })
-      // Nota: Implementar updateGuestInfo en api.ts si no existe.
+      // 1. Preparar Payload para el Backend (Mapeo DTO)
+      // Nota: companions se pasa como un array simple según tu definición de API
+      const guestPayload: any = {
+        nacionalidad: mainGuest.nacionalidad,
+        tipoId: mainGuest.tipoId,
+        numeroId: mainGuest.numeroId,
+        primerNombre: mainGuest.primerNombre,
+        primerApellido: mainGuest.primerApellido,
+        segundoNombre: mainGuest.segundoNombre || "",
+        segundoApellido: mainGuest.segundoApellido || "",
+        telefono: mainGuest.telefono,
+        correo: mainGuest.correo || "",
+        direccion: mainGuest.direccion || "",
+        ciudadOrigen: mainGuest.ciudadOrigen || "",
+        // Mapeamos acompañantes
+        companions: companions.map(c => ({
+          primerNombre: c.primerNombre,
+          primerApellido: c.primerApellido,
+          numeroId: c.numeroId,
+          nacionalidad: c.nacionalidad
+        }))
+      }
 
-      // 2. Ejecutar Check-in Transaccional
+      // 2. Actualizar datos del huésped
+      await updateGuestInfo(reservation.id, guestPayload)
+
+      // 3. Ejecutar Check-in Transaccional
       const response = await checkInReservation(reservation.id)
 
       toast.success("¡Check-in Exitoso!", {
-        description: `Habitación ${reservation.roomNumber} ahora está ocupada. Folio creado.`,
+        description: `Habitación ${reservation.roomNumber} ocupada correctamente.`,
         action: {
-          label: "Ver Folio",
+          label: "Ir al Folio",
           onClick: () => router.push(`/folios?id=${response.folioId}`)
         }
       })
 
-      // 3. Actualizar UI Global
+      // 4. Refrescar datos globales
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reservations"] }),
         queryClient.invalidateQueries({ queryKey: ["rooms"] }),
@@ -200,14 +222,14 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     } catch (error: any) {
       console.error(error)
       toast.error("Error en el proceso", {
-        description: error.message || "No se pudo completar el check-in. Verifique la conexión."
+        description: error.message || "No se pudo completar el check-in. Intente nuevamente."
       })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // --- CANVAS LOGIC (Optimized) ---
+  // --- CANVAS LOGIC (Firma) ---
   const getCoordinates = (event: MouseEvent | TouchEvent) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
@@ -244,6 +266,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     if (!isDrawing) return
     const ctx = canvasRef.current?.getContext("2d")
     if (!ctx) return
+    e.preventDefault() // Prevenir scroll en móviles al firmar
     const { x, y } = getCoordinates(e.nativeEvent)
     ctx.lineTo(x, y)
     ctx.stroke()
@@ -258,7 +281,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     const canvas = canvasRef.current
     const ctx = canvas?.getContext("2d")
     if (!canvas || !ctx) return
-    ctx.fillStyle = "#ffffff" // Fondo blanco para firma limpia
+    ctx.fillStyle = "#ffffff"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.lineWidth = 2
     ctx.strokeStyle = "#000000"
@@ -266,10 +289,10 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     setSignature("")
   }
 
-  // Inicializar canvas style
   useEffect(() => {
-    if (currentStep === 3 && canvasRef.current) {
-      clearSignature()
+    if (currentStep === 3) {
+      // Pequeño timeout para asegurar que el canvas se renderizó en el DOM
+      setTimeout(() => clearSignature(), 100)
     }
   }, [currentStep])
 
@@ -284,13 +307,19 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
       <Dialog open={isOpen} onOpenChange={(open) => !open && !isSubmitting && onClose()}>
         <DialogContent className="w-full max-w-[95vw] lg:max-w-7xl h-[95vh] flex flex-col p-0 bg-background border-border shadow-2xl overflow-hidden">
 
-          {/* Header */}
-          <div className="bg-card px-8 py-6 border-b border-border shrink-0">
-            <div className="flex justify-between items-start mb-6">
+          {/* Header Oculto para Accesibilidad */}
+          <DialogHeader className="sr-only">
+            <DialogTitle>Asistente de Check-in</DialogTitle>
+            <DialogDescription>Complete el flujo para registrar el ingreso.</DialogDescription>
+          </DialogHeader>
+
+          {/* Custom Header Visual */}
+          <div className="bg-card px-4 md:px-8 py-4 md:py-6 border-b border-border shrink-0">
+            <div className="flex justify-between items-start mb-4 md:mb-6">
               <div>
-                <h2 className="text-3xl font-bold text-foreground">Check-in Digital</h2>
-                <p className="text-muted-foreground text-lg">
-                  Habitación {reservation.roomNumber} • {reservation.guestName}
+                <h2 className="text-2xl md:text-3xl font-bold text-foreground">Check-in Digital</h2>
+                <p className="text-muted-foreground text-sm md:text-lg">
+                  Habitación <span className="font-semibold text-primary">{reservation.roomNumber}</span> • {reservation.guestName}
                 </p>
               </div>
               <Button variant="ghost" size="icon" onClick={onClose} disabled={isSubmitting}>
@@ -299,13 +328,13 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
             </div>
 
             {/* Stepper */}
-            <div className="flex items-center justify-center gap-2 md:gap-4 overflow-x-auto pb-2">
+            <div className="flex items-center justify-start md:justify-center gap-2 md:gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {steps.map((step, idx) => {
                 const isActive = currentStep === step.number
                 const isCompleted = currentStep > step.number
                 return (
                     <div key={step.number} className="flex items-center shrink-0">
-                      <div className={cn("flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm md:text-base",
+                      <div className={cn("flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full border transition-all text-sm md:text-base",
                           isActive ? "bg-primary/10 border-primary text-primary font-medium" :
                               isCompleted ? "bg-green-500/10 border-green-500 text-green-600" : "border-transparent text-muted-foreground")}>
                         <step.icon className="h-4 w-4 md:h-5 md:w-5" />
@@ -532,6 +561,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                 <DialogTitle className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-primary"/> Registrar Pago Inicial
                 </DialogTitle>
+                <DialogDescription>Ingrese el monto para saldar la deuda.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-6 py-4">
                 <div className="grid gap-2">

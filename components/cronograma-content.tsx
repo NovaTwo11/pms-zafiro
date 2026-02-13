@@ -12,11 +12,11 @@ import {
   eachDayOfInterval,
   parseISO,
   isValid,
-  startOfDay // <--- IMPORTANTE
+  startOfDay
 } from "date-fns"
 import { es } from "date-fns/locale"
-import { CheckInWizard } from "@/components/checkin-wizard" // Corregido el nombre del componente (PascalCase)
-import { ChevronLeft, ChevronRight, Plus, Lock, DollarSign, Calendar as CalendarIcon } from "lucide-react"
+import { CheckInWizard } from "@/components/checkin-wizard"
+import { ChevronLeft, ChevronRight, Plus, Lock, DollarSign, Calendar as CalendarIcon, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ReservationPopover } from "./reservation-popover"
@@ -24,19 +24,16 @@ import { NewReservationModal } from "./new-reservation-modal"
 import { RateModifierModal } from "./rate-modifier-modal"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import api from "@/lib/api" // Asegúrate de que api exporte una instancia de axios o fetch wrapper
+import api from "@/lib/api"
 
 // Importamos los tipos centralizados
-// Si falta alguno en @/types, defínelo aquí temporalmente o agrégalo a types/index.ts
 import {
   Room as RoomType,
-  ReservationDto as ReservationType,
-  RoomDto
 } from "@/types"
 
 // --- TYPES LOCALES ---
 type ViewMode = "day" | "week" | "month"
-// Definimos VisualReservationStatus aquí si no está en types
+
 export type VisualReservationStatus =
     | "check_in_paid"
     | "check_in_debt"
@@ -69,6 +66,20 @@ export type TimelineReservation = {
 type FloorGroup = {
   name: string
   rooms: RoomType[]
+}
+
+// --- HELPER PARA EXTRAER DATOS (SOLUCIÓN ERROR MAP) ---
+const extractData = (response: any): any[] => {
+  if (!response) return [];
+  // Si es un array directo
+  if (Array.isArray(response)) return response;
+  // Si viene en .data (estilo axios o backend envuelto)
+  if (response.data && Array.isArray(response.data)) return response.data;
+  // Si viene paginado
+  if (response.result && Array.isArray(response.result)) return response.result;
+
+  console.warn("Formato de datos no reconocido:", response);
+  return [];
 }
 
 // --- UTILIDADES VISUALES ---
@@ -142,20 +153,22 @@ export function CronogramaContent() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        // Usamos una interfaz genérica para api.get si no tienes los tipos exactos de axios
+
         const [roomsRes, resRes] = await Promise.all([
           api.get('/rooms'),
           api.get('/reservations')
         ])
 
-        // 1. Organizar Habitaciones
-        // Casteamos roomsRes.data as RoomDto[]
-        const roomsData = roomsRes as unknown as RoomDto[]
-
-        const sortedRooms: RoomType[] = roomsData.map(dto => ({
-          ...dto,
-          category: dto.category // Aseguramos compatibilidad de tipos
-        })).sort((a, b) =>
+        // 1. Organizar Habitaciones (USANDO extractData)
+        const roomsRaw = extractData(roomsRes)
+        const sortedRooms: RoomType[] = roomsRaw.map((dto: any) => ({
+          id: dto.id,
+          number: dto.number,
+          category: dto.category,
+          status: dto.status,
+          floor: dto.floor || 1,
+          basePrice: dto.basePrice
+        })).sort((a: any, b: any) =>
             a.floor === b.floor ? a.number.localeCompare(b.number) : a.floor - b.floor
         )
 
@@ -170,32 +183,49 @@ export function CronogramaContent() {
         const floorGroups = Object.entries(groups).map(([name, rooms]) => ({ name, rooms }))
         setFloors(floorGroups.sort((a, b) => a.name.localeCompare(b.name)))
 
-        // 2. Mapear Reservas
-        const reservationsData = resRes as unknown as ReservationType[]
+        // 2. Mapear Reservas (Lógica Split Stays + Fallback)
+        const reservationsRaw = extractData(resRes)
 
-        const mappedReservations: TimelineReservation[] = reservationsData
-            .filter(r => r.status !== "Cancelled" as any)
-            .map(r => {
-              const start = r.checkIn ? parseISO(r.checkIn.toString()) : new Date()
-              const end = r.checkOut ? parseISO(r.checkOut.toString()) : addDays(new Date(), 1)
+        const mappedReservations: TimelineReservation[] = reservationsRaw
+            .filter((r: any) => r.status !== "Cancelled")
+            .map((r: any) => {
+              // --- LOGICA DE SEGMENTOS ---
+              let segments: ReservationSegment[] = []
+
+              // Caso 1: Backend devuelve segmentos (Nueva Arquitectura)
+              if (r.segments && Array.isArray(r.segments) && r.segments.length > 0) {
+                segments = r.segments.map((s: any) => ({
+                  roomId: s.roomId,
+                  startDate: parseISO(s.start),
+                  endDate: parseISO(s.end)
+                }))
+              }
+              // Caso 2: Fallback (Datos antiguos o estructura vieja)
+              else if (r.roomId) {
+                const start = r.checkIn ? parseISO(r.checkIn) : new Date()
+                const end = r.checkOut ? parseISO(r.checkOut) : addDays(new Date(), 1)
+                segments.push({
+                  roomId: r.roomId,
+                  startDate: isValid(start) ? start : new Date(),
+                  endDate: isValid(end) ? end : addDays(new Date(), 1)
+                })
+              }
 
               return {
                 id: r.id,
                 guestName: r.mainGuestName || "Huésped",
-                guestId: r.guestId,
-                confirmationCode: r.confirmationCode,
+                guestId: r.mainGuestId,
+                confirmationCode: r.code || r.confirmationCode || "???",
                 status: mapBackendStatus(r.status),
                 totalValue: r.totalAmount || 0,
                 paidAmount: 0,
                 adults: r.adults,
                 children: r.children,
-                segments: [{
-                  roomId: r.roomId,
-                  startDate: isValid(start) ? start : new Date(),
-                  endDate: isValid(end) ? end : addDays(new Date(), 1)
-                }]
+                segments: segments // Asignamos la lista calculada
               }
             })
+            // Filtramos reservas corruptas sin segmentos ni habitación
+            .filter(r => r.segments.length > 0)
 
         // 3. Bloqueos de Mantenimiento
         const maintenanceBlocks: TimelineReservation[] = sortedRooms
@@ -232,22 +262,15 @@ export function CronogramaContent() {
     return customPrices[key] || room.basePrice
   }
 
-  // --- CHECK OCCUPANCY (FIX DEFINITIVO) ---
+  // --- CHECK OCCUPANCY ---
   const isDateOccupied = (roomId: string, date: Date) => {
-    // Convertimos la fecha actual a comparar a inicio del día (00:00:00)
     const targetDate = startOfDay(date);
-
     return reservations.some(res =>
         res.segments.some(seg => {
           if (seg.roomId !== roomId) return false;
-
-          // Convertimos las fechas de la reserva a inicio del día para ignorar horas (checkin 3pm, etc)
           const start = startOfDay(seg.startDate);
           const end = startOfDay(seg.endDate);
-
-          // La lógica de "noche de hotel":
           // Ocupado si: target >= checkIn Y target < checkOut
-          // (El día del checkout target == end está libre)
           return targetDate.getTime() >= start.getTime() && targetDate.getTime() < end.getTime();
         })
     )
@@ -293,7 +316,7 @@ export function CronogramaContent() {
 
   const handleCheckIn = (reservationId: string) => {
     const res = reservations.find(r => r.id === reservationId)
-    if (res) {
+    if (res && res.segments.length > 0) {
       setCheckinWizardData({ isOpen: true, reservation: res })
       setSelectedReservation(null)
     }
@@ -301,7 +324,7 @@ export function CronogramaContent() {
 
   if (loading) return (
       <div className="flex h-full items-center justify-center space-x-2 text-muted-foreground animate-pulse">
-        <CalendarIcon className="h-8 w-8 animate-bounce" />
+        <Loader2 className="h-8 w-8 animate-spin" />
         <span>Cargando Cronograma Zafiro...</span>
       </div>
   )
@@ -381,7 +404,7 @@ export function CronogramaContent() {
               <div className="pb-4">
                 {floors.map((floor) => (
                     <div key={floor.name}>
-                      {/* SEPARADOR PISO (Sticky dividido para que el nombre se quede fijo) */}
+                      {/* SEPARADOR PISO */}
                       <div className="flex sticky left-0 w-full z-20 border-y bg-muted/30">
                         {/* Parte fija izquierda (z-30) */}
                         <div className="w-[180px] shrink-0 sticky left-0 z-30 bg-muted/95 backdrop-blur-sm border-r px-4 py-1 flex items-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
@@ -392,6 +415,7 @@ export function CronogramaContent() {
                       </div>
 
                       {floor.rooms.map((room) => {
+                        // Renderizar segmentos que pertenezcan a esta habitación
                         const roomSegments = reservations.flatMap(res =>
                             res.segments.map((seg, idx) => ({ reservation: res, segment: seg, idx }))
                                 .filter(item => item.segment.roomId === room.id)
@@ -399,7 +423,7 @@ export function CronogramaContent() {
 
                         return (
                             <div key={room.id} className="flex border-b h-[72px] relative group bg-background">
-                              {/* COLUMNA INFO (z-30 para tapar reservas al scrollear) */}
+                              {/* COLUMNA INFO */}
                               <div className="w-[180px] shrink-0 border-r px-4 flex flex-col justify-center sticky left-0 z-30 bg-background group-hover:bg-card transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                                 <div className="flex items-center justify-between w-full mb-1">
                                   <span className="text-xl font-bold">{room.number}</span>
@@ -415,7 +439,6 @@ export function CronogramaContent() {
                               {/* GRID DÍAS */}
                               <div className="flex relative z-0">
                                 {days.map((day, idx) => {
-                                  // Verificación de ocupación
                                   const isOccupied = isDateOccupied(room.id, day);
                                   return (
                                       <div
@@ -424,7 +447,7 @@ export function CronogramaContent() {
                                               "min-w-[48px] w-12 border-r transition-colors",
                                               isToday(day) && "bg-primary/5",
                                               isOccupied
-                                                  ? "bg-muted/10 cursor-not-allowed opacity-50" // Feedback visual fuerte
+                                                  ? "bg-muted/10 cursor-not-allowed opacity-50"
                                                   : "cursor-pointer hover:bg-accent/40"
                                           )}
                                           onClick={() => !isOccupied && setNewReservationModal({ isOpen: true, roomId: room.id, date: day, type: "reservation" })}
@@ -452,7 +475,6 @@ export function CronogramaContent() {
                                         <div
                                             className={cn(
                                                 "absolute top-1 bottom-1 m-auto rounded-md shadow-sm text-[10px] font-medium flex flex-col justify-center px-2 cursor-pointer transition-all overflow-hidden whitespace-nowrap border-l-4",
-                                                // z-10 para que quede debajo del sidebar (z-30) al scrollear
                                                 "z-10 hover:z-20 hover:scale-[1.02]",
                                                 getStatusStyles(reservation.status)
                                             )}
@@ -513,13 +535,15 @@ export function CronogramaContent() {
             />
         )}
 
-        {checkinWizardData && checkinWizardData.reservation && (
+        {checkinWizardData && checkinWizardData.reservation && checkinWizardData.reservation.segments.length > 0 && (
             <CheckInWizard
                 isOpen={checkinWizardData.isOpen}
                 onClose={() => setCheckinWizardData(null)}
                 reservation={{
                   id: checkinWizardData.reservation.id,
                   guestName: checkinWizardData.reservation.guestName,
+                  // Tomamos el primer segmento para el check-in simple,
+                  // o idealmente el segmento actual si hay varios
                   roomNumber: checkinWizardData.reservation.segments[0].roomId,
                   checkIn: checkinWizardData.reservation.segments[0].startDate,
                   checkOut: checkinWizardData.reservation.segments[0].endDate,
