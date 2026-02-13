@@ -24,7 +24,7 @@ import { NewReservationModal } from "./new-reservation-modal"
 import { RateModifierModal } from "./rate-modifier-modal"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import api from "@/lib/api"
+import api, { reservationsApi } from "@/lib/api" // <-- Agregado reservationsApi
 
 // Importamos los tipos centralizados
 import {
@@ -68,14 +68,11 @@ type FloorGroup = {
   rooms: RoomType[]
 }
 
-// --- HELPER PARA EXTRAER DATOS (SOLUCIÓN ERROR MAP) ---
+// --- HELPER PARA EXTRAER DATOS ---
 const extractData = (response: any): any[] => {
   if (!response) return [];
-  // Si es un array directo
   if (Array.isArray(response)) return response;
-  // Si viene en .data (estilo axios o backend envuelto)
   if (response.data && Array.isArray(response.data)) return response.data;
-  // Si viene paginado
   if (response.result && Array.isArray(response.result)) return response.result;
 
   console.warn("Formato de datos no reconocido:", response);
@@ -89,22 +86,15 @@ const determineVisualStatus = (
     paidAmount: number
 ): VisualReservationStatus => {
 
-  // 1. Estados que no dependen de dinero
   if (backendStatus === "Blocked") return "blocked"
-  if (backendStatus === "Cancelled") return "history" // O un color gris
+  if (backendStatus === "Cancelled") return "history"
   if (backendStatus === "CheckedOut") return "history"
 
-  // 2. Si está DENTRO del hotel (CheckedIn)
   if (backendStatus === "CheckedIn") {
-    // Si el balance es menor o igual a 100 pesos (tolerancia), está PAGADO (Verde)
-    // Si debe más de 100, está EN DEUDA (Rojo)
     return balance <= 100 ? "check_in_paid" : "check_in_debt"
   }
 
-  // 3. Si es FUTURA (Confirmed/Pending)
   if (backendStatus === "Confirmed" || backendStatus === "Pending") {
-    // Si ha pagado algo (ej. 50% anticipo) -> Azul
-    // Si no ha pagado nada -> Naranja
     return paidAmount > 0 ? "confirmed_deposit" : "confirmed_no_deposit"
   }
 
@@ -146,23 +136,13 @@ const getCategoryColor = (category: string | undefined) => {
   return "text-gray-500 bg-gray-100 dark:text-gray-400"
 }
 
-const mapBackendStatus = (status: string): VisualReservationStatus => {
-  switch (status) {
-    case "CheckedIn": return "check_in_debt"
-    case "Confirmed": return "confirmed_deposit"
-    case "Pending": return "confirmed_no_deposit"
-    case "CheckedOut": return "history"
-    case "Blocked": return "blocked"
-    default: return "available"
-  }
-}
-
 export function CronogramaContent() {
   // Data State
   const [rooms, setRooms] = useState<RoomType[]>([])
   const [floors, setFloors] = useState<FloorGroup[]>([])
   const [reservations, setReservations] = useState<TimelineReservation[]>([])
   const [loading, setLoading] = useState(true)
+  const [refreshTrigger, setRefreshTrigger] = useState(0) // <-- NUEVO: Disparador de recarga
 
   // UI State
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -188,7 +168,6 @@ export function CronogramaContent() {
           api.get('/reservations')
         ])
 
-        // 1. Organizar Habitaciones (USANDO extractData)
         const roomsRaw = extractData(roomsRes)
         const sortedRooms: RoomType[] = roomsRaw.map((dto: any) => ({
           id: dto.id,
@@ -212,16 +191,13 @@ export function CronogramaContent() {
         const floorGroups = Object.entries(groups).map(([name, rooms]) => ({ name, rooms }))
         setFloors(floorGroups.sort((a, b) => a.name.localeCompare(b.name)))
 
-        // 2. Mapear Reservas (Lógica Split Stays + Fallback)
         const reservationsRaw = extractData(resRes)
 
         const mappedReservations: TimelineReservation[] = reservationsRaw
             .filter((r: any) => r.status !== "Cancelled")
             .map((r: any) => {
-              // --- LOGICA DE SEGMENTOS ---
               let segments: ReservationSegment[] = []
 
-              // Caso 1: Backend devuelve segmentos (Nueva Arquitectura)
               if (r.segments && Array.isArray(r.segments) && r.segments.length > 0) {
                 segments = r.segments.map((s: any) => ({
                   roomId: s.roomId,
@@ -229,7 +205,6 @@ export function CronogramaContent() {
                   endDate: parseISO(s.end)
                 }))
               }
-              // Caso 2: Fallback (Datos antiguos o estructura vieja)
               else if (r.roomId) {
                 const start = r.checkIn ? parseISO(r.checkIn) : new Date()
                 const end = r.checkOut ? parseISO(r.checkOut) : addDays(new Date(), 1)
@@ -248,15 +223,14 @@ export function CronogramaContent() {
                 status: determineVisualStatus(r.status, r.balance || 0, r.paidAmount || 0),
                 totalValue: r.totalAmount || 0,
                 paidAmount: r.paidAmount || 0,
+                balance: r.balance, // <-- Pasar balance explícitamente al popover
                 adults: r.adults,
                 children: r.children,
-                segments: segments // Asignamos la lista calculada
+                segments: segments
               }
             })
-            // Filtramos reservas corruptas sin segmentos ni habitación
             .filter(r => r.segments.length > 0)
 
-        // 3. Bloqueos de Mantenimiento
         const maintenanceBlocks: TimelineReservation[] = sortedRooms
             .filter(r => r.status === "Maintenance" || r.status === "Blocked")
             .map(r => ({
@@ -283,7 +257,7 @@ export function CronogramaContent() {
       }
     }
     fetchData()
-  }, [currentDate])
+  }, [currentDate, refreshTrigger]) // <-- Dependencia refreshTrigger añadida
 
   // --- LOGIC ---
   const getRoomPrice = (room: RoomType, date: Date) => {
@@ -299,7 +273,6 @@ export function CronogramaContent() {
           if (seg.roomId !== roomId) return false;
           const start = startOfDay(seg.startDate);
           const end = startOfDay(seg.endDate);
-          // Ocupado si: target >= checkIn Y target < checkOut
           return targetDate.getTime() >= start.getTime() && targetDate.getTime() < end.getTime();
         })
     )
@@ -343,11 +316,93 @@ export function CronogramaContent() {
     return { width, left: startIndex, isHidden: false }
   }
 
+  // --- ACCIONES DE BACKEND ---
   const handleCheckIn = (reservationId: string) => {
     const res = reservations.find(r => r.id === reservationId)
     if (res && res.segments.length > 0) {
       setCheckinWizardData({ isOpen: true, reservation: res })
       setSelectedReservation(null)
+    }
+  }
+
+  const handleCheckOut = async (id: string) => {
+    try {
+      await reservationsApi.checkout(id)
+      toast.success("Check-out realizado exitosamente")
+      setRefreshTrigger(prev => prev + 1)
+      setSelectedReservation(null)
+    } catch (error: any) {
+      if (error.response?.status === 409) {
+        toast.error(`Deuda pendiente: ${error.response.data.message}`)
+      } else {
+        toast.error(error.response?.data?.message || "Error al realizar check-out")
+      }
+    }
+  }
+
+  const handleCancel = async (id: string) => {
+    try {
+      await reservationsApi.cancel(id)
+      toast.success("Reserva cancelada exitosamente")
+      setRefreshTrigger(prev => prev + 1)
+      setSelectedReservation(null)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Error al cancelar la reserva")
+    }
+  }
+
+  const handleSplit = async (reservationId: string, segmentIndex: number, startDate: Date) => {
+    // Buscamos el endDate del segmento original para calcular la mitad de la estadía
+    const res = reservations.find(r => r.id === reservationId);
+    if (!res) return;
+
+    const seg = res.segments[segmentIndex];
+    const totalDays = Math.round((seg.endDate.getTime() - seg.startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (totalDays <= 1) {
+      toast.error("El segmento es de solo 1 noche, no se puede dividir más.");
+      return;
+    }
+
+    const splitDate = addDays(seg.startDate, Math.floor(totalDays / 2));
+
+    try {
+      await reservationsApi.split(reservationId, {
+        segmentIndex,
+        splitDate: format(splitDate, 'yyyy-MM-dd'),
+        newRoomId: null
+      });
+      toast.success("Reserva fragmentada exitosamente");
+      setRefreshTrigger(prev => prev + 1);
+      setSelectedReservation(null);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Error al dividir reserva");
+    }
+  }
+
+  const handleMerge = async (id: string) => {
+    try {
+      await reservationsApi.merge(id)
+      toast.success("Segmentos unificados exitosamente")
+      setRefreshTrigger(prev => prev + 1)
+      setSelectedReservation(null)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Error al unificar segmentos")
+    }
+  }
+
+  const handleDrop = async (e: React.DragEvent, newRoomId: string) => {
+    e.preventDefault();
+    const dataString = e.dataTransfer.getData("application/json");
+    if (!dataString) return;
+
+    try {
+      const { resId, segmentIdx } = JSON.parse(dataString);
+      await reservationsApi.moveSegment(resId, segmentIdx, newRoomId);
+      toast.success("Reserva movida exitosamente");
+      setRefreshTrigger(prev => prev + 1); // Recargar
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "La habitación destino está ocupada");
     }
   }
 
@@ -465,13 +520,16 @@ export function CronogramaContent() {
                                         </span>
                               </div>
 
-                              {/* GRID DÍAS */}
+                              {/* GRID DÍAS (DROP ZONES) */}
                               <div className="flex relative z-0">
                                 {days.map((day, idx) => {
                                   const isOccupied = isDateOccupied(room.id, day);
                                   return (
                                       <div
                                           key={idx}
+                                          // DRAG & DROP LOGIC
+                                          onDragOver={(e) => { if (!isOccupied) e.preventDefault() }}
+                                          onDrop={(e) => { if (!isOccupied) handleDrop(e, room.id) }}
                                           className={cn(
                                               "min-w-[48px] w-12 border-r transition-colors",
                                               isToday(day) && "bg-primary/5",
@@ -492,18 +550,27 @@ export function CronogramaContent() {
                                   return (
                                       <ReservationPopover
                                           key={`${reservation.id}-${idx}`}
-                                          reservation={reservation}
+                                          reservation={reservation as any} // Tipado para match con ReservationPopover
                                           segment={segment}
                                           segmentIndex={idx}
                                           isOpen={selectedReservation === `${reservation.id}-${idx}`}
                                           onOpenChange={(open) => setSelectedReservation(open ? `${reservation.id}-${idx}` : null)}
+                                          // -- CONEXIÓN DE ACCIONES --
                                           onCheckIn={() => handleCheckIn(reservation.id)}
-                                          onCheckOut={() => {}}
-                                          onCancel={() => {}}
+                                          onCheckOut={() => handleCheckOut(reservation.id)}
+                                          onCancel={() => handleCancel(reservation.id)}
+                                          onSplit={handleSplit}
+                                          onMerge={handleMerge}
                                       >
                                         <div
+                                            // -- DRAG LOGIC --
+                                            draggable={reservation.status !== "history" && reservation.status !== "blocked"}
+                                            onDragStart={(e) => {
+                                              e.dataTransfer.setData("application/json", JSON.stringify({ resId: reservation.id, segmentIdx: idx }));
+                                              e.dataTransfer.effectAllowed = "move";
+                                            }}
                                             className={cn(
-                                                "absolute top-1 bottom-1 m-auto rounded-md shadow-sm text-[10px] font-medium flex flex-col justify-center px-2 cursor-pointer transition-all overflow-hidden whitespace-nowrap border-l-4",
+                                                "absolute top-1 bottom-1 m-auto rounded-md shadow-sm text-[10px] font-medium flex flex-col justify-center px-2 cursor-grab active:cursor-grabbing transition-all overflow-hidden whitespace-nowrap border-l-4 select-none",
                                                 "z-10 hover:z-20 hover:scale-[1.02]",
                                                 getStatusStyles(reservation.status)
                                             )}
@@ -571,8 +638,6 @@ export function CronogramaContent() {
                 reservation={{
                   id: checkinWizardData.reservation.id,
                   guestName: checkinWizardData.reservation.guestName,
-                  // Tomamos el primer segmento para el check-in simple,
-                  // o idealmente el segmento actual si hay varios
                   roomNumber: checkinWizardData.reservation.segments[0].roomId,
                   checkIn: checkinWizardData.reservation.segments[0].startDate,
                   checkOut: checkinWizardData.reservation.segments[0].endDate,

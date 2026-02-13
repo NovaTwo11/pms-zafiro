@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import { checkInReservation, updateGuestInfo } from "@/lib/api"
+import { checkInReservation, updateGuestInfo } from "@/lib/api" // Asegúrate de tener estas en lib/api.ts
 
 // --- INTERFACES ---
 export interface GuestFormData {
@@ -70,14 +70,14 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   // --- ESTADOS FINANCIEROS ---
   const [localPaidAmount, setLocalPaidAmount] = useState(reservation.paidAmount)
   const pendingAmount = reservation.totalAmount - localPaidAmount
-  const hasDebt = pendingAmount > 100 // Margen de error de $100 pesos
+  const hasDebt = pendingAmount > 100 // Margen de tolerancia de $100 COP
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("efectivo")
 
   // --- ESTADOS DEL WIZARD ---
-  // Si hay deuda, iniciamos en paso 0 (Pagos), sino en paso 1 (Datos)
+  // Si hay deuda, forzamos iniciar en paso 0 (Pagos). Si no, directo a paso 1 (Titular)
   const [currentStep, setCurrentStep] = useState(hasDebt ? 0 : 1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -135,15 +135,16 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) return
 
-    // TODO: Conectar con API real POST /api/folios/{id}/transactions
+    // TODO: En el futuro conectar con el endpoint real POST /api/folios/{id}/transactions
+    // await api.post(`/folios/${reservation.id}/transactions`, { amount, description: "Abono Check-in" })
+
     const newPaid = localPaidAmount + amount
     setLocalPaidAmount(newPaid)
     setIsPaymentModalOpen(false)
     toast.success("Pago registrado localmente", { description: "El saldo ha sido actualizado para este proceso." })
 
-    // Si ya no hay deuda, permitir avanzar
+    // Si ya saldó la cuenta, permitir avanzar fluidamente
     if (reservation.totalAmount - newPaid <= 100) {
-      // Pequeño delay para UX
       setTimeout(() => setCurrentStep(1), 500)
     }
   }
@@ -174,8 +175,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     setIsSubmitting(true)
 
     try {
-      // 1. Preparar Payload para el Backend (Mapeo DTO)
-      // Nota: companions se pasa como un array simple según tu definición de API
+      // 1. Preparar Payload para el Backend
       const guestPayload: any = {
         nacionalidad: mainGuest.nacionalidad,
         tipoId: mainGuest.tipoId,
@@ -194,7 +194,8 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
           primerApellido: c.primerApellido,
           numeroId: c.numeroId,
           nacionalidad: c.nacionalidad
-        }))
+        })),
+        signatureBase64: signature // <- Incorporamos la firma digital al payload
       }
 
       // 2. Actualizar datos del huésped
@@ -204,14 +205,14 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
       const response = await checkInReservation(reservation.id)
 
       toast.success("¡Check-in Exitoso!", {
-        description: `Habitación ${reservation.roomNumber} ocupada correctamente.`,
+        description: `Habitación ${reservation.roomNumber} entregada correctamente.`,
         action: {
-          label: "Ir al Folio",
-          onClick: () => router.push(`/folios?id=${response.folioId}`)
+          label: "Ver Folio",
+          onClick: () => router.push(`/folios?id=${reservation.id}`) // Asumiendo que el ID de reserva basta para buscar el folio
         }
       })
 
-      // 4. Refrescar datos globales
+      // 4. Refrescar vistas globales (Cronograma, Dashboard, Habitaciones)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reservations"] }),
         queryClient.invalidateQueries({ queryKey: ["rooms"] }),
@@ -223,7 +224,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     } catch (error: any) {
       console.error(error)
       toast.error("Error en el proceso", {
-        description: error.message || "No se pudo completar el check-in. Intente nuevamente."
+        description: error.response?.data?.message || "No se pudo completar el check-in. Intente nuevamente."
       })
     } finally {
       setIsSubmitting(false)
@@ -285,18 +286,19 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     ctx.fillStyle = "#ffffff"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.lineWidth = 2
-    ctx.strokeStyle = "#000000"
+    ctx.strokeStyle = "#0F0F0F" // Trazo oscuro
     ctx.lineCap = "round"
     setSignature("")
   }
 
   useEffect(() => {
     if (currentStep === 3) {
-      // Pequeño timeout para asegurar que el canvas se renderizó en el DOM
+      // Timeout para asegurar que el canvas se montó y dimensionó antes de limpiar/pintar
       setTimeout(() => clearSignature(), 100)
     }
   }, [currentStep])
 
+  // Lógica de filtrado de los pasos a renderizar
   const steps = [
     { number: 0, title: "Pagos", icon: CreditCard, hidden: !hasDebt },
     { number: 1, title: "Titular", icon: User, hidden: false },
@@ -323,12 +325,12 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                   Habitación <span className="font-semibold text-primary">{reservation.roomNumber}</span> • {reservation.guestName}
                 </p>
               </div>
-              <Button variant="ghost" size="icon" onClick={onClose} disabled={isSubmitting}>
-                <X className="h-6 w-6 text-muted-foreground"/>
+              <Button variant="ghost" size="icon" onClick={onClose} disabled={isSubmitting} className="hover:bg-destructive/10 hover:text-destructive">
+                <X className="h-6 w-6"/>
               </Button>
             </div>
 
-            {/* Stepper */}
+            {/* Stepper Dinámico */}
             <div className="flex items-center justify-start md:justify-center gap-2 md:gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {steps.map((step, idx) => {
                 const isActive = currentStep === step.number
@@ -336,8 +338,8 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                 return (
                     <div key={step.number} className="flex items-center shrink-0">
                       <div className={cn("flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 rounded-full border transition-all text-sm md:text-base",
-                          isActive ? "bg-primary/10 border-primary text-primary font-medium" :
-                              isCompleted ? "bg-green-500/10 border-green-500 text-green-600" : "border-transparent text-muted-foreground")}>
+                          isActive ? "bg-primary/10 border-primary text-primary font-bold shadow-sm" :
+                              isCompleted ? "bg-[#059669]/10 border-[#059669] text-[#059669] font-medium" : "border-transparent text-muted-foreground")}>
                         <step.icon className="h-4 w-4 md:h-5 md:w-5" />
                         <span>{step.title}</span>
                       </div>
@@ -349,13 +351,15 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
           </div>
 
           {/* Body */}
-          <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1 bg-background/50">
+          <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1 bg-background">
 
-            {/* PASO 0: DEUDA */}
+            {/* ========================================================
+                PASO 0: DEUDA (Sólo si owes > 100)
+            ======================================================== */}
             {currentStep === 0 && (
                 <div className="flex flex-col items-center justify-center h-full space-y-8 animate-in fade-in zoom-in-95 duration-300">
                   <div className="text-center space-y-4">
-                    <Badge variant="destructive" className="px-6 py-2 text-lg rounded-full">
+                    <Badge variant="destructive" className="px-6 py-2 text-lg rounded-full bg-[#CF6679] text-white">
                       <AlertTriangle className="h-5 w-5 mr-2" /> Saldo Pendiente Requerido
                     </Badge>
                     <div className="py-4">
@@ -364,95 +368,102 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                     </div>
                   </div>
 
-                  <div className="w-full max-w-md bg-card p-8 rounded-2xl border border-border space-y-6 shadow-xl">
-                    <div className="flex justify-between text-base"><span className="text-muted-foreground">Total Reserva</span> <span className="font-medium">${reservation.totalAmount.toLocaleString()}</span></div>
-                    <div className="flex justify-between text-base"><span className="text-muted-foreground">Abonado</span> <span className="text-green-600 font-medium">${localPaidAmount.toLocaleString()}</span></div>
+                  <div className="w-full max-w-md bg-card p-8 rounded-2xl border border-border space-y-6 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-[#CF6679]"></div>
+                    <div className="flex justify-between text-base"><span className="text-muted-foreground">Total Reserva</span> <span className="font-medium text-foreground">${reservation.totalAmount.toLocaleString()}</span></div>
+                    <div className="flex justify-between text-base"><span className="text-muted-foreground">Abonado</span> <span className="text-[#059669] font-bold">${localPaidAmount.toLocaleString()}</span></div>
                     <div className="h-px bg-border my-2" />
-                    <Button className="w-full h-12 text-lg font-bold" onClick={handleOpenPayment}>
+                    <Button className="w-full h-12 text-lg font-bold bg-[#D4AF37] hover:bg-[#D4AF37]/90 text-[#0F0F0F] transition-all shadow-md" onClick={handleOpenPayment}>
                       <Wallet className="h-5 w-5 mr-2" /> Registrar Pago
                     </Button>
                   </div>
                 </div>
             )}
 
-            {/* PASO 1: TITULAR */}
+            {/* ========================================================
+                PASO 1: TITULAR
+            ======================================================== */}
             {currentStep === 1 && (
                 <div className="space-y-8 max-w-6xl mx-auto animate-in slide-in-from-right-4 duration-300">
                   <h3 className="text-xl font-bold text-primary border-b border-border pb-4">Información del Titular</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                     <div className="space-y-2"><Label>Nacionalidad *</Label>
                       <Select value={mainGuest.nacionalidad} onValueChange={v => setMainGuest({...mainGuest, nacionalidad: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>{countries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2"><Label>Tipo ID *</Label>
                       <Select value={mainGuest.tipoId} onValueChange={v => setMainGuest({...mainGuest, tipoId: v})}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="bg-card"><SelectValue /></SelectTrigger>
                         <SelectContent>{documentTypes.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2 xl:col-span-2"><Label>Número ID *</Label>
-                      <Input value={mainGuest.numeroId} onChange={e => setMainGuest({...mainGuest, numeroId: e.target.value})} placeholder="Ej: 1094..."/>
+                      <Input className="bg-card" value={mainGuest.numeroId} onChange={e => setMainGuest({...mainGuest, numeroId: e.target.value})} placeholder="Ej: 1094..."/>
                     </div>
                     <div className="space-y-2"><Label>Primer Nombre *</Label>
-                      <Input value={mainGuest.primerNombre} onChange={e => setMainGuest({...mainGuest, primerNombre: e.target.value})}/>
+                      <Input className="bg-card" value={mainGuest.primerNombre} onChange={e => setMainGuest({...mainGuest, primerNombre: e.target.value})}/>
                     </div>
                     <div className="space-y-2"><Label>Segundo Nombre</Label>
-                      <Input value={mainGuest.segundoNombre} onChange={e => setMainGuest({...mainGuest, segundoNombre: e.target.value})}/>
+                      <Input className="bg-card" value={mainGuest.segundoNombre} onChange={e => setMainGuest({...mainGuest, segundoNombre: e.target.value})}/>
                     </div>
                     <div className="space-y-2"><Label>Primer Apellido *</Label>
-                      <Input value={mainGuest.primerApellido} onChange={e => setMainGuest({...mainGuest, primerApellido: e.target.value})}/>
+                      <Input className="bg-card" value={mainGuest.primerApellido} onChange={e => setMainGuest({...mainGuest, primerApellido: e.target.value})}/>
                     </div>
                     <div className="space-y-2"><Label>Segundo Apellido</Label>
-                      <Input value={mainGuest.segundoApellido} onChange={e => setMainGuest({...mainGuest, segundoApellido: e.target.value})}/>
+                      <Input className="bg-card" value={mainGuest.segundoApellido} onChange={e => setMainGuest({...mainGuest, segundoApellido: e.target.value})}/>
                     </div>
                     <div className="space-y-2"><Label>Teléfono *</Label>
-                      <Input type="tel" value={mainGuest.telefono} onChange={e => setMainGuest({...mainGuest, telefono: e.target.value})}/>
+                      <Input className="bg-card" type="tel" value={mainGuest.telefono} onChange={e => setMainGuest({...mainGuest, telefono: e.target.value})}/>
                     </div>
                     <div className="space-y-2 xl:col-span-2"><Label>Dirección</Label>
-                      <Input value={mainGuest.direccion} onChange={e => setMainGuest({...mainGuest, direccion: e.target.value})}/>
+                      <Input className="bg-card" value={mainGuest.direccion} onChange={e => setMainGuest({...mainGuest, direccion: e.target.value})}/>
                     </div>
                     <div className="space-y-2 xl:col-span-1"><Label>Ciudad Origen</Label>
-                      <Input value={mainGuest.ciudadOrigen} onChange={e => setMainGuest({...mainGuest, ciudadOrigen: e.target.value})}/>
+                      <Input className="bg-card" value={mainGuest.ciudadOrigen} onChange={e => setMainGuest({...mainGuest, ciudadOrigen: e.target.value})}/>
                     </div>
                   </div>
                 </div>
             )}
 
-            {/* PASO 2: ACOMPAÑANTES */}
+            {/* ========================================================
+                PASO 2: ACOMPAÑANTES
+            ======================================================== */}
             {currentStep === 2 && (
                 <div className="space-y-8 max-w-6xl mx-auto animate-in slide-in-from-right-4 duration-300">
-                  <div className="flex justify-between items-center bg-card p-6 rounded-xl border border-border">
+                  <div className="flex justify-between items-center bg-card p-6 rounded-xl border border-border shadow-sm">
                     <div>
                       <h3 className="text-xl font-bold text-primary">Acompañantes</h3>
                       <p className="text-muted-foreground text-sm">Personas adicionales en la habitación.</p>
                     </div>
-                    <Button onClick={addCompanion} variant="secondary" className="gap-2"><Plus className="h-4 w-4"/> Agregar</Button>
+                    <Button onClick={addCompanion} variant="outline" className="gap-2 border-primary text-primary hover:bg-primary/10">
+                      <Plus className="h-4 w-4"/> Agregar
+                    </Button>
                   </div>
 
                   <div className="grid gap-4">
                     {companions.map((comp, idx) => (
-                        <div key={comp.id} className="p-6 bg-card border border-border rounded-xl relative group">
+                        <div key={comp.id} className="p-6 bg-card border border-border rounded-xl relative group shadow-sm transition-all hover:border-primary/50">
                           <div className="absolute top-4 right-4">
                             <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => {
                               setCompanions(companions.filter(c => c.id !== comp.id))
                             }}><Trash2 className="h-4 w-4"/></Button>
                           </div>
-                          <Badge variant="outline" className="mb-4">Huésped #{idx+1}</Badge>
+                          <Badge variant="outline" className="mb-4 text-primary border-primary/30">Huésped #{idx+1}</Badge>
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="space-y-1"><Label className="text-xs">No. Documento</Label>
-                              <Input className="h-9" value={comp.numeroId} onChange={e => updateCompanion(comp.id, "numeroId", e.target.value)} />
+                              <Input className="h-9 bg-background" value={comp.numeroId} onChange={e => updateCompanion(comp.id, "numeroId", e.target.value)} />
                             </div>
                             <div className="space-y-1"><Label className="text-xs">Primer Nombre</Label>
-                              <Input className="h-9" value={comp.primerNombre} onChange={e => updateCompanion(comp.id, "primerNombre", e.target.value)} />
+                              <Input className="h-9 bg-background" value={comp.primerNombre} onChange={e => updateCompanion(comp.id, "primerNombre", e.target.value)} />
                             </div>
                             <div className="space-y-1"><Label className="text-xs">Primer Apellido</Label>
-                              <Input className="h-9" value={comp.primerApellido} onChange={e => updateCompanion(comp.id, "primerApellido", e.target.value)} />
+                              <Input className="h-9 bg-background" value={comp.primerApellido} onChange={e => updateCompanion(comp.id, "primerApellido", e.target.value)} />
                             </div>
                             <div className="space-y-1"><Label className="text-xs">Nacionalidad</Label>
                               <Select value={comp.nacionalidad} onValueChange={v => updateCompanion(comp.id, "nacionalidad", v)}>
-                                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="h-9 bg-background"><SelectValue /></SelectTrigger>
                                 <SelectContent>{countries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
@@ -460,7 +471,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                         </div>
                     ))}
                     {companions.length === 0 && (
-                        <div className="text-center py-12 border-2 border-dashed border-muted rounded-xl bg-card/50">
+                        <div className="text-center py-12 border-2 border-dashed border-border rounded-xl bg-card/50">
                           <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50"/>
                           <p className="text-muted-foreground">No hay acompañantes registrados.</p>
                         </div>
@@ -469,27 +480,29 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                 </div>
             )}
 
-            {/* PASO 3: FIRMA */}
+            {/* ========================================================
+                PASO 3: FIRMA
+            ======================================================== */}
             {currentStep === 3 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto h-full animate-in slide-in-from-right-4 duration-300">
                   <div className="space-y-6 flex flex-col justify-center">
                     <div>
-                      <h3 className="text-2xl font-bold mb-2">Confirmación Legal</h3>
+                      <h3 className="text-2xl font-bold mb-2 text-foreground">Confirmación Legal</h3>
                       <p className="text-muted-foreground">Aceptación de términos y condiciones del servicio.</p>
                     </div>
                     <div className="space-y-4 p-6 bg-card rounded-xl border border-border shadow-sm">
-                      <div className="flex gap-3 items-start p-2 rounded-lg hover:bg-accent/50 transition-colors">
-                        <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(c) => setTermsAccepted(c as boolean)} className="mt-1"/>
+                      <div className="flex gap-3 items-start p-3 rounded-lg hover:bg-accent transition-colors border border-transparent hover:border-border">
+                        <Checkbox id="terms" checked={termsAccepted} onCheckedChange={(c) => setTermsAccepted(c as boolean)} className="mt-1 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"/>
                         <div className="grid gap-1">
-                          <Label htmlFor="terms" className="font-medium cursor-pointer">Reglamento Interno</Label>
-                          <p className="text-xs text-muted-foreground">Acepto políticas de cancelación, horarios y normas de convivencia.</p>
+                          <Label htmlFor="terms" className="font-medium cursor-pointer text-foreground">Reglamento Interno</Label>
+                          <p className="text-xs text-muted-foreground">Acepto políticas de cancelación, horarios de Check-out (1:00 PM) y normas de convivencia del establecimiento.</p>
                         </div>
                       </div>
-                      <div className="flex gap-3 items-start p-2 rounded-lg hover:bg-accent/50 transition-colors">
-                        <Checkbox id="privacy" checked={dataPolicyAccepted} onCheckedChange={(c) => setDataPolicyAccepted(c as boolean)} className="mt-1"/>
+                      <div className="flex gap-3 items-start p-3 rounded-lg hover:bg-accent transition-colors border border-transparent hover:border-border">
+                        <Checkbox id="privacy" checked={dataPolicyAccepted} onCheckedChange={(c) => setDataPolicyAccepted(c as boolean)} className="mt-1 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"/>
                         <div className="grid gap-1">
-                          <Label htmlFor="privacy" className="font-medium cursor-pointer">Habeas Data</Label>
-                          <p className="text-xs text-muted-foreground">Autorizo el tratamiento de datos personales (Ley 1581 de 2012).</p>
+                          <Label htmlFor="privacy" className="font-medium cursor-pointer text-foreground">Tratamiento de Datos (Habeas Data)</Label>
+                          <p className="text-xs text-muted-foreground">Autorizo el tratamiento de mis datos personales según la Ley 1581 de 2012 para fines comerciales y de registro hotelero.</p>
                         </div>
                       </div>
                     </div>
@@ -497,11 +510,11 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
 
                   <div className="flex flex-col h-full space-y-4">
                     <div className="flex justify-between items-center">
-                      <h3 className="font-bold">Firma Digital</h3>
-                      {signature && <Badge variant="default" className="bg-green-600"><Check className="h-3 w-3 mr-1"/> Firmado</Badge>}
+                      <h3 className="font-bold text-foreground">Firma Digital del Titular</h3>
+                      {signature && <Badge variant="default" className="bg-[#059669] text-white"><Check className="h-3 w-3 mr-1"/> Verificada</Badge>}
                     </div>
 
-                    <div className="flex-1 min-h-[300px] border-2 border-dashed border-input bg-white rounded-xl overflow-hidden relative shadow-inner cursor-crosshair touch-none">
+                    <div className="flex-1 min-h-[300px] border-2 border-dashed border-border bg-white rounded-xl overflow-hidden relative shadow-inner cursor-crosshair touch-none">
                       <canvas
                           ref={canvasRef}
                           className="absolute inset-0 w-full h-full"
@@ -511,31 +524,33 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                           onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
                       />
                       {!isDrawing && !signature && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground pointer-events-none select-none">
-                            <PenTool className="h-12 w-12 mb-2 opacity-20"/>
-                            <span className="text-sm font-medium opacity-50">Dibuje su firma aquí</span>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none select-none">
+                            <PenTool className="h-12 w-12 mb-2 opacity-30"/>
+                            <span className="text-sm font-medium opacity-70">Dibuje su firma aquí dentro</span>
                           </div>
                       )}
                     </div>
-                    <Button variant="outline" size="sm" onClick={clearSignature} className="self-end text-destructive hover:bg-destructive/10 border-destructive/20">
-                      <Trash2 className="h-4 w-4 mr-2"/> Limpiar Firma
+                    <Button variant="outline" size="sm" onClick={clearSignature} className="self-end text-destructive hover:bg-destructive/10 border-border hover:border-destructive transition-colors">
+                      <Trash2 className="h-4 w-4 mr-2"/> Borrar y repetir
                     </Button>
                   </div>
                 </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="px-8 py-6 bg-card border-t border-border flex justify-between shrink-0">
-            <Button variant="ghost" size="lg" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} disabled={isSubmitting}>
-              <ChevronLeft className="h-5 w-5 mr-2"/> Atrás
+          {/* ========================================================
+              FOOTER NAVEGACIÓN
+          ======================================================== */}
+          <div className="px-4 md:px-8 py-4 md:py-6 bg-card border-t border-border flex justify-between shrink-0">
+            <Button variant="outline" size="lg" className="border-border hover:bg-accent" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} disabled={isSubmitting}>
+              <ChevronLeft className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Atrás</span>
             </Button>
 
             {currentStep < 3 ? (
                 <Button onClick={() => setCurrentStep(currentStep+1)}
                         size="lg"
                         disabled={(currentStep === 0 && hasDebt) || (currentStep === 1 && !isMainGuestValid())}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
+                        className="bg-primary text-[#0F0F0F] hover:bg-primary/90 px-6 md:px-8 font-bold"
                 >
                   Siguiente <ChevronRight className="h-5 w-5 ml-2"/>
                 </Button>
@@ -544,55 +559,57 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                     onClick={handleFinalSubmit}
                     size="lg"
                     disabled={!isStep3Valid() || isSubmitting}
-                    className="bg-green-600 text-white hover:bg-green-700 px-8 min-w-[200px]"
+                    className="bg-[#059669] text-white hover:bg-[#059669]/90 px-4 md:px-8 min-w-[200px] font-bold shadow-lg"
                 >
                   {isSubmitting ? (
                       <><Loader2 className="h-5 w-5 mr-2 animate-spin"/> Procesando...</>
                   ) : (
-                      <><Check className="h-5 w-5 mr-2"/> Confirmar Check-in</>
+                      <><Check className="h-5 w-5 mr-2"/> Terminar Check-in</>
                   )}
                 </Button>
             )}
           </div>
 
-          {/* MODAL DE PAGO */}
+          {/* ========================================================
+              MODAL DE PAGO (Step 0 Helper)
+          ======================================================== */}
           <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-card border-border">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 text-foreground">
                   <DollarSign className="h-5 w-5 text-primary"/> Registrar Pago Inicial
                 </DialogTitle>
-                <DialogDescription>Ingrese el monto para saldar la deuda.</DialogDescription>
+                <DialogDescription>Ingrese el monto para saldar la cuenta de ingreso.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-6 py-4">
                 <div className="grid gap-2">
                   <Label>Monto a pagar</Label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3 text-muted-foreground text-lg">$</span>
+                    <span className="absolute left-4 top-3 text-muted-foreground text-lg font-medium">$</span>
                     <Input
                         type="number"
                         value={paymentAmount}
                         onChange={(e) => setPaymentAmount(e.target.value)}
-                        className="pl-8 text-2xl font-bold h-14"
+                        className="pl-8 text-2xl font-bold h-14 bg-background border-primary focus-visible:ring-primary/50"
                     />
                   </div>
-                  <p className="text-sm text-muted-foreground">Deuda actual: ${pendingAmount.toLocaleString()}</p>
+                  <p className="text-sm text-[#CF6679]">Deuda actual: ${pendingAmount.toLocaleString()}</p>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Método</Label>
+                  <Label>Método de Pago</Label>
                   <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                    <SelectTrigger className="h-12"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-12 bg-background"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="efectivo">Efectivo</SelectItem>
                       <SelectItem value="tarjeta">Tarjeta D/C</SelectItem>
-                      <SelectItem value="transferencia">Transferencia</SelectItem>
+                      <SelectItem value="transferencia">Transferencia Bancaria</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)}>Cancelar</Button>
-                <Button onClick={handleRegisterPayment} className="bg-green-600 hover:bg-green-700 text-white">Registrar</Button>
+                <Button variant="ghost" onClick={() => setIsPaymentModalOpen(false)}>Cancelar</Button>
+                <Button onClick={handleRegisterPayment} className="bg-[#D4AF37] hover:bg-[#D4AF37]/90 text-[#0F0F0F] font-bold">Aplicar Abono</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

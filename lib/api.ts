@@ -150,4 +150,27 @@ export const productsApi = {
     }
 };
 
+export const reservationsApi = {
+    checkout: async (id: string) => {
+        const response = await api.post(`/reservations/${id}/checkout`);
+        return response.data;
+    },
+    cancel: async (id: string) => {
+        const response = await api.post(`/reservations/${id}/cancel`);
+        return response.data;
+    },
+    split: async (id: string, data: { segmentIndex: number, splitDate: string, newRoomId: string | null }) => {
+        const response = await api.post(`/reservations/${id}/segments/split`, data);
+        return response.data;
+    },
+    merge: async (id: string) => {
+        const response = await api.post(`/reservations/${id}/segments/merge`);
+        return response.data;
+    },
+    moveSegment: async (id: string, segmentIndex: number, newRoomId: string) => {
+        const response = await api.put(`/reservations/${id}/segments/${segmentIndex}/move`, { newRoomId });
+        return response.data;
+    }
+};
+
 export default api;
