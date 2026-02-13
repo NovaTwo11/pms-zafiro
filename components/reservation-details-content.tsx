@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { format, differenceInDays } from "date-fns"
+import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { toast } from "sonner"
 import {
-    ArrowLeft, Mail, Link as LinkIcon, Edit, MoreVertical, CreditCard,
-    Calendar, Bed, Users, Phone, MapPin, CheckCircle2, Circle, AlertCircle, XCircle,
-    Copy, MessageSquare, ExternalLink, FileText, ArrowRightLeft, DollarSign, Search, Clock,
-    Save, User, Briefcase, Globe, LogOut, Loader2
+    ArrowLeft, Mail, Link as LinkIcon, MoreVertical, CreditCard,
+    Calendar, Bed, Users, Phone, CheckCircle2, Circle, AlertCircle, XCircle,
+    MessageSquare, FileText, ArrowRightLeft, Clock,
+    Loader2, LogOut
 } from "lucide-react"
 import Link from "next/link"
 
@@ -21,9 +21,8 @@ import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -35,46 +34,31 @@ import { CheckInWizard } from "@/components/checkin-wizard"
 import { ReservationGuestList } from "./reservation-guest-list"
 import { CheckoutModal } from "@/components/checkout-modal"
 import { api, reservationsApi } from "@/lib/api"
+import { ReservationDto, GuestDetailDto } from "@/types"
 
-// --- INTERFACES ---
-interface Guest {
-    id: string
-    primerNombre: string
-    segundoNombre?: string
-    primerApellido: string
-    segundoApellido?: string
-    correo: string
-    telefono: string
-    paisOrigen?: string
-    ciudadOrigen?: string
-    paisResidencia?: string
-    ciudadResidencia?: string
-    direccionResidencia?: string
-    tipoId: string
-    numeroId: string
-    nacionalidad?: string
-    ocupacion?: string
-    fechaNacimiento?: string
-    esTitular: boolean
-    isSigned: boolean
+// Utility para clases
+function cn(...classes: (string | undefined | null | false)[]) {
+    return classes.filter(Boolean).join(' ')
 }
 
 interface ReservationDetailsContentProps {
     reservationId: string
-    folioId?: string // Opcional, el backend puede proporcionarlo
+    folioId?: string
 }
 
 export function ReservationDetailsContent({ reservationId, folioId }: ReservationDetailsContentProps) {
     const router = useRouter()
 
-    // 1. Estados Principales
-    const [reservation, setReservation] = useState<any>(null)
+    // 1. ESTADOS
+    const [reservation, setReservation] = useState<ReservationDto | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [isRefreshing, setIsRefreshing] = useState(false)
 
     // UI States
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeTab, setActiveTab] = useState("general")
     const [isCheckinWizardOpen, setIsCheckinWizardOpen] = useState(false)
-    const [editingGuest, setEditingGuest] = useState<Guest | null>(null)
+    const [editingGuest, setEditingGuest] = useState<GuestDetailDto | null>(null)
 
     // Modal States
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
@@ -82,249 +66,239 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     const [showConfirmCheckout, setShowConfirmCheckout] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
-    const [currentBalance, setCurrentBalance] = useState(0)
+
+    // Balance para el modal de pagos (Estado local temporal)
+    const [modalBalance, setModalBalance] = useState(0)
 
     // ==========================================
-    // 2. FETCH INICIAL DE DATOS
+    // 2. CARGA DE DATOS (Centralizada)
     // ==========================================
-    useEffect(() => {
-        const fetchReservation = async () => {
-            try {
-                const data = await reservationsApi.getById(reservationId)
-                setReservation(data)
-                setCurrentBalance(data.balance || (data.totalAmount - data.paidAmount))
-            } catch (error) {
-                console.error("Error fetching reservation:", error)
-                toast.error("Error al cargar la reserva", {
-                    description: "No se pudo conectar con el servidor."
-                })
-            } finally {
-                setIsLoading(false)
-            }
+    const fetchReservation = useCallback(async () => {
+        try {
+            setIsRefreshing(true)
+            const data = await reservationsApi.getById(reservationId) as unknown as ReservationDto
+            setReservation(data)
+        } catch (error) {
+            console.error("Error fetching reservation:", error)
+            toast.error("Error de conexión", {
+                description: "No se pudo cargar la información actualizada."
+            })
+        } finally {
+            setIsLoading(false)
+            setIsRefreshing(false)
         }
-        fetchReservation()
     }, [reservationId])
+
+    useEffect(() => {
+        fetchReservation()
+    }, [fetchReservation])
 
     // ==========================================
     // 3. HANDLERS LÓGICOS
     // ==========================================
+
+    // --- CHECKOUT ---
     const handleCheckOutRequest = async () => {
+        if (!reservation) return;
         setIsProcessing(true)
         setShowConfirmCheckout(false)
 
         try {
             const data = await reservationsApi.checkout(reservation.id)
-
-            // Éxito
-            setReservation({ ...reservation, status: "finalizada", statusStep: 4 })
             toast.success("Check-out Exitoso", {
-                description: `Habitación ${data.roomReleased || reservation.roomId} liberada y marcada como SUCIA.`
+                description: `Habitación ${data.roomReleased || reservation.roomId} liberada.`
             })
+            await fetchReservation() // Recargar todo
             router.refresh()
-
         } catch (error: any) {
             if (error.response?.status === 409 && error.response?.data?.error === "OUTSTANDING_DEBT") {
                 const balanceData = error.response.data.currentBalance;
                 toast.error("Salida Bloqueada", {
-                    description: error.response.data.message || `El huésped tiene saldo pendiente de $${balanceData.toLocaleString()}. Debe saldar la cuenta.`
+                    description: `Deuda pendiente: $${balanceData.toLocaleString()}.`
                 })
-                setCurrentBalance(balanceData)
+                // Abrir modal de pago automáticamente con el monto de la deuda
+                setModalBalance(balanceData)
                 setShowPaymentModal(true)
             } else {
-                toast.error("Error al procesar la salida", {
-                    description: error.response?.data?.message || error.message || "Verifica tu conexión."
-                })
+                toast.error("Error al procesar la salida")
             }
         } finally {
             setIsProcessing(false)
         }
     }
 
+    // --- PAGOS ---
     const handlePaymentComplete = async (paymentData: any) => {
+        if (!reservation) return;
         setIsProcessing(true)
         setShowPaymentModal(false)
 
+        // Usamos el folioId del backend o el que venga por props
         const targetFolioId = folioId || reservation.folioId;
 
         if (!targetFolioId) {
-            toast.error("No hay un folio asociado a esta reserva para registrar el pago.");
+            toast.error("Error de Folio", { description: "Esta reserva no tiene un folio activo para recibir pagos." });
             setIsProcessing(false);
             return;
         }
 
         try {
+            // 1. Registrar transacción en backend
             await api.post(`/folios/${targetFolioId}/transactions`, {
-                amount: paymentData.finalAmount * -1,
-                description: `Pago Salida (${paymentData.method})`,
-                type: 2,
+                amount: paymentData.finalAmount * -1, // Negativo = Pago
+                description: `Pago (${paymentData.method})`,
+                type: 2, // Payment
                 paymentMethod: paymentData.methodId
             })
 
-            toast.success("Pago Registrado", { description: "Saldo actualizado en el folio." })
+            toast.success("Pago Registrado Exitosamente")
 
-            const newPaid = reservation.paidAmount + paymentData.finalAmount
-            setReservation({ ...reservation, paidAmount: newPaid })
-            setCurrentBalance(0)
+            // 2. Recargar datos inmediatamente para ver el nuevo balance
+            await fetchReservation()
 
-            setTimeout(() => handleCheckOutRequest(), 1000)
+            // 3. Si veníamos de un checkout fallido y el saldo quedó en 0, reintentar checkout
+            // (Opcional: puedes quitar esto si prefieres que el usuario le de clic al botón de nuevo)
+            if ((reservation.balance - paymentData.finalAmount) <= 100) {
+                // Pequeña pausa para UX
+                // setTimeout(() => handleCheckOutRequest(), 500)
+            }
 
         } catch (error: any) {
-            toast.error("Error al registrar el pago", {
-                description: error.response?.data?.message || "Ocurrió un problema en el servidor."
-            })
+            console.error(error)
+            toast.error("Error al registrar el pago")
         } finally {
             setIsProcessing(false)
         }
     }
 
+    // --- UTILS ---
     const handleCopy = (text: string, label: string) => {
         navigator.clipboard.writeText(text)
         toast.success(`${label} copiado`)
     }
 
     const handleWhatsApp = () => {
-        if (!reservation?.guests?.[0]?.telefono) return;
-        const phone = reservation.guests[0].telefono.replace(/[^0-9]/g, "")
-        window.open(`https://wa.me/${phone}`, "_blank")
+        const phone = displayGuests[0]?.telefono?.replace(/[^0-9]/g, "")
+        if (phone) window.open(`https://wa.me/${phone}`, "_blank")
+        else toast.error("No hay teléfono registrado")
     }
 
     const goToFolios = () => {
-        router.push(`/folios?reservationId=${reservationId}`)
-    }
-
-    const handleCheckinComplete = () => {
-        setIsCheckinWizardOpen(false)
-        setReservation({ ...reservation, status: "checkedin", statusStep: 3 })
-        toast.success("Check-in completado", { description: "Habitación ocupada y folio activo." })
+        if (reservation?.folioId) {
+            router.push(`/folios/${reservation.folioId}`)
+        } else {
+            router.push(`/folios?reservationId=${reservationId}`)
+        }
     }
 
     // ==========================================
-    // 4. RENDER DE ESTADOS DE CARGA / ERROR
+    // 4. RENDER: ESTADOS DE CARGA / ERROR
     // ==========================================
-    if (isLoading) {
-        return (
-            <div className="flex h-full items-center justify-center bg-background">
-                <div className="flex flex-col items-center gap-4 text-primary">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="text-sm font-medium">Cargando reserva...</p>
-                </div>
+    if (isLoading) return (
+        <div className="flex h-full items-center justify-center bg-background animate-pulse">
+            <div className="flex flex-col items-center gap-4 text-primary">
+                <Loader2 className="h-10 w-10 animate-spin" />
+                <p className="text-sm font-medium">Cargando detalles...</p>
             </div>
-        )
-    }
+        </div>
+    )
 
-    if (!reservation) {
-        return (
-            <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground gap-4">
-                <AlertCircle className="h-10 w-10 text-destructive" />
-                <p>No se encontró la reserva solicitada.</p>
-                <Link href="/cronograma">
-                    <Button variant="outline">Volver al inicio</Button>
-                </Link>
-            </div>
-        )
-    }
+    if (!reservation) return (
+        <div className="flex h-full flex-col items-center justify-center bg-background text-muted-foreground gap-4">
+            <AlertCircle className="h-10 w-10 text-destructive" />
+            <p>No se pudo cargar la reserva.</p>
+            <Button onClick={() => window.location.reload()} variant="outline">Reintentar</Button>
+        </div>
+    )
 
     // ==========================================
-    // 5. CÁLCULOS DINÁMICOS
+    // 5. VARIABLES SEGURAS (CORRECCIÓN DE NaN)
     // ==========================================
-    const totalCapacity = reservation.adults + reservation.children
-    const pendingAmount = reservation.totalAmount - reservation.paidAmount
-    const percentPaid = reservation.totalAmount > 0 ? (reservation.paidAmount / reservation.totalAmount) * 100 : 0
-    const steps = ['Reservada', 'Confirmada', 'Hospedado', 'Finalizada']
+    // Aseguramos que nunca sean undefined para evitar el error de React
+    const safeAdults = reservation.adults ?? 0
+    const safeChildren = reservation.children ?? 0
+    const totalCapacity = safeAdults + safeChildren
 
-    // Aseguramos variables seguras para render
-    const displayGuests = reservation.guests || []
+    // Cálculos financieros seguros
+    const safeTotal = reservation.totalAmount ?? 0
+    const safePaid = reservation.paidAmount ?? 0
+    // Si el backend envía balance, lo usamos; si no, lo calculamos
+    const currentBalanceCalc = reservation.balance ?? (safeTotal - safePaid)
+
+    const percentPaid = safeTotal > 0 ? (safePaid / safeTotal) * 100 : 0
+
+    // Arrays seguros
+    const displayGuests = reservation.guests && reservation.guests.length > 0 ? reservation.guests : []
     const displayFolioItems = reservation.folioItems || []
-    const mainGuest = displayGuests[0] || {}
+
+    // Titular principal (Fallback seguro)
+    const mainGuest = displayGuests.find(g => g.esTitular) || displayGuests[0] || {
+        primerNombre: reservation.mainGuestName || "Huésped",
+        primerApellido: "",
+        correo: "",
+        telefono: "",
+        numeroId: "---"
+    } as GuestDetailDto
+
+    // Stepper logic
+    const steps = ['Reservada', 'Confirmada', 'Hospedado', 'Finalizada']
+    const currentStatusStep = reservation.statusStep ?? 1
 
     return (
         <div className="flex flex-col h-full bg-background text-foreground overflow-y-auto">
 
             {/* --- MODALES --- */}
 
+            {/* 1. Modal Editar Huésped (Placeholder simple) */}
             <Dialog open={!!editingGuest} onOpenChange={(open) => !open && setEditingGuest(null)}>
-                <DialogContent className="bg-card border-border text-foreground sm:max-w-[700px] h-[85vh] p-0 flex flex-col">
-                    <DialogHeader className="px-6 py-4 border-b border-border">
-                        <DialogTitle className="flex items-center gap-2 text-foreground">
-                            <User className="h-5 w-5 text-primary" /> Editar Datos del Huésped
-                        </DialogTitle>
-                        <DialogDescription className="text-muted-foreground">
-                            Completa todos los campos necesarios para el registro hotelero.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <ScrollArea className="flex-1 px-6 py-4">
-                        <div className="grid gap-4">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Nombre</Label>
-                                    <Input value={editingGuest?.primerNombre || ""} onChange={e => setEditingGuest(prev => prev ? {...prev, primerNombre: e.target.value} : null)} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Apellido</Label>
-                                    <Input value={editingGuest?.primerApellido || ""} onChange={e => setEditingGuest(prev => prev ? {...prev, primerApellido: e.target.value} : null)} />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Documento</Label>
-                                <Input value={editingGuest?.numeroId || ""} onChange={e => setEditingGuest(prev => prev ? {...prev, numeroId: e.target.value} : null)} />
-                            </div>
-                        </div>
-                    </ScrollArea>
-                    <DialogFooter className="px-6 py-4 border-t border-border bg-muted/30">
-                        <Button variant="ghost" onClick={() => setEditingGuest(null)}>Cancelar</Button>
-                        <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => {
-                            toast.success("Guardado"); setEditingGuest(null);
-                        }}>Guardar</Button>
-                    </DialogFooter>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Editar Huésped</DialogTitle></DialogHeader>
+                    <div className="py-4 text-sm text-muted-foreground">Funcionalidad de edición completa pendiente de implementación.</div>
+                    <DialogFooter><Button onClick={() => setEditingGuest(null)}>Cerrar</Button></DialogFooter>
                 </DialogContent>
             </Dialog>
 
+            {/* 2. Modal Confirmar Salida */}
             <AlertDialog open={showConfirmCheckout} onOpenChange={setShowConfirmCheckout}>
-                <AlertDialogContent className="bg-card border-border text-foreground">
+                <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>¿Confirmar salida del huésped?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-muted-foreground">
-                            Esta acción cerrará el folio y marcará la habitación <strong>{reservation.roomId}</strong> como <span className="text-orange-500 font-bold">SUCIA</span>.
-                            <br /><br />
-                            Si existe saldo pendiente, se solicitará el pago.
+                        <AlertDialogTitle>¿Confirmar Check-out?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            La habitación <strong>{reservation.roomId}</strong> se marcará como SUCIA y el folio se cerrará.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel className="border-border hover:bg-accent hover:text-accent-foreground">Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={(e) => { e.preventDefault(); handleCheckOutRequest(); }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            disabled={isProcessing}
-                        >
-                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <LogOut className="h-4 w-4 mr-2" />}
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleCheckOutRequest} className="bg-destructive text-white hover:bg-destructive/90">
                             Confirmar Salida
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
 
+            {/* 3. Modal de Pagos (CheckoutModal) - CORREGIDO */}
             <CheckoutModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
-                total={currentBalance}
+                // Usamos el balance del estado local (si viene de botón pagar) o el saldo actual
+                total={modalBalance > 0 ? modalBalance : currentBalanceCalc}
+                // Pasamos datos BLINDADOS para que el .filter no explote
                 activeFolios={[{
-                    id: folioId || reservation.folioId || "pending",
-                    roomNumber: reservation.roomId,
-                    guestName: (reservation.guests && reservation.guests[0])
-                        ? `${reservation.guests[0].primerNombre} ${reservation.guests[0].primerApellido}`
-                        : "Huésped",
-                    balance: currentBalance,
+                    id: reservation.folioId || "pending-folio",
+                    roomNumber: reservation.roomId || "N/A", // Asegura string, nunca undefined
+                    guestName: `${mainGuest.primerNombre} ${mainGuest.primerApellido}`.trim() || "Invitado",
+                    balance: currentBalanceCalc,
                     status: 'Active'
                 }]}
-                defaultFolioId={folioId || reservation.folioId || "pending"}
+                defaultFolioId={reservation.folioId || "pending-folio"}
                 onComplete={handlePaymentComplete}
             />
 
             <Dialog open={isChangeRoomOpen} onOpenChange={setIsChangeRoomOpen}>
-                <DialogContent className="bg-card border-border"><DialogTitle>Cambio de Habitación</DialogTitle></DialogContent>
+                <DialogContent><DialogTitle>Cambio de Habitación</DialogTitle></DialogContent>
             </Dialog>
 
-            {/* --- HEADER PRINCIPAL --- */}
+            {/* --- HEADER --- */}
             <header className="bg-card border-b border-border px-6 py-4 sticky top-0 z-10 shadow-sm">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-4">
@@ -335,94 +309,101 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                         </Link>
                         <div>
                             <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-bold tracking-tight text-foreground">Reserva #{reservation.code || reservation.id?.substring(0,8)}</h1>
-                                <Badge variant="outline" className={`border-primary px-2 py-0.5 text-xs uppercase tracking-wider ${reservation.status === 'finalizada' || reservation.status === 'checkedout' ? 'bg-muted text-muted-foreground' : 'text-primary bg-primary/10'}`}>
+                                <h1 className="text-2xl font-bold tracking-tight">
+                                    Reserva #{reservation.code || reservation.id.substring(0,6).toUpperCase()}
+                                </h1>
+                                <Badge variant="outline" className={cn(
+                                    "px-2 py-0.5 text-xs uppercase tracking-wider",
+                                    reservation.status === 'Cancelled' ? "text-destructive border-destructive" : "text-primary border-primary"
+                                )}>
                                     {reservation.status}
                                 </Badge>
                             </div>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> Creada: {reservation.createdDate ? format(new Date(reservation.createdDate), "dd MMM yyyy", { locale: es }) : 'N/A'}</span>
+                                <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    Creada: {reservation.createdDate ? format(new Date(reservation.createdDate), "dd MMM yyyy", { locale: es }) : 'N/A'}
+                                </span>
                                 <span>•</span>
-                                <span className="text-primary">Canal: {reservation.origin}</span>
+                                <span className="text-primary">Canal: {reservation.origin || "Directo"}</span>
                             </div>
                         </div>
                     </div>
 
+                    {/* Botones de Acción */}
                     <div className="flex items-center gap-2">
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="border-border text-foreground bg-card hover:bg-accent hover:text-accent-foreground">
-                                    Acciones <MoreVertical className="h-4 w-4 ml-2" />
-                                </Button>
+                                <Button variant="outline">Acciones <MoreVertical className="h-4 w-4 ml-2" /></Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-card border-border text-foreground">
-                                <DropdownMenuItem className="hover:bg-accent focus:bg-accent cursor-pointer" onClick={() => handleCopy(`https://tudominio.com/r/${reservation.id}`, "Link")}>
-                                    <LinkIcon className="h-4 w-4 mr-2" /> Copiar Link
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleCopy(reservation.id, "ID")}>
+                                    <LinkIcon className="h-4 w-4 mr-2"/> Copiar ID
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator className="bg-border" />
-                                <DropdownMenuItem className="text-destructive hover:text-destructive hover:bg-destructive/10 focus:bg-destructive/10 cursor-pointer" onClick={() => setIsCancelDialogOpen(true)}>
-                                    <XCircle className="h-4 w-4 mr-2" /> Cancelar
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onClick={() => setIsCancelDialogOpen(true)}>
+                                    <XCircle className="h-4 w-4 mr-2"/> Cancelar
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
 
-                        {/* BOTÓN DE ACCIÓN PRINCIPAL (DINÁMICO) */}
-                        {reservation.statusStep < 3 ? (
-                            <Button
-                                className="bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-sm"
-                                onClick={() => setIsCheckinWizardOpen(true)}
-                            >
-                                Check-In
+                        {/* Lógica de Botones Principales según StatusStep */}
+                        {currentStatusStep < 3 ? (
+                            <Button className="bg-primary text-primary-foreground font-bold shadow-sm" onClick={() => setIsCheckinWizardOpen(true)}>
+                                <CheckCircle2 className="mr-2 h-4 w-4"/> Check-In
                             </Button>
-                        ) : (reservation.status === 'hospedado' || reservation.status === 'checkedin') ? (
-                            <Button
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold shadow-sm transition-all active:scale-95"
-                                onClick={() => setShowConfirmCheckout(true)}
-                                disabled={isProcessing}
-                            >
-                                {isProcessing ? (
-                                    <>Procesando...</>
-                                ) : (
-                                    <>
-                                        <LogOut className="h-4 w-4 mr-2" /> Check-Out
-                                    </>
-                                )}
+                        ) : currentStatusStep === 3 ? (
+                            <Button variant="destructive" className="font-bold shadow-sm" onClick={() => setShowConfirmCheckout(true)}>
+                                <LogOut className="mr-2 h-4 w-4"/> Check-Out
                             </Button>
                         ) : null}
 
-                        {/* Wizard Component */}
+                        {/* Wizard */}
                         {isCheckinWizardOpen && (
                             <CheckInWizard
                                 isOpen={isCheckinWizardOpen}
                                 onClose={() => setIsCheckinWizardOpen(false)}
                                 reservation={{
                                     id: reservation.id,
-                                    guestName: mainGuest.primerNombre ? `${mainGuest.primerNombre} ${mainGuest.primerApellido}` : "",
+                                    guestName: `${mainGuest.primerNombre} ${mainGuest.primerApellido}`,
                                     roomNumber: reservation.roomId,
-                                    checkIn: new Date(reservation.checkIn || reservation.startDate),
-                                    checkOut: new Date(reservation.checkOut || reservation.endDate),
-                                    totalAmount: reservation.totalAmount,
-                                    paidAmount: reservation.paidAmount
+                                    checkIn: reservation.checkIn,
+                                    checkOut: reservation.checkOut,
+                                    totalAmount: safeTotal,
+                                    paidAmount: safePaid
                                 }}
-                                onComplete={handleCheckinComplete}
+                                onComplete={() => {
+                                    setIsCheckinWizardOpen(false);
+                                    fetchReservation(); // Recargar tras checkin
+                                    toast.success("Check-in completado");
+                                }}
                             />
                         )}
                     </div>
                 </div>
 
-                {/* Progress Bar */}
+                {/* Progress Bar (Stepper) - CORREGIDO */}
                 <div className="mt-6 flex items-center justify-between max-w-3xl mx-auto pb-2">
                     {steps.map((step, index) => {
                         const stepNum = index + 1;
-                        const isActive = stepNum <= reservation.statusStep;
+                        const isActive = stepNum <= currentStatusStep;
                         return (
                             <div key={step} className="flex flex-col items-center relative flex-1">
-                                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 z-10 transition-colors ${isActive ? 'bg-primary border-primary text-primary-foreground' : 'bg-card border-border text-muted-foreground'}`}>
+                                <div className={cn(
+                                    "flex items-center justify-center w-8 h-8 rounded-full border-2 z-10 transition-colors",
+                                    isActive ? "bg-primary border-primary text-primary-foreground" : "bg-card border-border text-muted-foreground"
+                                )}>
                                     {isActive ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
                                 </div>
-                                <span className={`text-xs mt-2 font-medium ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>{step}</span>
+                                <span className={cn(
+                                    "text-xs mt-2 font-medium",
+                                    isActive ? "text-primary" : "text-muted-foreground"
+                                )}>{step}</span>
                                 {index !== 3 && (
-                                    <div className={`absolute top-4 left-1/2 w-full h-[2px] -z-0 ${isActive ? 'bg-primary' : 'bg-border'}`} />
+                                    <div className={cn(
+                                        "absolute top-4 left-1/2 w-full h-[2px] -z-0",
+                                        isActive ? "bg-primary" : "bg-border"
+                                    )} />
                                 )}
                             </div>
                         )
@@ -430,92 +411,120 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                 </div>
             </header>
 
-            {/* --- CONTENIDO --- */}
+            {/* --- BODY --- */}
             <main className="flex-1 p-6 overflow-hidden">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
 
-                    {/* COLUMNA IZQUIERDA (TABS) */}
+                    {/* IZQUIERDA: Tabs de Información */}
                     <div className="lg:col-span-8 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
                         <Tabs defaultValue="general" className="w-full" onValueChange={setActiveTab}>
-                            <div className="flex items-center justify-between mb-4">
-                                <TabsList className="bg-card border border-border h-10">
-                                    <TabsTrigger value="general" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">General</TabsTrigger>
-                                    <TabsTrigger value="huespedes" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Huéspedes ({displayGuests.length})</TabsTrigger>
-                                    <TabsTrigger value="finance" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Finanzas</TabsTrigger>
-                                </TabsList>
-                            </div>
+                            <TabsList className="grid w-full grid-cols-3">
+                                <TabsTrigger value="general">General</TabsTrigger>
+                                <TabsTrigger value="huespedes">Huéspedes ({displayGuests.length})</TabsTrigger>
+                                <TabsTrigger value="finance">Finanzas</TabsTrigger>
+                            </TabsList>
 
-                            <TabsContent value="general" className="space-y-6 mt-0">
+                            {/* TAB: GENERAL */}
+                            <TabsContent value="general" className="space-y-4 mt-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <Card className="bg-card border-border">
-                                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground uppercase flex gap-2"><Calendar className="h-4 w-4 text-primary" /> Detalles</CardTitle></CardHeader>
+                                    <Card>
+                                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground flex gap-2"><Calendar className="h-4 w-4"/> Fechas</CardTitle></CardHeader>
                                         <CardContent>
-                                            <div className="flex justify-between items-center mb-4">
-                                                <div><p className="text-xs text-muted-foreground">Check-In</p><p className="text-lg font-bold text-foreground">{reservation.checkIn ? format(new Date(reservation.checkIn), "dd MMM", { locale: es }) : '---'}</p></div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <div className="text-center">
+                                                    <p className="text-xs text-muted-foreground">Llegada</p>
+                                                    <p className="text-lg font-bold">{reservation.checkIn ? format(new Date(reservation.checkIn), "dd MMM") : "--"}</p>
+                                                </div>
                                                 <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
-                                                <div className="text-right"><p className="text-xs text-muted-foreground">Check-Out</p><p className="text-lg font-bold text-foreground">{reservation.checkOut ? format(new Date(reservation.checkOut), "dd MMM", { locale: es }) : '---'}</p></div>
+                                                <div className="text-center">
+                                                    <p className="text-xs text-muted-foreground">Salida</p>
+                                                    <p className="text-lg font-bold">{reservation.checkOut ? format(new Date(reservation.checkOut), "dd MMM") : "--"}</p>
+                                                </div>
                                             </div>
-                                            <div className="text-sm text-muted-foreground">{reservation.adults} Adultos, {reservation.children} Niños</div>
+                                            <div className="text-center text-sm text-muted-foreground bg-muted/50 p-1 rounded">
+                                                {safeAdults} Adultos, {safeChildren} Niños ({reservation.nights} Noches)
+                                            </div>
                                         </CardContent>
                                     </Card>
 
-                                    <Card className="bg-card border-border">
-                                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground uppercase flex gap-2"><Bed className="h-4 w-4 text-primary" /> Habitación</CardTitle></CardHeader>
+                                    <Card>
+                                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground flex gap-2"><Bed className="h-4 w-4"/> Habitación</CardTitle></CardHeader>
                                         <CardContent>
                                             <div className="flex justify-between items-start">
-                                                <div><div className="text-3xl font-bold text-foreground mb-1">{reservation.roomId}</div><p className="text-sm text-muted-foreground">{reservation.roomName}</p></div>
+                                                <div>
+                                                    <div className="text-3xl font-bold">{reservation.roomId}</div>
+                                                    <p className="text-sm text-muted-foreground">{reservation.roomName}</p>
+                                                </div>
                                             </div>
-                                            <Button variant="outline" size="sm" className="w-full mt-4 border-border text-xs hover:bg-accent" onClick={() => setIsChangeRoomOpen(true)}><ArrowRightLeft className="h-3 w-3 mr-2" /> Cambiar</Button>
+                                            <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => setIsChangeRoomOpen(true)}>
+                                                <ArrowRightLeft className="h-3 w-3 mr-2" /> Cambiar
+                                            </Button>
                                         </CardContent>
                                     </Card>
                                 </div>
-                                <Card className="bg-card border-border">
-                                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground uppercase flex gap-2"><MessageSquare className="h-4 w-4 text-primary" /> Notas</CardTitle></CardHeader>
-                                    <CardContent><div className="bg-muted border-l-4 border-primary p-4 rounded-r-md"><p className="text-sm italic text-foreground">"{reservation.notes || "Sin notas."}"</p></div></CardContent>
+
+                                <Card>
+                                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground flex gap-2"><MessageSquare className="h-4 w-4"/> Notas</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <div className="bg-muted border-l-4 border-primary p-4 rounded-r-md">
+                                            <p className="text-sm italic">{reservation.notes || "Sin notas adicionales."}</p>
+                                        </div>
+                                    </CardContent>
                                 </Card>
                             </TabsContent>
 
-                            <TabsContent value="huespedes">
+                            {/* TAB: HUÉSPEDES */}
+                            <TabsContent value="huespedes" className="mt-4">
                                 <ReservationGuestList
                                     guests={displayGuests}
+                                    // CORRECCIÓN NAN: Pasamos un número seguro
                                     maxGuests={totalCapacity}
-                                    onAddGuest={() => setEditingGuest({ id: `new-${Date.now()}`, primerNombre: "", primerApellido: "", correo: "", telefono: "", tipoId: "CC", numeroId: "", esTitular: false, isSigned: false } as Guest)}
                                     onEditGuest={setEditingGuest}
-                                    onSignGuest={() => toast("Firma")}
                                 />
                             </TabsContent>
 
-                            <TabsContent value="finance">
-                                <Card className="bg-card border-border">
-                                    <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-4">
-                                        <div className="space-y-1"><CardTitle className="text-base text-foreground">Cargos</CardTitle><CardDescription className="text-xs">Folio #{reservation.folioId || "Pendiente"}</CardDescription></div>
-                                        <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10" onClick={goToFolios}><FileText className="h-4 w-4 mr-2" /> Ver Folio</Button>
+                            {/* TAB: FINANZAS */}
+                            <TabsContent value="finance" className="mt-4">
+                                <Card>
+                                    <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+                                        <div className="space-y-1">
+                                            <CardTitle className="text-base">Detalle de Cargos</CardTitle>
+                                            <CardDescription className="text-xs">Folio #{reservation.folioId || "Pendiente"}</CardDescription>
+                                        </div>
+                                        <Button variant="outline" size="sm" onClick={goToFolios}>
+                                            <FileText className="h-4 w-4 mr-2" /> Ver Folio Completo
+                                        </Button>
                                     </CardHeader>
                                     <CardContent className="p-0">
                                         <Table>
-                                            <TableHeader className="bg-muted">
-                                                <TableRow className="border-border">
+                                            <TableHeader>
+                                                <TableRow>
                                                     <TableHead>Fecha</TableHead>
                                                     <TableHead>Concepto</TableHead>
-                                                    <TableHead className="text-right">Total</TableHead>
+                                                    <TableHead className="text-right">Monto</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {displayFolioItems.map((item: any) => (
-                                                    <TableRow key={item.id} className="hover:bg-accent/50 border-border">
-                                                        <TableCell className="text-xs font-mono text-muted-foreground">{item.date}</TableCell>
-                                                        <TableCell className="text-xs text-foreground">{item.concept}</TableCell>
-                                                        <TableCell className="text-xs font-bold text-right text-foreground">${item.price.toLocaleString()}</TableCell>
-                                                    </TableRow>
-                                                ))}
-                                                {displayFolioItems.length === 0 && (
+                                                {displayFolioItems.length === 0 ? (
                                                     <TableRow>
-                                                        <TableCell colSpan={3} className="text-center py-6 text-muted-foreground text-sm">No hay transacciones en el folio aún.</TableCell>
+                                                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                                                            No hay transacciones registradas aún.
+                                                        </TableCell>
                                                     </TableRow>
+                                                ) : (
+                                                    displayFolioItems.map((item, idx) => (
+                                                        <TableRow key={item.id || idx}>
+                                                            <TableCell className="font-mono text-xs">{item.date}</TableCell>
+                                                            <TableCell>{item.concept}</TableCell>
+                                                            <TableCell className={cn("text-right font-bold text-xs", item.price < 0 ? "text-green-600" : "")}>
+                                                                ${Math.abs(item.price).toLocaleString()}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))
                                                 )}
-                                                <TableRow className="bg-muted border-t-2 border-border">
-                                                    <TableCell colSpan={2} className="text-right text-xs font-bold uppercase text-foreground">Total de Reserva</TableCell>
-                                                    <TableCell className="text-right text-sm font-bold text-primary">${reservation.totalAmount.toLocaleString()}</TableCell>
+                                                <TableRow className="bg-muted border-t-2">
+                                                    <TableCell colSpan={2} className="text-right font-bold uppercase text-xs">Total Reserva</TableCell>
+                                                    <TableCell className="text-right font-bold text-sm text-primary">${safeTotal.toLocaleString()}</TableCell>
                                                 </TableRow>
                                             </TableBody>
                                         </Table>
@@ -525,45 +534,72 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                         </Tabs>
                     </div>
 
-                    {/* COLUMNA DERECHA (SIDEBAR) */}
+                    {/* DERECHA: Sidebar de Balance */}
                     <div className="lg:col-span-4 space-y-6">
-                        <Card className="bg-card border-border overflow-hidden">
-                            <div className="bg-muted p-4 border-b border-border flex justify-between items-center">
-                                <span className="font-semibold text-foreground">Balance</span>
-                                <Badge variant={pendingAmount > 0 ? "destructive" : "default"} className="uppercase text-[10px]">{pendingAmount > 0 ? "Pendiente" : "Pagado"}</Badge>
+                        <Card className="overflow-hidden border-primary/20 shadow-md">
+                            <div className="bg-muted p-4 border-b flex justify-between items-center">
+                                <span className="font-semibold">Balance de Cuenta</span>
+                                <Badge variant={currentBalanceCalc > 100 ? "destructive" : "default"}>
+                                    {currentBalanceCalc > 100 ? "Pendiente" : "Pagado"}
+                                </Badge>
                             </div>
                             <CardContent className="p-5 space-y-4">
                                 <div className="space-y-1">
-                                    <div className="flex justify-between text-lg font-bold"><span className="text-foreground">Total</span><span className="text-primary">$ {reservation.totalAmount.toLocaleString()}</span></div>
-                                    <div className="flex justify-between text-xs text-muted-foreground"><span>Pagado: $ {reservation.paidAmount.toLocaleString()}</span><span>{percentPaid.toFixed(0)}%</span></div>
-                                    <Progress value={percentPaid} className="h-2 bg-border" indicatorColor="bg-green-500" />
+                                    <div className="flex justify-between text-lg font-bold">
+                                        <span>Total</span>
+                                        <span className="text-primary">${safeTotal.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex justify-between text-xs text-muted-foreground">
+                                        <span>Pagado: ${safePaid.toLocaleString()}</span>
+                                        <span>{percentPaid.toFixed(0)}%</span>
+                                    </div>
+                                    <Progress value={percentPaid} className="h-2" />
                                 </div>
-                                {pendingAmount > 0 && (
+
+                                {currentBalanceCalc > 100 && (
                                     <div className="bg-destructive/10 border border-destructive/20 rounded p-3 flex gap-2 items-start">
                                         <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
-                                        <div className="flex-1"><p className="text-xs text-destructive font-medium">Saldo Pendiente</p><p className="text-sm font-bold text-destructive">$ {pendingAmount.toLocaleString()}</p></div>
+                                        <div className="flex-1">
+                                            <p className="text-xs text-destructive font-medium">Saldo Pendiente</p>
+                                            <p className="text-sm font-bold text-destructive">${currentBalanceCalc.toLocaleString()}</p>
+                                        </div>
                                     </div>
                                 )}
-                                <Button className="w-full bg-secondary text-secondary-foreground hover:bg-secondary/80 font-semibold" onClick={() => { setCurrentBalance(pendingAmount); setShowPaymentModal(true); }}>
+
+                                <Button className="w-full font-bold"
+                                        onClick={() => {
+                                            setModalBalance(currentBalanceCalc);
+                                            setShowPaymentModal(true);
+                                        }}
+                                        disabled={currentBalanceCalc <= 0}
+                                >
                                     <CreditCard className="h-4 w-4 mr-2" /> Registrar Pago
                                 </Button>
-                                <Button variant="link" className="w-full text-muted-foreground text-xs hover:text-foreground" onClick={goToFolios}>Ir a Facturación <ExternalLink className="ml-1 h-3 w-3" /></Button>
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-card border-border">
-                            <CardHeader className="pb-3 border-b border-border/50"><CardTitle className="text-sm font-medium text-muted-foreground uppercase flex gap-2"><Users className="h-4 w-4 text-primary" /> Titular</CardTitle></CardHeader>
+                        <Card>
+                            <CardHeader className="pb-3 border-b"><CardTitle className="text-sm font-medium flex gap-2"><Users className="h-4 w-4"/> Titular</CardTitle></CardHeader>
                             <CardContent className="pt-4">
                                 <div className="flex items-center gap-4 mb-4">
-                                    <Avatar className="h-12 w-12 border border-primary/30"><AvatarFallback className="bg-muted text-primary font-bold">{mainGuest.primerNombre ? mainGuest.primerNombre[0] : "?"}</AvatarFallback></Avatar>
-                                    <div><p className="font-bold text-sm text-foreground">{mainGuest.primerNombre || "Desconocido"} {mainGuest.primerApellido || ""}</p><p className="text-xs text-muted-foreground">ID: {mainGuest.numeroId || "---"}</p></div>
+                                    <Avatar className="h-12 w-12 border"><AvatarFallback>{mainGuest.primerNombre?.[0]}</AvatarFallback></Avatar>
+                                    <div>
+                                        <p className="font-bold text-sm">{mainGuest.primerNombre} {mainGuest.primerApellido}</p>
+                                        <p className="text-xs text-muted-foreground">ID: {mainGuest.numeroId}</p>
+                                    </div>
                                 </div>
                                 <div className="space-y-3 text-sm">
-                                    <div className="flex items-center gap-3 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => mainGuest.correo && handleCopy(mainGuest.correo, "Email")}><Mail className="h-4 w-4" /> <span className="truncate">{mainGuest.correo || "Sin correo"}</span></div>
-                                    <div className="flex items-center gap-3 text-muted-foreground"><Phone className="h-4 w-4" /> <span>{mainGuest.telefono || "Sin teléfono"}</span></div>
+                                    <div className="flex items-center gap-3 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => mainGuest.correo && handleCopy(mainGuest.correo, "Email")}>
+                                        <Mail className="h-4 w-4" /> <span className="truncate">{mainGuest.correo || "Sin correo"}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-muted-foreground">
+                                        <Phone className="h-4 w-4" /> <span>{mainGuest.telefono || "Sin teléfono"}</span>
+                                    </div>
                                 </div>
-                                <Separator className="bg-border my-4" />
-                                <Button size="sm" variant="outline" className="w-full border-border text-xs hover:bg-accent hover:text-accent-foreground" onClick={handleWhatsApp} disabled={!mainGuest.telefono}>WhatsApp</Button>
+                                <Separator className="my-4"/>
+                                <Button size="sm" variant="outline" className="w-full text-xs" onClick={handleWhatsApp} disabled={!mainGuest.telefono}>
+                                    Contactar por WhatsApp
+                                </Button>
                             </CardContent>
                         </Card>
                     </div>

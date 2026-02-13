@@ -47,18 +47,34 @@ export interface GuestDto {
 // GET /api/reservations
 export interface ReservationDto {
     id: string;
-    confirmationCode: string; // Corregido: en tu seed es ConfirmationCode
+    code: string; // C# envía 'Code' (ConfirmationCode)
     status: BackendReservationStatus;
-    guestId: string;
-    mainGuestName?: string; // Opcional si el backend hace include
+    statusStep: number;
+
     roomId: string;
-    checkIn: string;  // ISO Date
-    checkOut: string; // ISO Date
-    totalAmount: number;
+    roomName: string;
+
+    mainGuestId: string;
+    mainGuestName: string;
+
+    checkIn: string;
+    checkOut: string;
+    nights: number;
     adults: number;
     children: number;
-    paidAmount?: number;
-    balance?: number;
+    origin: string;
+    createdDate: string;
+    notes: string;
+
+    totalAmount: number;
+    paidAmount: number;
+    balance: number;
+    folioId?: string; // Guid nullable
+
+    // Las listas que faltaban
+    segments: ReservationSegmentDto[];
+    guests: GuestDetailDto[];
+    folioItems: FolioItemDto[];
 }
 
 // GET /api/products
@@ -94,6 +110,43 @@ export interface CreateProductDto {
     category: string;
     imageUrl?: string;
     isStockTracked: boolean;
+}
+
+export interface ReservationSegmentDto {
+    roomId: string;
+    roomNumber: string;
+    start: string;
+    end: string;
+}
+
+export interface GuestDetailDto {
+    id: string;
+    primerNombre: string;
+    segundoNombre: string;
+    primerApellido: string;
+    segundoApellido: string;
+    correo: string;
+    telefono: string;
+    paisOrigen: string;
+    ciudadOrigen: string;
+    paisResidencia: string;
+    ciudadResidencia: string;
+    direccionResidencia: string;
+    tipoId: string;
+    numeroId: string;
+    nacionalidad: string;
+    ocupacion: string;
+    esTitular: boolean;
+    isSigned: boolean;
+}
+
+export interface FolioItemDto {
+    id: string;
+    date: string;
+    concept: string;
+    qty: number;
+    price: number;
+    total: number;
 }
 
 export interface UpdateProductDto extends CreateProductDto {
