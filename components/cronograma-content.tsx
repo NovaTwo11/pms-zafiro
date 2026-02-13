@@ -16,15 +16,16 @@ import {
 } from "date-fns"
 import { es } from "date-fns/locale"
 import { CheckInWizard } from "@/components/checkin-wizard"
-import { ChevronLeft, ChevronRight, Plus, Lock, DollarSign, Calendar as CalendarIcon, Loader2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Plus, Lock, DollarSign, Calendar as CalendarIcon, Loader2, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { ReservationPopover } from "./reservation-popover"
 import { NewReservationModal } from "./new-reservation-modal"
 import { RateModifierModal } from "./rate-modifier-modal"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import api, { reservationsApi } from "@/lib/api" // <-- Agregado reservationsApi
+import api, { reservationsApi } from "@/lib/api"
 
 // Importamos los tipos centralizados
 import {
@@ -58,6 +59,7 @@ export type TimelineReservation = {
   status: VisualReservationStatus
   totalValue: number
   paidAmount: number
+  balance?: number
   checkInTime?: Date
   adults?: number
   children?: number
@@ -74,18 +76,16 @@ const extractData = (response: any): any[] => {
   if (Array.isArray(response)) return response;
   if (response.data && Array.isArray(response.data)) return response.data;
   if (response.result && Array.isArray(response.result)) return response.result;
-
   console.warn("Formato de datos no reconocido:", response);
   return [];
 }
 
-// Nueva función inteligente que determina el color basado en el SALDO
+// Lógica inteligente de estado visual financiero
 const determineVisualStatus = (
     backendStatus: string,
     balance: number,
     paidAmount: number
 ): VisualReservationStatus => {
-
   if (backendStatus === "Blocked") return "blocked"
   if (backendStatus === "Cancelled") return "history"
   if (backendStatus === "CheckedOut") return "history"
@@ -101,7 +101,7 @@ const determineVisualStatus = (
   return "available"
 }
 
-// --- UTILIDADES VISUALES ---
+// --- UTILIDADES VISUALES (Adaptado a variables CSS de Tailwind) ---
 const formatPriceShort = (price: number) => {
   if (price >= 1000000) return `${(price / 1000000).toFixed(1).replace(/\.0$/, '')}M`
   if (price >= 1000) return `${(price / 1000).toFixed(0)}k`
@@ -111,19 +111,19 @@ const formatPriceShort = (price: number) => {
 const getStatusStyles = (status: VisualReservationStatus) => {
   switch (status) {
     case "check_in_paid":
-      return "bg-emerald-100 text-emerald-800 border-l-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-100 dark:border-l-emerald-500 border-l-4 hover:bg-emerald-200 dark:hover:bg-emerald-500/25 ring-1 ring-emerald-500/20"
+      return "bg-emerald-100 text-emerald-900 border-l-emerald-600 dark:bg-emerald-500/25 dark:text-emerald-50 dark:border-l-emerald-400 border-l-4 hover:bg-emerald-200 dark:hover:bg-emerald-500/40 shadow-sm"
     case "check_in_debt":
-      return "bg-rose-100 text-rose-800 border-l-rose-600 dark:bg-rose-500/15 dark:text-rose-100 dark:border-l-rose-500 border-l-4 hover:bg-rose-200 dark:hover:bg-rose-500/25 ring-1 ring-rose-500/20"
+      return "bg-rose-100 text-rose-900 border-l-rose-600 dark:bg-rose-500/25 dark:text-rose-50 dark:border-l-rose-400 border-l-4 hover:bg-rose-200 dark:hover:bg-rose-500/40 shadow-sm"
     case "confirmed_deposit":
-      return "bg-blue-100 text-blue-800 border-l-blue-600 dark:bg-blue-500/15 dark:text-blue-100 dark:border-l-blue-500 border-l-4 hover:bg-blue-200 dark:hover:bg-blue-500/25 ring-1 ring-blue-500/20"
+      return "bg-blue-100 text-blue-900 border-l-blue-600 dark:bg-blue-500/25 dark:text-blue-50 dark:border-l-blue-400 border-l-4 hover:bg-blue-200 dark:hover:bg-blue-500/40 shadow-sm"
     case "confirmed_no_deposit":
-      return "bg-orange-100 text-orange-800 border-l-orange-600 dark:bg-orange-500/15 dark:text-orange-100 dark:border-l-orange-500 border-l-4 hover:bg-orange-200 dark:hover:bg-orange-500/25 ring-1 ring-orange-500/20"
+      return "bg-orange-100 text-orange-900 border-l-orange-600 dark:bg-orange-500/25 dark:text-orange-50 dark:border-l-orange-400 border-l-4 hover:bg-orange-200 dark:hover:bg-orange-500/40 shadow-sm"
     case "blocked":
-      return "bg-gray-200 text-gray-600 border-l-gray-500 dark:bg-gray-700/40 dark:text-gray-400 dark:border-l-gray-500 border-l-4 hover:bg-gray-300 dark:hover:bg-gray-600/50 grayscale pattern-diagonal-lines"
+      return "bg-gray-200 text-gray-800 border-l-gray-500 dark:bg-gray-700/50 dark:text-gray-200 dark:border-l-gray-400 border-l-4 hover:bg-gray-300 dark:hover:bg-gray-700/70 grayscale pattern-diagonal-lines shadow-sm"
     case "history":
-      return "bg-gray-100 text-gray-500 border-l-gray-400 dark:bg-gray-800 dark:text-gray-500 dark:border-l-gray-600 border-l-4 opacity-70"
+      return "bg-gray-100 text-gray-500 border-l-gray-400 dark:bg-gray-800/80 dark:text-gray-400 dark:border-l-gray-600 border-l-4 opacity-70 shadow-sm"
     default:
-      return "bg-gray-500 text-white"
+      return "bg-primary text-primary-foreground"
   }
 }
 
@@ -133,16 +133,15 @@ const getCategoryColor = (category: string | undefined) => {
   if (cat.includes("superior")) return "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-400/20 dark:bg-purple-400/5"
   if (cat.includes("deluxe") || cat.includes("triple")) return "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:border-amber-400/20 dark:bg-amber-400/5"
   if (cat.includes("suite") || cat.includes("familiar")) return "text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:border-rose-400/20 dark:bg-rose-400/5"
-  return "text-gray-500 bg-gray-100 dark:text-gray-400"
+  return "text-muted-foreground bg-muted border-border"
 }
 
 export function CronogramaContent() {
-  // Data State
   const [rooms, setRooms] = useState<RoomType[]>([])
   const [floors, setFloors] = useState<FloorGroup[]>([])
   const [reservations, setReservations] = useState<TimelineReservation[]>([])
   const [loading, setLoading] = useState(true)
-  const [refreshTrigger, setRefreshTrigger] = useState(0) // <-- NUEVO: Disparador de recarga
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   // UI State
   const [currentDate, setCurrentDate] = useState(new Date())
@@ -154,6 +153,9 @@ export function CronogramaContent() {
   const [checkinWizardData, setCheckinWizardData] = useState<{ isOpen: boolean; reservation: TimelineReservation | null } | null>(null)
   const [newReservationModal, setNewReservationModal] = useState<{ isOpen: boolean; roomId: string; date: Date; type: "reservation" | "block" } | null>(null)
   const [rateModalOpen, setRateModalOpen] = useState(false)
+
+  // Estado para la confirmación de cancelación
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null)
 
   const gridRef = useRef<HTMLDivElement>(null)
 
@@ -189,7 +191,7 @@ export function CronogramaContent() {
           groups[floorName].push(room)
         })
         const floorGroups = Object.entries(groups).map(([name, rooms]) => ({ name, rooms }))
-        setFloors(floorGroups.sort((a, b) => a.name.localeCompare(b.name)))
+        setFloors(floorGroups.sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name)))
 
         const reservationsRaw = extractData(resRes)
 
@@ -204,6 +206,8 @@ export function CronogramaContent() {
                   startDate: parseISO(s.start),
                   endDate: parseISO(s.end)
                 }))
+                    // ORDENAMIENTO CRÍTICO: Sincroniza los índices del Frontend con el Backend para N-Splits
+                    .sort((a: ReservationSegment, b: ReservationSegment) => a.startDate.getTime() - b.startDate.getTime())
               }
               else if (r.roomId) {
                 const start = r.checkIn ? parseISO(r.checkIn) : new Date()
@@ -223,7 +227,7 @@ export function CronogramaContent() {
                 status: determineVisualStatus(r.status, r.balance || 0, r.paidAmount || 0),
                 totalValue: r.totalAmount || 0,
                 paidAmount: r.paidAmount || 0,
-                balance: r.balance, // <-- Pasar balance explícitamente al popover
+                balance: r.balance,
                 adults: r.adults,
                 children: r.children,
                 segments: segments
@@ -257,7 +261,7 @@ export function CronogramaContent() {
       }
     }
     fetchData()
-  }, [currentDate, refreshTrigger]) // <-- Dependencia refreshTrigger añadida
+  }, [currentDate, refreshTrigger])
 
   // --- LOGIC ---
   const getRoomPrice = (room: RoomType, date: Date) => {
@@ -346,13 +350,13 @@ export function CronogramaContent() {
       toast.success("Reserva cancelada exitosamente")
       setRefreshTrigger(prev => prev + 1)
       setSelectedReservation(null)
+      setCancelConfirmId(null)
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Error al cancelar la reserva")
     }
   }
 
-  const handleSplit = async (reservationId: string, segmentIndex: number, startDate: Date) => {
-    // Buscamos el endDate del segmento original para calcular la mitad de la estadía
+  const handleSplit = async (reservationId: string, segmentIndex: number) => {
     const res = reservations.find(r => r.id === reservationId);
     if (!res) return;
 
@@ -400,7 +404,7 @@ export function CronogramaContent() {
       const { resId, segmentIdx } = JSON.parse(dataString);
       await reservationsApi.moveSegment(resId, segmentIdx, newRoomId);
       toast.success("Reserva movida exitosamente");
-      setRefreshTrigger(prev => prev + 1); // Recargar
+      setRefreshTrigger(prev => prev + 1);
     } catch (error: any) {
       toast.error(error.response?.data?.message || "La habitación destino está ocupada");
     }
@@ -418,7 +422,7 @@ export function CronogramaContent() {
         {/* HEADER */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between shrink-0">
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Cronograma</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Cronograma</h1>
             <p className="text-xs text-muted-foreground">Gestión de ocupación y tarifas</p>
           </div>
 
@@ -462,11 +466,11 @@ export function CronogramaContent() {
         </div>
 
         {/* GRID PRINCIPAL */}
-        <div className="rounded-lg border bg-background flex-1 flex flex-col overflow-hidden shadow-sm relative">
+        <div className="rounded-lg border bg-card flex-1 flex flex-col overflow-hidden shadow-sm relative">
           <div ref={gridRef} className="flex-1 overflow-auto custom-scrollbar">
             <div className="min-w-max">
 
-              {/* HEADER DÍAS (z-40 para estar encima de todo) */}
+              {/* HEADER DÍAS */}
               <div className="flex sticky top-0 z-40 bg-card shadow-sm border-b">
                 <div className="w-[180px] shrink-0 border-r p-3 sticky left-0 z-50 bg-card flex items-center justify-between border-b shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                   <span className="text-xs font-semibold">Habitación</span>
@@ -474,11 +478,16 @@ export function CronogramaContent() {
                 <div className="flex">
                   {days.map((day, idx) => (
                       <div key={idx} className={cn(
-                          "min-w-[48px] w-12 border-r py-2 text-center flex flex-col justify-center",
-                          isToday(day) && "bg-primary/5"
+                          "min-w-[48px] w-12 border-r py-2 text-center flex flex-col justify-center transition-colors duration-300",
+                          // Marcador nativo del DÍA ACTUAL (Usa el color primario de global.css)
+                          isToday(day) ? "bg-primary/10 border-b-2 border-b-primary text-primary" : "bg-card"
                       )}>
-                        <span className="text-[10px] uppercase text-muted-foreground">{format(day, "EEE", { locale: es })}</span>
-                        <span className={cn("text-sm font-bold", isToday(day) ? "text-amber-600" : "")}>{format(day, "d")}</span>
+                        <span className={cn("text-[10px] uppercase font-medium", isToday(day) ? "text-primary" : "text-muted-foreground")}>
+                          {format(day, "EEE", { locale: es })}
+                        </span>
+                        <span className={cn("text-sm font-bold", isToday(day) ? "text-primary" : "")}>
+                          {format(day, "d")}
+                        </span>
                       </div>
                   ))}
                 </div>
@@ -489,17 +498,14 @@ export function CronogramaContent() {
                 {floors.map((floor) => (
                     <div key={floor.name}>
                       {/* SEPARADOR PISO */}
-                      <div className="flex sticky left-0 w-full z-20 border-y bg-muted/30">
-                        {/* Parte fija izquierda (z-30) */}
-                        <div className="w-[180px] shrink-0 sticky left-0 z-30 bg-muted/95 backdrop-blur-sm border-r px-4 py-1 flex items-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
+                      <div className="flex sticky left-0 w-full z-20 border-y bg-muted/50">
+                        <div className="w-[180px] shrink-0 sticky left-0 z-30 bg-muted border-r px-4 py-1 flex items-center shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                           <span className="text-[10px] font-bold uppercase text-primary">{floor.name}</span>
                         </div>
-                        {/* Resto de la barra */}
-                        <div className="flex-1 bg-muted/30 py-1"></div>
+                        <div className="flex-1 bg-muted/50 py-1"></div>
                       </div>
 
                       {floor.rooms.map((room) => {
-                        // Renderizar segmentos que pertenezcan a esta habitación
                         const roomSegments = reservations.flatMap(res =>
                             res.segments.map((seg, idx) => ({ reservation: res, segment: seg, idx }))
                                 .filter(item => item.segment.roomId === room.id)
@@ -508,7 +514,7 @@ export function CronogramaContent() {
                         return (
                             <div key={room.id} className="flex border-b h-[72px] relative group bg-background">
                               {/* COLUMNA INFO */}
-                              <div className="w-[180px] shrink-0 border-r px-4 flex flex-col justify-center sticky left-0 z-30 bg-background group-hover:bg-card transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
+                              <div className="w-[180px] shrink-0 border-r px-4 flex flex-col justify-center sticky left-0 z-30 bg-background group-hover:bg-accent/50 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                                 <div className="flex items-center justify-between w-full mb-1">
                                   <span className="text-xl font-bold">{room.number}</span>
                                   <Badge variant="outline" className={cn("text-[9px] px-1 py-0", getCategoryColor(room.category))}>
@@ -516,8 +522,8 @@ export function CronogramaContent() {
                                   </Badge>
                                 </div>
                                 <span className="text-[10px] text-muted-foreground">
-                                            ${formatPriceShort(getRoomPrice(room, new Date()))}
-                                        </span>
+                                    ${formatPriceShort(getRoomPrice(room, new Date()))}
+                                </span>
                               </div>
 
                               {/* GRID DÍAS (DROP ZONES) */}
@@ -531,11 +537,12 @@ export function CronogramaContent() {
                                           onDragOver={(e) => { if (!isOccupied) e.preventDefault() }}
                                           onDrop={(e) => { if (!isOccupied) handleDrop(e, room.id) }}
                                           className={cn(
-                                              "min-w-[48px] w-12 border-r transition-colors",
-                                              isToday(day) && "bg-primary/5",
+                                              "min-w-[48px] w-12 border-r transition-colors duration-300",
+                                              // Sombra/Fondo nativo del DÍA ACTUAL dentro de la celda de la matriz
+                                              isToday(day) && !isOccupied && "bg-primary/5 ring-1 ring-inset ring-primary/20",
                                               isOccupied
-                                                  ? "bg-muted/10 cursor-not-allowed opacity-50"
-                                                  : "cursor-pointer hover:bg-accent/40"
+                                                  ? (isToday(day) ? "bg-muted/30 cursor-not-allowed opacity-50 ring-1 ring-inset ring-primary/20" : "bg-muted/10 cursor-not-allowed opacity-50")
+                                                  : "cursor-pointer hover:bg-accent"
                                           )}
                                           onClick={() => !isOccupied && setNewReservationModal({ isOpen: true, roomId: room.id, date: day, type: "reservation" })}
                                       />
@@ -550,27 +557,25 @@ export function CronogramaContent() {
                                   return (
                                       <ReservationPopover
                                           key={`${reservation.id}-${idx}`}
-                                          reservation={reservation as any} // Tipado para match con ReservationPopover
+                                          reservation={reservation as any}
                                           segment={segment}
                                           segmentIndex={idx}
                                           isOpen={selectedReservation === `${reservation.id}-${idx}`}
                                           onOpenChange={(open) => setSelectedReservation(open ? `${reservation.id}-${idx}` : null)}
-                                          // -- CONEXIÓN DE ACCIONES --
                                           onCheckIn={() => handleCheckIn(reservation.id)}
                                           onCheckOut={() => handleCheckOut(reservation.id)}
-                                          onCancel={() => handleCancel(reservation.id)}
+                                          onCancel={() => setCancelConfirmId(reservation.id)} // Intercepta para abrir el modal
                                           onSplit={handleSplit}
                                           onMerge={handleMerge}
                                       >
                                         <div
-                                            // -- DRAG LOGIC --
                                             draggable={reservation.status !== "history" && reservation.status !== "blocked"}
                                             onDragStart={(e) => {
                                               e.dataTransfer.setData("application/json", JSON.stringify({ resId: reservation.id, segmentIdx: idx }));
                                               e.dataTransfer.effectAllowed = "move";
                                             }}
                                             className={cn(
-                                                "absolute top-1 bottom-1 m-auto rounded-md shadow-sm text-[10px] font-medium flex flex-col justify-center px-2 cursor-grab active:cursor-grabbing transition-all overflow-hidden whitespace-nowrap border-l-4 select-none",
+                                                "absolute top-1 bottom-1 m-auto rounded-md shadow-sm text-[10px] font-medium flex flex-col justify-center px-2 cursor-grab active:cursor-grabbing transition-all overflow-hidden whitespace-nowrap select-none",
                                                 "z-10 hover:z-20 hover:scale-[1.02]",
                                                 getStatusStyles(reservation.status)
                                             )}
@@ -603,13 +608,13 @@ export function CronogramaContent() {
           </div>
         </div>
 
-        {/* LEYENDA */}
+        {/* LEYENDA (Usando Tailwind estático y seguro para temas) */}
         <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] sm:text-xs bg-card py-2 px-4 rounded-full border border-border w-fit mx-auto shadow-sm shrink-0">
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div> <span className="text-muted-foreground">Al día</span></div>
-          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div> <span className="text-muted-foreground">Deuda</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-destructive"></div> <span className="text-muted-foreground">Deuda</span></div>
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> <span className="text-muted-foreground">Confirmada</span></div>
           <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-orange-500"></div> <span className="text-muted-foreground">Pendiente</span></div>
-          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-gray-500"></div> <span className="text-muted-foreground">Historial/Bloq</span></div>
+          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground"></div> <span className="text-muted-foreground">Historial/Bloq</span></div>
         </div>
 
         {/* MODALES & WIZARDS */}
@@ -646,6 +651,34 @@ export function CronogramaContent() {
                 }}
             />
         )}
+
+        {/* DIALOGO DE CONFIRMACIÓN DE CANCELACIÓN (Nativo de UI y destructivo) */}
+        <Dialog open={!!cancelConfirmId} onOpenChange={(open) => !open && setCancelConfirmId(null)}>
+          <DialogContent className="sm:max-w-md bg-card">
+            <DialogHeader>
+              <DialogTitle className="text-destructive flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" /> Confirmar Cancelación
+              </DialogTitle>
+              <DialogDescription className="pt-2 text-base text-foreground">
+                ¿Estás completamente seguro de que deseas cancelar esta reserva?
+                <br /><br />
+                <span className="text-muted-foreground">Esta acción no se puede deshacer y la habitación quedará libre inmediatamente en el cronograma.</span>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-4 flex gap-2">
+              <Button variant="outline" onClick={() => setCancelConfirmId(null)}>
+                Volver
+              </Button>
+              <Button
+                  variant="destructive"
+                  onClick={() => { if(cancelConfirmId) handleCancel(cancelConfirmId) }}
+              >
+                Sí, Cancelar Reserva
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
       </div>
   )
 }
