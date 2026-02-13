@@ -131,37 +131,31 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     const handlePaymentComplete = async (paymentData: any) => {
         if (!reservation) return;
         setIsProcessing(true)
-        setShowPaymentModal(false)
 
-        // Usamos el folioId del backend o el que venga por props
+        // Obtener Folio ID seguro
         const targetFolioId = folioId || reservation.folioId;
 
         if (!targetFolioId) {
-            toast.error("Error de Folio", { description: "Esta reserva no tiene un folio activo para recibir pagos." });
+            toast.error("Error de Folio", { description: "Reserva sin folio activo (Check-in pendiente)." });
             setIsProcessing(false);
             return;
         }
 
         try {
-            // 1. Registrar transacción en backend
+            const amountToSend = Math.abs(paymentData.finalAmount);
+
             await api.post(`/folios/${targetFolioId}/transactions`, {
-                amount: paymentData.finalAmount * -1, // Negativo = Pago
+                amount: amountToSend,
                 description: `Pago (${paymentData.method})`,
-                type: 2, // Payment
+                type: 1, // 1 = Payment en tu Enum de C#
                 paymentMethod: paymentData.methodId
             })
 
-            toast.success("Pago Registrado Exitosamente")
+            toast.success("Pago Registrado")
+            setShowPaymentModal(false) // Cerrar modal antes de refrescar
 
-            // 2. Recargar datos inmediatamente para ver el nuevo balance
+            // Forzar recarga de datos
             await fetchReservation()
-
-            // 3. Si veníamos de un checkout fallido y el saldo quedó en 0, reintentar checkout
-            // (Opcional: puedes quitar esto si prefieres que el usuario le de clic al botón de nuevo)
-            if ((reservation.balance - paymentData.finalAmount) <= 100) {
-                // Pequeña pausa para UX
-                // setTimeout(() => handleCheckOutRequest(), 500)
-            }
 
         } catch (error: any) {
             console.error(error)
@@ -568,11 +562,14 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
 
                                 <Button className="w-full font-bold"
                                         onClick={() => {
+                                            if (!reservation.folioId) {
+                                                toast.error("Acción requerida", {description: "Debes realizar el Check-in para habilitar la cuenta."});
+                                                return;
+                                            }
                                             setModalBalance(currentBalanceCalc);
                                             setShowPaymentModal(true);
                                         }}
-                                        disabled={currentBalanceCalc <= 0}
-                                >
+                                        disabled={currentBalanceCalc <= 0 && reservation.status !== 'CheckedIn'}                                >
                                     <CreditCard className="h-4 w-4 mr-2" /> Registrar Pago
                                 </Button>
                             </CardContent>
