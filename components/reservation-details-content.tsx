@@ -53,14 +53,18 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     const [reservation, setReservation] = useState<ReservationDto | null>(null)
     const [isLoading, setIsLoading] = useState(true)
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeTab, setActiveTab] = useState("general")
     const [isCheckinWizardOpen, setIsCheckinWizardOpen] = useState(false)
     const [editingGuest, setEditingGuest] = useState<GuestDetailDto | null>(null)
 
+    // Estado para el modal de éxito de correos/facturas
+    const [successDialog, setSuccessDialog] = useState<{isOpen: boolean, title: string, message: string}>({
+        isOpen: false, title: "", message: ""
+    })
+
     // Modal States
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
-    const [isCancelling, setIsCancelling] = useState(false) // NUEVO: Estado de carga para cancelación
+    const [isCancelling, setIsCancelling] = useState(false)
     const [isChangeRoomOpen, setIsChangeRoomOpen] = useState(false)
     const [showConfirmCheckout, setShowConfirmCheckout] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -70,22 +74,8 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     const [availableRooms, setAvailableRooms] = useState<RoomDto[]>([])
     const [selectedNewRoom, setSelectedNewRoom] = useState<string>("")
 
-    // Balance para el modal de pagos (Estado local temporal)
+    // Balance para el modal de pagos
     const [modalBalance, setModalBalance] = useState(0)
-
-    const handleSendInvoice = async () => {
-        if (!reservation?.folioId) return;
-        setIsProcessing(true);
-        toast.info("Enviando factura al correo...");
-        try {
-            await api.post(`/folios/${reservation.folioId}/send-invoice`);
-            toast.success("Factura enviada correctamente");
-        } catch (error) {
-            toast.error("Error al enviar la factura");
-        } finally {
-            setIsProcessing(false);
-        }
-    };
 
     // ==========================================
     // 2. CARGA DE DATOS (Centralizada)
@@ -112,7 +102,26 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     // 3. HANDLERS LÓGICOS
     // ==========================================
 
-    // --- CANCELAR RESERVA (NUEVO) ---
+    // --- ENVIAR FACTURA ---
+    const handleSendInvoice = async () => {
+        if (!reservation?.folioId) return;
+        setIsProcessing(true);
+        toast.info("Generando y enviando factura...");
+        try {
+            await api.post(`/folios/${reservation.folioId}/send-invoice`);
+            setSuccessDialog({
+                isOpen: true,
+                title: "¡Factura Enviada!",
+                message: `El detalle financiero ha sido enviado exitosamente al correo registrado en la reserva.`
+            });
+        } catch (error) {
+            toast.error("Error al enviar la factura");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // --- CANCELAR RESERVA ---
     const handleCancelReservation = async () => {
         if (!reservation) return;
         setIsCancelling(true);
@@ -120,7 +129,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
             await reservationsApi.cancel(reservation.id);
             toast.success("Reserva cancelada correctamente");
             setIsCancelDialogOpen(false);
-            await fetchReservation(); // Refrescar el estado a 'Cancelled'
+            await fetchReservation();
             router.refresh();
         } catch (error) {
             console.error(error);
@@ -141,7 +150,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
             toast.success("Check-out Exitoso", {
                 description: `Habitación ${data.roomReleased || reservation.roomId} liberada.`
             })
-            await fetchReservation() // Recargar todo
+            await fetchReservation()
             router.refresh()
         } catch (error: any) {
             if (error.response?.status === 409 && error.response?.data?.error === "OUTSTANDING_DEBT") {
@@ -149,7 +158,6 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                 toast.error("Salida Bloqueada", {
                     description: `Deuda pendiente: $${balanceData.toLocaleString()}.`
                 })
-                // Abrir modal de pago automáticamente con el monto de la deuda
                 setModalBalance(balanceData)
                 setShowPaymentModal(true)
             } else {
@@ -164,25 +172,18 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     const handleOpenPayment = async () => {
         if (!reservation) return;
 
-        // Si ya tiene folio, abrir modal normal
         if (reservation.folioId) {
-            // Si el balance es negativo (pagado de más), mostrar 0, o dejar que el usuario ponga monto
             const initialAmount = (reservation.balance ?? 0) > 0 ? (reservation.balance ?? 0) : 0;
             setModalBalance(initialAmount);
             setShowPaymentModal(true);
             return;
         }
 
-        // Si NO tiene folio (Pre-Checkin), intentar crearlo "On-the-fly"
         try {
             setIsProcessing(true);
             await reservationsApi.ensureFolio(reservationId);
             toast.success("Cuenta habilitada para pagos anticipados");
-
-            // Recargar datos para obtener el nuevo folioId en el estado
             await fetchReservation();
-
-            // Abrir modal asumiendo deuda total inicial
             setModalBalance(reservation.totalAmount ?? 0);
             setShowPaymentModal(true);
         } catch (error) {
@@ -197,7 +198,6 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         if (!reservation) return;
         setIsProcessing(true)
 
-        // Obtener Folio ID seguro (ahora debería existir tras el ensureFolio)
         const targetFolioId = folioId || reservation.folioId;
 
         if (!targetFolioId) {
@@ -208,20 +208,16 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
 
         try {
             const amountToSend = Math.abs(paymentData.finalAmount);
-
             await api.post(`/folios/${targetFolioId}/transactions`, {
                 amount: amountToSend,
                 description: `Pago (${paymentData.method})`,
-                type: 1, // 1 = Payment en tu Enum de C#
+                type: 1,
                 paymentMethod: paymentData.methodId
             })
 
             toast.success("Pago Registrado")
-            setShowPaymentModal(false) // Cerrar modal antes de refrescar
-
-            // Forzar recarga de datos
+            setShowPaymentModal(false)
             await fetchReservation()
-
         } catch (error: any) {
             console.error(error)
             toast.error("Error al registrar el pago")
@@ -233,9 +229,8 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     // --- CAMBIO DE HABITACIÓN ---
     const handleOpenMoveRoom = async () => {
         setIsChangeRoomOpen(true);
-        setAvailableRooms([]); // Reset
+        setAvailableRooms([]);
         try {
-            // Cargar habitaciones disponibles para mover
             const rooms = await reservationsApi.getAvailableRoomsForMove(reservationId);
             setAvailableRooms(rooms);
         } catch (e) {
@@ -251,7 +246,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
             await reservationsApi.moveSegment(reservationId, 0, selectedNewRoom);
             toast.success("Habitación cambiada exitosamente");
             setIsChangeRoomOpen(false);
-            await fetchReservation(); // Recargar UI
+            await fetchReservation();
         } catch (error: any) {
             console.error(error);
             toast.error("Error al cambiar habitación", { description: error.response?.data?.message });
@@ -260,24 +255,15 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         }
     };
 
-    // --- GESTIÓN DE HUÉSPEDES (Edición) ---
-    // Esta función recibe los datos del Drawer, los formatea y llama a la API de reservas
+    // --- GESTIÓN DE HUÉSPEDES ---
     const handleGuestUpdate = async (formData: any) => {
         try {
-            console.log("Datos recibidos del formulario:", formData);
-
-            // CORRECCIÓN: Si el Drawer devuelve datos pero no guardó, lo hacemos aquí.
-            // Verificamos si formData tiene datos y si editingGuest tiene ID.
             if (formData && editingGuest && editingGuest.id) {
-                // Hacemos la llamada explícita para asegurar el guardado
                 await api.put(`/guests/${editingGuest.id}`, formData);
                 toast.success("Huésped actualizado correctamente");
             }
-
-            // Recargamos la reserva para ver los cambios reflejados
             await fetchReservation();
             setEditingGuest(null);
-
         } catch (error) {
             console.error(error);
             toast.error("Error al actualizar huésped");
@@ -325,40 +311,24 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     )
 
     // ==========================================
-    // 5. VARIABLES SEGURAS (CORRECCIÓN DE NaN)
+    // 5. VARIABLES SEGURAS
     // ==========================================
-    // Aseguramos que nunca sean undefined para evitar el error de React
     const safeAdults = reservation.adults ?? 0
     const safeChildren = reservation.children ?? 0
     const totalCapacity = safeAdults + safeChildren
-
-    // Cálculos financieros seguros
     const safeTotal = reservation.totalAmount ?? 0
     const safePaid = reservation.paidAmount ?? 0
-    // Si el backend envía balance, lo usamos; si no, lo calculamos
     const currentBalanceCalc = reservation.balance ?? (safeTotal - safePaid)
-
     const percentPaid = safeTotal > 0 ? (safePaid / safeTotal) * 100 : 0
-
-    // Arrays seguros
     const displayGuests = reservation.guests && reservation.guests.length > 0 ? reservation.guests : []
     const displayFolioItems = reservation.folioItems || []
 
-    // Titular principal (Fallback seguro)
     const mainGuest = displayGuests.find(g => g.esTitular) || displayGuests[0] || {
-        id: "",
-        primerNombre: reservation.mainGuestName || "Huésped",
-        primerApellido: "",
-        correo: "",
-        telefono: "",
-        numeroId: "---",
-        tipoId: "",
-        nacionalidad: "",
-        esTitular: true,
-        isSigned: false
+        id: "", primerNombre: reservation.mainGuestName || "Huésped", primerApellido: "",
+        correo: "", telefono: "", numeroId: "---", tipoId: "", nacionalidad: "",
+        esTitular: true, isSigned: false
     } as GuestDetailDto
 
-    // Stepper logic
     const steps = ['Reservada', 'Confirmada', 'Hospedado', 'Finalizada']
     const currentStatusStep = reservation.statusStep ?? 1
 
@@ -366,6 +336,26 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         <div className="flex flex-col h-full bg-background text-foreground overflow-y-auto">
 
             {/* --- MODALES --- */}
+
+            {/* Modal de Éxito para Correos y Facturas */}
+            <Dialog open={successDialog.isOpen} onOpenChange={(open) => setSuccessDialog(prev => ({...prev, isOpen: open}))}>
+                <DialogContent className="sm:max-w-md bg-card border-border text-foreground">
+                    <DialogHeader>
+                        <div className="mx-auto w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+                            <CheckCircle2 className="h-6 w-6 text-green-500" />
+                        </div>
+                        <DialogTitle className="text-center text-xl">{successDialog.title}</DialogTitle>
+                        <DialogDescription className="text-center text-md pt-2">
+                            {successDialog.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="sm:justify-center mt-4">
+                        <Button type="button" onClick={() => setSuccessDialog(prev => ({...prev, isOpen: false}))} className="bg-primary text-black hover:bg-primary/90">
+                            Aceptar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* 1. Modal Editar Huésped */}
             <GuestFormDrawer
@@ -375,7 +365,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                 onGuestSaved={handleGuestUpdate}
             />
 
-            {/* Modal Confirmar Cancelación (NUEVO) */}
+            {/* Modal Confirmar Cancelación */}
             <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
@@ -420,12 +410,10 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
             <CheckoutModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
-                // Usamos el balance del estado local (si viene de botón pagar) o el saldo actual
                 total={modalBalance > 0 ? modalBalance : currentBalanceCalc}
-                // Pasamos datos BLINDADOS para que el .filter no explote
                 activeFolios={[{
                     id: reservation.folioId || "pending-folio",
-                    roomNumber: reservation.roomId || "N/A", // Asegura string, nunca undefined
+                    roomNumber: reservation.roomId || "N/A",
                     guestName: `${mainGuest.primerNombre} ${mainGuest.primerApellido}`.trim() || "Invitado",
                     balance: currentBalanceCalc,
                     status: 'Active'
@@ -551,13 +539,12 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                     checkOut: reservation.checkOut,
                                     totalAmount: safeTotal,
                                     paidAmount: safePaid,
-                                    // NUEVO: Pasamos los datos crudos para pre-cargar
                                     mainGuestData: mainGuest,
                                     companionsData: displayGuests.filter(g => !g.esTitular)
                                 }}
                                 onComplete={() => {
                                     setIsCheckinWizardOpen(false);
-                                    fetchReservation(); // Recargar tras checkin
+                                    fetchReservation();
                                     toast.success("Check-in completado");
                                 }}
                             />

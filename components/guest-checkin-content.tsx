@@ -1,15 +1,15 @@
 "use client"
 
-import { useState } from "react"
-import { CheckCircle, Plus, User, ArrowRight, Save, Trash2, X, Users } from "lucide-react"
+import { useState, useEffect } from "react"
+import { CheckCircle, Plus, User, ArrowRight, Save, Trash2, X, Users, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner" // Asegúrate de tener sonner o usa tu sistema de notificaciones
+import { toast } from "sonner"
+import api from "@/lib/api" // Importa tu instancia de Axios
 
 // Tipo para el formulario de huésped
 type GuestForm = {
@@ -56,19 +56,6 @@ const emptyGuestState: GuestForm = {
     ciudadDestino: "",
 }
 
-// Datos simulados del titular (pre-llenado)
-const initialMainGuestState: GuestForm = {
-    ...emptyGuestState,
-    primerNombre: "Carlos",
-    primerApellido: "García",
-    numeroId: "123456789",
-    nacionalidad: "Colombiano",
-    telefono: "+57 300 123 4567",
-    correo: "carlos.garcia@email.com",
-    paisDestino: "Colombia",
-    ciudadDestino: "Zarzal",
-}
-
 interface GuestCheckInContentProps {
     reservationCode: string
 }
@@ -76,13 +63,59 @@ interface GuestCheckInContentProps {
 export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProps) {
     const [step, setStep] = useState(1) // 1: Titular, 2: Acompañantes, 3: Finalizado
 
+    // Estados de API
+    const [isLoadingInit, setIsLoadingInit] = useState(true)
+    const [isSaving, setIsSaving] = useState(false)
+    const [realReservationId, setRealReservationId] = useState<string>("")
+
     // Datos del Titular
-    const [mainGuest, setMainGuest] = useState<GuestForm>(initialMainGuestState)
+    const [mainGuest, setMainGuest] = useState<GuestForm>(emptyGuestState)
 
     // Datos de Acompañantes
     const [companions, setCompanions] = useState<GuestForm[]>([])
     const [isAddingCompanion, setIsAddingCompanion] = useState(false)
     const [newCompanion, setNewCompanion] = useState<GuestForm>(emptyGuestState)
+
+    // --- CARGA INICIAL DE DATOS ---
+    useEffect(() => {
+        const fetchReservation = async () => {
+            try {
+                // Llama al endpoint de backend que creamos
+                const response = await api.get(`/reservations/by-code/${reservationCode}`)
+                const data = response.data
+
+                setRealReservationId(data.id)
+
+                // Mapeo de datos del Backend al Frontend
+                if (data.mainGuest) {
+                    setMainGuest({
+                        ...emptyGuestState,
+                        primerNombre: data.mainGuest.primerNombre || "",
+                        segundoNombre: data.mainGuest.segundoNombre || "",
+                        primerApellido: data.mainGuest.primerApellido || "",
+                        segundoApellido: data.mainGuest.segundoApellido || "",
+                        correo: data.mainGuest.email || "",
+                        telefono: data.mainGuest.phone || "",
+                        numeroId: data.mainGuest.documentNumber || "",
+                        tipoId: data.mainGuest.documentType || "CC",
+                        nacionalidad: data.mainGuest.nationality || "",
+                        ciudadOrigen: data.mainGuest.cityOfOrigin || "",
+                        fechaCumpleanos: data.mainGuest.birthDate || ""
+                    })
+                }
+            } catch (error) {
+                console.error("Error fetching reservation:", error)
+                toast.error("No pudimos cargar la reserva", {
+                    description: "Verifica que el link de check-in sea correcto."
+                })
+            } finally {
+                setIsLoadingInit(false)
+            }
+        }
+
+        fetchReservation()
+    }, [reservationCode])
+
 
     // --- MANEJADORES ---
 
@@ -96,7 +129,6 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
 
     const handleSubmitTitular = (e: React.FormEvent) => {
         e.preventDefault()
-        // Aquí podrías validar campos obligatorios adicionales
         setStep(2)
         window.scrollTo({ top: 0, behavior: "smooth" })
     }
@@ -121,15 +153,29 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
     }
 
     const handleFinalize = async () => {
-        // Aquí iría la llamada a tu API para guardar TODO (titular + acompañantes)
-        console.log("Guardando Reserva:", {
-            code: reservationCode,
-            mainGuest,
-            companions
-        })
+        setIsSaving(true)
+        try {
+            // Empaquetamos todo para enviarlo al backend
+            const payload = {
+                mainGuest: mainGuest,
+                companions: companions
+            }
 
-        // Simulación de carga
-        setStep(3)
+            // Llamamos al POST para completar el check-in online
+            await api.post(`/reservations/${realReservationId}/online-checkin`, payload)
+
+            // Si todo sale bien, avanzamos al paso 3 (Éxito)
+            setStep(3)
+            window.scrollTo({ top: 0, behavior: "smooth" })
+
+        } catch (error) {
+            console.error("Error al guardar checkin", error)
+            toast.error("Ocurrió un error al procesar su solicitud", {
+                description: "Por favor, inténtelo de nuevo en unos minutos."
+            })
+        } finally {
+            setIsSaving(false)
+        }
     }
 
     // --- RENDERIZADO DE FORMULARIO (Reutilizable para Titular y Acompañante) ---
@@ -147,23 +193,23 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Primer Nombre *</Label>
-                        <Input className="bg-background border-border" required value={data.primerNombre} onChange={(e) => onChange("primerNombre", e.target.value)} />
+                        <Input className="bg-background border-border" required value={data.primerNombre} onChange={(e) => onChange("primerNombre", e.target.value)} disabled={isSaving}/>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Segundo Nombre</Label>
-                        <Input className="bg-background border-border" value={data.segundoNombre} onChange={(e) => onChange("segundoNombre", e.target.value)} />
+                        <Input className="bg-background border-border" value={data.segundoNombre} onChange={(e) => onChange("segundoNombre", e.target.value)} disabled={isSaving}/>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Primer Apellido *</Label>
-                        <Input className="bg-background border-border" required value={data.primerApellido} onChange={(e) => onChange("primerApellido", e.target.value)} />
+                        <Input className="bg-background border-border" required value={data.primerApellido} onChange={(e) => onChange("primerApellido", e.target.value)} disabled={isSaving}/>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Segundo Apellido</Label>
-                        <Input className="bg-background border-border" value={data.segundoApellido} onChange={(e) => onChange("segundoApellido", e.target.value)} />
+                        <Input className="bg-background border-border" value={data.segundoApellido} onChange={(e) => onChange("segundoApellido", e.target.value)} disabled={isSaving}/>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Tipo Documento *</Label>
-                        <Select value={data.tipoId} onValueChange={(v) => onChange("tipoId", v)}>
+                        <Select value={data.tipoId} onValueChange={(v) => onChange("tipoId", v)} disabled={isSaving}>
                             <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
                             <SelectContent className="bg-card border-border text-white">
                                 <SelectItem value="CC">Cédula de Ciudadanía</SelectItem>
@@ -175,16 +221,16 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                     </div>
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Número Documento *</Label>
-                        <Input className="bg-background border-border" required value={data.numeroId} onChange={(e) => onChange("numeroId", e.target.value)} />
+                        <Input className="bg-background border-border" required value={data.numeroId} onChange={(e) => onChange("numeroId", e.target.value)} disabled={isSaving}/>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-muted-foreground">Fecha Nacimiento</Label>
-                            <Input type="date" className="bg-background border-border" value={data.fechaCumpleanos} onChange={(e) => onChange("fechaCumpleanos", e.target.value)} />
+                            <Input type="date" className="bg-background border-border [color-scheme:dark]" value={data.fechaCumpleanos} onChange={(e) => onChange("fechaCumpleanos", e.target.value)} disabled={isSaving}/>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-muted-foreground">Género</Label>
-                            <Select value={data.genero} onValueChange={(v) => onChange("genero", v)}>
+                            <Select value={data.genero} onValueChange={(v) => onChange("genero", v)} disabled={isSaving}>
                                 <SelectTrigger className="bg-background border-border"><SelectValue /></SelectTrigger>
                                 <SelectContent className="bg-card border-border text-white">
                                     <SelectItem value="M">Masculino</SelectItem>
@@ -196,7 +242,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                     </div>
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Nacionalidad</Label>
-                        <Input className="bg-background border-border" value={data.nacionalidad} onChange={(e) => onChange("nacionalidad", e.target.value)} />
+                        <Input className="bg-background border-border" value={data.nacionalidad} onChange={(e) => onChange("nacionalidad", e.target.value)} disabled={isSaving}/>
                     </div>
                 </div>
             </div>
@@ -209,16 +255,16 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Email {isCompanion ? '(Opcional)' : '*'}</Label>
-                        <Input type="email" className="bg-background border-border" required={!isCompanion} value={data.correo} onChange={(e) => onChange("correo", e.target.value)} />
+                        <Input type="email" className="bg-background border-border" required={!isCompanion} value={data.correo} onChange={(e) => onChange("correo", e.target.value)} disabled={isSaving}/>
                     </div>
                     <div className="space-y-2">
                         <Label className="text-muted-foreground">Teléfono {isCompanion ? '(Opcional)' : '*'}</Label>
-                        <Input className="bg-background border-border" required={!isCompanion} value={data.telefono} onChange={(e) => onChange("telefono", e.target.value)} />
+                        <Input className="bg-background border-border" required={!isCompanion} value={data.telefono} onChange={(e) => onChange("telefono", e.target.value)} disabled={isSaving}/>
                     </div>
                 </div>
             </div>
 
-            {/* UBICACIÓN - Simplificado para acompañantes si se desea, aquí lo dejo completo */}
+            {/* UBICACIÓN */}
             {!isCompanion && (
                 <div className="space-y-4 pt-4">
                     <h3 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider mb-2 border-b border-border pb-1">
@@ -227,25 +273,48 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                             <Label className="text-muted-foreground">País Residencia *</Label>
-                            <Input className="bg-background border-border" required value={data.paisResidencia} onChange={(e) => onChange("paisResidencia", e.target.value)} />
+                            <Input className="bg-background border-border" required value={data.paisResidencia} onChange={(e) => onChange("paisResidencia", e.target.value)} disabled={isSaving}/>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-muted-foreground">Ciudad Residencia *</Label>
-                            <Input className="bg-background border-border" required value={data.ciudadResidencia} onChange={(e) => onChange("ciudadResidencia", e.target.value)} />
+                            <Input className="bg-background border-border" required value={data.ciudadResidencia} onChange={(e) => onChange("ciudadResidencia", e.target.value)} disabled={isSaving}/>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-muted-foreground">País Origen *</Label>
-                            <Input className="bg-background border-border" required value={data.paisOrigen} onChange={(e) => onChange("paisOrigen", e.target.value)} />
+                            <Input className="bg-background border-border" required value={data.paisOrigen} onChange={(e) => onChange("paisOrigen", e.target.value)} disabled={isSaving}/>
                         </div>
                         <div className="space-y-2">
                             <Label className="text-muted-foreground">Ciudad Origen *</Label>
-                            <Input className="bg-background border-border" required value={data.ciudadOrigen} onChange={(e) => onChange("ciudadOrigen", e.target.value)} />
+                            <Input className="bg-background border-border" required value={data.ciudadOrigen} onChange={(e) => onChange("ciudadOrigen", e.target.value)} disabled={isSaving}/>
                         </div>
                     </div>
                 </div>
             )}
         </div>
     )
+
+    // --- PANTALLA DE CARGA INICIAL ---
+    if (isLoadingInit) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-[#D4AF37] mb-4" />
+                <h2 className="text-xl font-bold text-foreground mb-2">Hotel Zafiro</h2>
+                <p className="text-muted-foreground">Buscando tu reserva...</p>
+            </div>
+        )
+    }
+
+    // --- PANTALLA DE ERROR SI NO HAY ID REAL ---
+    if (!realReservationId) {
+        return (
+            <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-center">
+                <X className="h-12 w-12 text-destructive mb-4" />
+                <h2 className="text-2xl font-bold text-foreground mb-2">Reserva no encontrada</h2>
+                <p className="text-muted-foreground mb-6">El código <strong>{reservationCode}</strong> no coincide con ninguna reserva activa.</p>
+                <Button variant="outline" onClick={() => window.location.reload()}>Reintentar</Button>
+            </div>
+        )
+    }
 
     return (
         <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-10 px-4 animate-in fade-in duration-500">
@@ -254,7 +323,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
             <div className="text-center mb-8">
                 <h1 className="text-3xl font-bold text-[#D4AF37] mb-2 font-[family-name:var(--font-heading)]">Hotel Zafiro</h1>
                 <p className="text-muted-foreground">Registro de Huéspedes</p>
-                <div className="mt-2 inline-block px-3 py-1 rounded-full bg-[#333333] text-xs font-mono text-foreground">
+                <div className="mt-2 inline-block px-3 py-1 rounded-full bg-[#bg-background] text-xs font-mono text-foreground">
                     Reserva: {reservationCode}
                 </div>
             </div>
@@ -278,7 +347,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                 {renderFormFields(mainGuest, handleMainGuestChange)}
                             </CardContent>
                             <CardFooter>
-                                <Button type="submit" className="w-full bg-primary text-black hover:bg-primary/90 font-bold h-12">
+                                <Button type="submit" className="w-full bg-primary text-black hover:bg-primary/90 font-bold h-12" disabled={isSaving}>
                                     Guardar y Continuar <ArrowRight className="h-4 w-4 ml-2" />
                                 </Button>
                             </CardFooter>
@@ -301,13 +370,13 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                             Agregue las personas que se hospedarán con usted.
                                         </CardDescription>
                                     </div>
-                                    {/* Botón flotante si hay acompañantes */}
                                     {!isAddingCompanion && companions.length > 0 && (
                                         <Button
                                             variant="outline"
                                             size="sm"
                                             className="border-[#D4AF37] text-[#D4AF37] hover:bg-primary/10"
                                             onClick={() => setIsAddingCompanion(true)}
+                                            disabled={isSaving}
                                         >
                                             <Plus className="h-4 w-4 mr-2" /> Agregar Otro
                                         </Button>
@@ -339,6 +408,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                                     size="icon"
                                                     onClick={() => removeCompanion(comp.id!)}
                                                     className="text-[#CF6679] hover:text-red-500 hover:bg-red-500/10"
+                                                    disabled={isSaving}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -347,7 +417,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                     </div>
                                 )}
 
-                                {/* ESTADO VACÍO (Sin acompañantes y sin estar agregando) */}
+                                {/* ESTADO VACÍO */}
                                 {companions.length === 0 && !isAddingCompanion && (
                                     <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background">
                                         <Users className="h-10 w-10 text-[#333333] mx-auto mb-3" />
@@ -356,6 +426,7 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                             variant="outline"
                                             onClick={() => setIsAddingCompanion(true)}
                                             className="border-[#D4AF37] text-[#D4AF37] hover:bg-primary/10"
+                                            disabled={isSaving}
                                         >
                                             <Plus className="h-4 w-4 mr-2" />
                                             Agregar Acompañante
@@ -368,17 +439,17 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                                     <div className="border border-[#D4AF37]/30 rounded-lg p-4 bg-background animate-in slide-in-from-top-4">
                                         <div className="flex justify-between items-center mb-4 border-b border-border pb-2">
                                             <h4 className="text-[#D4AF37] font-medium">Nuevo Acompañante</h4>
-                                            <Button variant="ghost" size="sm" onClick={() => setIsAddingCompanion(false)}>
+                                            <Button variant="ghost" size="sm" onClick={() => setIsAddingCompanion(false)} disabled={isSaving}>
                                                 <X className="h-4 w-4" />
                                             </Button>
                                         </div>
                                         <form onSubmit={saveCompanion}>
                                             {renderFormFields(newCompanion, handleNewCompanionChange, true)}
                                             <div className="flex justify-end gap-2 mt-6">
-                                                <Button type="button" variant="ghost" onClick={() => setIsAddingCompanion(false)} className="text-muted-foreground">
+                                                <Button type="button" variant="ghost" onClick={() => setIsAddingCompanion(false)} className="text-muted-foreground" disabled={isSaving}>
                                                     Cancelar
                                                 </Button>
-                                                <Button type="submit" className="bg-primary text-black hover:bg-primary/90">
+                                                <Button type="submit" className="bg-primary text-black hover:bg-primary/90" disabled={isSaving}>
                                                     Guardar Acompañante
                                                 </Button>
                                             </div>
@@ -391,11 +462,12 @@ export function GuestCheckInContent({ reservationCode }: GuestCheckInContentProp
                             {/* Footer de navegación */}
                             {!isAddingCompanion && (
                                 <CardFooter className="flex justify-between border-t border-border pt-6">
-                                    <Button variant="ghost" onClick={() => setStep(1)} className="text-muted-foreground hover:text-white">
+                                    <Button variant="ghost" onClick={() => setStep(1)} className="text-muted-foreground hover:text-white" disabled={isSaving}>
                                         Atrás (Editar Titular)
                                     </Button>
-                                    <Button onClick={handleFinalize} className="bg-[#059669] text-white hover:bg-[#059669]/90 font-bold px-8">
-                                        Finalizar Registro <Save className="h-4 w-4 ml-2" />
+                                    <Button onClick={handleFinalize} className="bg-[#059669] text-white hover:bg-[#059669]/90 font-bold px-8" disabled={isSaving}>
+                                        {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : "Finalizar Registro"}
+                                        {!isSaving && <Save className="h-4 w-4 ml-2" />}
                                     </Button>
                                 </CardFooter>
                             )}

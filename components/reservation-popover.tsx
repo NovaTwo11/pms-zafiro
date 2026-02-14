@@ -19,12 +19,13 @@ import {
   Link2,
   Eye,
   Send,     // Icono para Enviar Link
-  FileText  // Icono para Confirmación
+  FileText, CheckCircle  // Icono para Confirmación
 } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import api from "@/lib/api"; // Importamos toast para las notificaciones
 
@@ -87,6 +88,9 @@ export function ReservationPopover({
                                      children,
                                    }: ReservationPopoverProps) {
   const [activeTab, setActiveTab] = useState("detalle")
+  const [successDialog, setSuccessDialog] = useState<{isOpen: boolean, title: string, message: string}>({
+    isOpen: false, title: "", message: ""
+  })
 
   const getStatusLabel = () => {
     switch (reservation.status) {
@@ -153,22 +157,28 @@ export function ReservationPopover({
 
   // --- NUEVAS FUNCIONES DE ACCIÓN ---
   const handleSendEmail = async () => {
-    toast.info('Enviando detalles de la reserva por correo...')
     try {
       await api.post(`/reservations/${reservation.id}/send-summary`)
-      toast.success(`Correo enviado exitosamente a ${guest?.email || 'el cliente'}`)
+      setSuccessDialog({
+        isOpen: true,
+        title: "¡Correo Enviado!",
+        message: `El resumen detallado de la reserva fue enviado exitosamente al correo: ${guest?.email || 'del titular'}.`
+      })
     } catch (error) {
-      toast.error('Error al enviar el correo de información')
+      toast.error('Error al enviar el correo')
     }
   }
 
   const handleSendCheckinLink = async () => {
-    toast.info('Enviando link de Check-in al cliente...')
     try {
       await api.post(`/reservations/${reservation.id}/send-checkin-link`)
-      toast.success(`Link de Check-in enviado a ${guest?.email || 'el cliente'}`)
+      setSuccessDialog({
+        isOpen: true,
+        title: "¡Link de Check-in Enviado!",
+        message: `El enlace único para el registro online fue enviado exitosamente al correo: ${guest?.email || 'del titular'}.`
+      })
     } catch (error) {
-      toast.error('Error al enviar el link de check-in')
+      toast.error('Error al enviar el link')
     }
   }
 
@@ -385,6 +395,24 @@ export function ReservationPopover({
             </TabsContent>
           </Tabs>
         </PopoverContent>
+        <Dialog open={successDialog.isOpen} onOpenChange={(open) => setSuccessDialog(prev => ({...prev, isOpen: open}))}>
+          <DialogContent className="sm:max-w-md bg-card border-border text-foreground">
+            <DialogHeader>
+              <div className="mx-auto w-12 h-12 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle className="h-6 w-6 text-green-500" />
+              </div>
+              <DialogTitle className="text-center text-xl">{successDialog.title}</DialogTitle>
+              <DialogDescription className="text-center text-md pt-2">
+                {successDialog.message}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="sm:justify-center mt-4">
+              <Button type="button" onClick={() => setSuccessDialog(prev => ({...prev, isOpen: false}))} className="bg-primary text-black hover:bg-primary/90">
+                Aceptar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Popover>
   )
 }
