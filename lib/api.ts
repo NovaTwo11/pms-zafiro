@@ -172,7 +172,7 @@ export const reservationsApi = {
         return response.data;
     },
     moveSegment: async (id: string, segmentIndex: number, newRoomId: string) => {
-        const response = await api.put(`/reservations/${id}/segments/${segmentIndex}/move`, { newRoomId });
+        const response = await api.post(`/reservations/${id}/segments/${segmentIndex}/move`, { newRoomId });
         return response.data;
     },
     ensureFolio: async (id: string) => {
