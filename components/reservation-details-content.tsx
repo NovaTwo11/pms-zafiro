@@ -73,6 +73,20 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     // Balance para el modal de pagos (Estado local temporal)
     const [modalBalance, setModalBalance] = useState(0)
 
+    const handleSendInvoice = async () => {
+        if (!reservation?.folioId) return;
+        setIsProcessing(true);
+        toast.info("Enviando factura al correo...");
+        try {
+            await api.post(`/folios/${reservation.folioId}/send-invoice`);
+            toast.success("Factura enviada correctamente");
+        } catch (error) {
+            toast.error("Error al enviar la factura");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     // ==========================================
     // 2. CARGA DE DATOS (Centralizada)
     // ==========================================
@@ -502,6 +516,9 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleCopy(reservation.id, "ID")}>
                                     <LinkIcon className="h-4 w-4 mr-2"/> Copiar ID
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleSendInvoice} disabled={isProcessing || !reservation.folioId}>
+                                    <Mail className="h-4 w-4 mr-2"/> Enviar Factura
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem className="text-destructive" onClick={() => setIsCancelDialogOpen(true)}>

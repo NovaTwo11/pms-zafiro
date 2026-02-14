@@ -25,7 +25,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { toast } from "sonner" // Importamos toast para las notificaciones
+import { toast } from "sonner"
+import api from "@/lib/api"; // Importamos toast para las notificaciones
 
 // Definimos la interfaz aquí o la importamos si la tienes centralizada
 interface Reservation {
@@ -151,33 +152,24 @@ export function ReservationPopover({
   const canMerge = isSplitReservation && segmentIndex > 0
 
   // --- NUEVAS FUNCIONES DE ACCIÓN ---
-  const handleSendEmail = () => {
-    toast.promise(
-        new Promise((resolve) => setTimeout(resolve, 1500)),
-        {
-          loading: 'Enviando detalles de la reserva por correo...',
-          success: `Correo enviado exitosamente a ${guest?.email || 'el cliente'}`,
-          error: 'Error al enviar el correo'
-        }
-    )
+  const handleSendEmail = async () => {
+    toast.info('Enviando detalles de la reserva por correo...')
+    try {
+      await api.post(`/reservations/${reservation.id}/send-summary`)
+      toast.success(`Correo enviado exitosamente a ${guest?.email || 'el cliente'}`)
+    } catch (error) {
+      toast.error('Error al enviar el correo de información')
+    }
   }
 
-  const handleSendCheckinLink = () => {
-    // Usamos el ID como fallback si no hay código, en producción usar el código real
-    const code = reservation.code || reservation.id
-    const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    const checkinLink = `${origin}/guest/check-in/${code}`
-
-    console.log("Link generado:", checkinLink)
-
-    toast.promise(
-        new Promise((resolve) => setTimeout(resolve, 1500)),
-        {
-          loading: 'Enviando link de Check-in al cliente...',
-          success: `Link de Check-in enviado a ${guest?.email || 'el cliente'}`,
-          error: 'Error al enviar el link'
-        }
-    )
+  const handleSendCheckinLink = async () => {
+    toast.info('Enviando link de Check-in al cliente...')
+    try {
+      await api.post(`/reservations/${reservation.id}/send-checkin-link`)
+      toast.success(`Link de Check-in enviado a ${guest?.email || 'el cliente'}`)
+    } catch (error) {
+      toast.error('Error al enviar el link de check-in')
+    }
   }
 
   return (

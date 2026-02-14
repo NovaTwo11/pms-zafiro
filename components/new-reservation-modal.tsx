@@ -133,13 +133,20 @@ export function NewReservationModal({
 
         console.log("Enviando Reserva:", payload);
         await api.post('/reservations', payload)
+        const res = await api.post('/reservations', payload)
 
         toast.success("Reserva creada correctamente", {
           description: `Habitación: ${rooms.find(r => r.id === formData.roomId)?.number} - Cliente guardado.`
         })
 
-        if (sendEmail) {
+        if (sendEmail && res.data?.id) {
           toast.info("Enviando confirmación por correo...")
+          try {
+            await api.post(`/reservations/${res.data.id}/send-summary`)
+            toast.success("Correo de resumen enviado exitosamente.")
+          } catch (error) {
+            toast.error("La reserva se creó, pero no se pudo enviar el correo.")
+          }
         }
 
       } else {
