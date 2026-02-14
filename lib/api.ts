@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'sonner'; // Asegúrate de tener sonner instalado
 import {
     Product,
     CreateProductDto,
@@ -16,13 +17,55 @@ export type { CashierShiftDto, CashierReportDto };
 console.log("API URL ACTUAL:", process.env.NEXT_PUBLIC_API_URL);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5100/api';
 
-// 2. Exportamos instancia de axios
+// 2. Helper para leer cookies en el cliente (sin librerías extra)
+function getCookie(name: string) {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+    return null;
+}
+
+// 3. Exportamos instancia de axios
 export const api = axios.create({
     baseURL: API_URL,
     headers: {
         'Content-Type': 'application/json',
     },
 });
+
+// --- INTERCEPTORES DE AUTENTICACIÓN ---
+
+// Request: Inyectar Token
+api.interceptors.request.use(
+    (config) => {
+        const token = getCookie('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => Promise.reject(error)
+);
+
+// Response: Manejar errores globales (401)
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response && error.response.status === 401) {
+            // Solo redirigimos si no estamos ya en el login para evitar bucles
+            if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+                toast.error("Sesión expirada. Por favor ingrese nuevamente.");
+                // Opcional: Borrar cookie aquí
+                document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                window.location.href = '/login';
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
+// --- FIN INTERCEPTORES ---
 
 export const dashboardApi = {
     getStats: async (): Promise<DashboardStats> => {
@@ -50,13 +93,17 @@ export interface CheckInResponse {
 }
 
 export async function updateGuestInfo(reservationId: string, data: GuestFormData & { companions: GuestFormData[] }) {
+    // Nota: fetch nativo NO usa los interceptores de axios.
+    // Debemos inyectar el header manualmente si usamos fetch.
+    const token = getCookie('token');
+
     const res = await fetch(`${API_URL}/reservations/${reservationId}/guests`, {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
         },
         body: JSON.stringify({
-            // Mapeo para coincidir con el DTO de C#
             nacionalidad: data.nacionalidad,
             tipoId: data.tipoId,
             numeroId: data.numeroId,
@@ -68,7 +115,6 @@ export async function updateGuestInfo(reservationId: string, data: GuestFormData
             correo: data.correo,
             direccion: data.direccion,
             ciudadOrigen: data.ciudadOrigen,
-            // Mapear acompañantes
             companions: data.companions?.map(c => ({
                 primerNombre: c.primerNombre,
                 primerApellido: c.primerApellido,
@@ -86,10 +132,25 @@ export async function updateGuestInfo(reservationId: string, data: GuestFormData
     return res.json()
 }
 
+/**
+ * Cierra la sesión del usuario eliminando el token y redirigiendo al login.
+ */
+export function logout() {
+    // 1. Eliminar la cookie del token (poniendo fecha de expiración en el pasado)
+    document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+
+    // 2. Redirigir forzosamente al login para limpiar el estado de la aplicación
+    window.location.href = '/login';
+}
+
 export async function checkInReservation(id: string) {
+    const token = getCookie('token');
     const res = await fetch(`${API_URL}/reservations/${id}/checkin`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        }
     })
 
     if (!res.ok) {
@@ -113,7 +174,6 @@ export const cashierApi = {
         const response = await api.post<CashierShiftDto>('/cashier/open', { startingAmount });
         return response.data;
     },
-    // --- NUEVO MÉTODO PARA MOVIMIENTOS ---
     addMovement: async (data: { type: string; amount: number; description: string }) => {
         const response = await api.post('/cashier/movement', data);
         return response.data;
@@ -177,11 +237,9 @@ export const reservationsApi = {
     },
     ensureFolio: async (id: string) => {
         const response = await api.post(`/reservations/${id}/ensure-folio`);
-        return response.data; // Retorna { folioId: string }
+        return response.data;
     },
     getAvailableRoomsForMove: async (reservationId: string) => {
-        // Idealmente: GET /reservations/{id}/available-rooms-move
-        // Por ahora simulamos una llamada a Rooms filtrando en cliente o un endpoint simple
         const response = await api.get('/rooms');
         return response.data.filter((r: any) => r.status === 'Available');
     }
