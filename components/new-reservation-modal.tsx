@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import { format, addDays } from "date-fns"
-import { X, CalendarDays, User, BedDouble, Wrench, Mail, Phone, CreditCard, Send, Loader2 } from "lucide-react"
+import { X, CalendarDays, User, BedDouble, Wrench, Mail, Phone, CreditCard, Loader2, MapPin } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,14 +45,15 @@ export function NewReservationModal({
   const [sendEmail, setSendEmail] = useState(false)
 
   const [formData, setFormData] = useState({
-    // Datos del Titular (Divididos en 4)
+    // Datos del Titular
     primerNombre: "",
     segundoNombre: "",
     primerApellido: "",
     segundoApellido: "",
-
+    birthDate: "",
     email: "",
     phone: "",
+    cityOrigin: "", // Estado presente ✅
     docType: "CC",
     docNumber: "",
 
@@ -66,7 +67,7 @@ export function NewReservationModal({
     maintenanceReason: "",
   })
 
-  // Reiniciar formulario cuando abrimos el modal o cambiamos de cuadro
+  // Reiniciar formulario
   useEffect(() => {
     if (isOpen) {
       setActiveTab(initialTab)
@@ -82,6 +83,8 @@ export function NewReservationModal({
         email: "",
         phone: "",
         docNumber: "",
+        cityOrigin: "",
+        birthDate: "",
         notes: "",
         maintenanceReason: ""
       }))
@@ -89,7 +92,6 @@ export function NewReservationModal({
     }
   }, [initialRoomId, initialDate, isOpen, initialTab])
 
-  // Desactivar el switch de envío si no hay email
   useEffect(() => {
     if (!formData.email) {
       setSendEmail(false)
@@ -102,25 +104,38 @@ export function NewReservationModal({
 
     try {
       if (activeTab === "reservation") {
-        // Concatenamos el nombre porque el Backend actualmente espera MainGuestName
-        const fullName = `${formData.primerNombre} ${formData.segundoNombre} ${formData.primerApellido} ${formData.segundoApellido}`.replace(/\s+/g, ' ').trim();
 
-        // Payload EXACTO para encajar en CreateReservationDto.cs de tu Backend
+        // Payload completo
         const payload = {
           roomId: formData.roomId,
           checkIn: formData.checkIn,
           checkOut: formData.checkOut,
           adults: formData.adults,
           children: formData.children,
-          mainGuestName: fullName, // <-- Importante: Lo mapeamos a lo que el Backend ya sabe leer
-          mainGuestId: null, // Asumimos null para que el backend maneje el invitado
+          guestBirthDate: formData.birthDate,
+
+          guestFirstName: formData.primerNombre,
+          guestSecondName: formData.segundoNombre,
+          guestLastName: formData.primerApellido,
+          guestSecondLastName: formData.segundoApellido,
+
+          mainGuestName: `${formData.primerNombre} ${formData.segundoNombre || ''} ${formData.primerApellido}`.trim(),
+
+          guestDocType: formData.docType,
+          guestDocNumber: formData.docNumber,
+          guestEmail: formData.email,
+          guestPhone: formData.phone,
+          guestCityOrigin: formData.cityOrigin, // Se envía aquí ✅
+
           status: "Confirmed",
           specialRequests: formData.notes
         }
 
+        console.log("Enviando Reserva:", payload);
         await api.post('/reservations', payload)
+
         toast.success("Reserva creada correctamente", {
-          description: `Habitación asignada: ${rooms.find(r => r.id === formData.roomId)?.number}`
+          description: `Habitación: ${rooms.find(r => r.id === formData.roomId)?.number} - Cliente guardado.`
         })
 
         if (sendEmail) {
@@ -128,7 +143,6 @@ export function NewReservationModal({
         }
 
       } else {
-        // Payload para Bloqueo/Mantenimiento
         const payload = {
           roomId: formData.roomId,
           checkIn: formData.checkIn,
@@ -145,20 +159,18 @@ export function NewReservationModal({
         toast.success("Habitación bloqueada por mantenimiento")
       }
 
-      // Disparar evento para que el Cronograma recargue los datos
       window.dispatchEvent(new Event("refresh-timeline"))
       onClose()
 
     } catch (error: any) {
       console.error("Error creando reserva:", error)
-      const msg = error.response?.data?.message || "Verifica la disponibilidad de la habitación."
+      const msg = error.response?.data?.message || "Verifica los datos e intenta nuevamente."
       toast.error("Error al procesar", { description: msg })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Validación rápida para activar/desactivar botón Guardar
   const isValid = () => {
     if (activeTab === "maintenance") return formData.roomId && formData.checkIn && formData.checkOut && formData.maintenanceReason;
 
@@ -168,7 +180,7 @@ export function NewReservationModal({
         formData.checkOut &&
         formData.primerNombre.trim() !== "" &&
         formData.primerApellido.trim() !== "" &&
-        formData.phone.trim() !== ""
+        formData.docNumber.trim() !== ""
     );
   }
 
@@ -219,17 +231,15 @@ export function NewReservationModal({
             </TabsList>
 
             <form onSubmit={handleSubmit}>
-              {/* --- TAB RESERVA --- */}
               <TabsContent value="reservation" className="p-6 space-y-6 mt-0">
 
-                {/* Sección: Información del Titular */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
                     <User className="h-4 w-4" /> Información del Titular
                   </h3>
 
                   <div className="space-y-3">
-                    {/* Fila 1: Nombres */}
+                    {/* Nombres */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-muted-foreground text-xs">Primer Nombre *</Label>
@@ -254,7 +264,7 @@ export function NewReservationModal({
                       </div>
                     </div>
 
-                    {/* Fila 2: Apellidos */}
+                    {/* Apellidos */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-muted-foreground text-xs">Primer Apellido *</Label>
@@ -279,7 +289,7 @@ export function NewReservationModal({
                       </div>
                     </div>
 
-                    {/* Fila 3: Documento */}
+                    {/* Documento */}
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1.5 col-span-1">
                         <Label className="text-muted-foreground text-xs">Tipo Doc</Label>
@@ -300,7 +310,7 @@ export function NewReservationModal({
                         </Select>
                       </div>
                       <div className="space-y-1.5 col-span-2">
-                        <Label className="text-muted-foreground text-xs">Número Documento</Label>
+                        <Label className="text-muted-foreground text-xs">Número Documento *</Label>
                         <div className="relative">
                           <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                           <Input
@@ -309,14 +319,15 @@ export function NewReservationModal({
                               placeholder="123456789"
                               className="pl-9 bg-background border-border text-foreground focus-visible:ring-primary"
                               disabled={isSubmitting}
+                              required
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Fila 4: Contacto */}
+                    {/* Contacto y Datos Personales */}
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 col-span-2">
                         <Label className="text-muted-foreground text-xs">Correo Electrónico</Label>
                         <div className="relative">
                           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -330,27 +341,57 @@ export function NewReservationModal({
                           />
                         </div>
                       </div>
+
                       <div className="space-y-1.5">
-                        <Label className="text-muted-foreground text-xs">Teléfono *</Label>
+                        <Label className="text-muted-foreground text-xs">Teléfono</Label>
                         <div className="relative">
                           <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                           <Input
                               type="tel"
                               value={formData.phone}
                               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                              placeholder="+57 300..."
+                              placeholder="+57..."
                               className="pl-9 bg-background border-border text-foreground focus-visible:ring-primary"
-                              required
                               disabled={isSubmitting}
                           />
                         </div>
                       </div>
-                    </div>
 
+                      <div className="space-y-1.5">
+                        <Label className="text-muted-foreground text-xs">Fecha Nacimiento</Label>
+                        <div className="relative">
+                          <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                              type="date"
+                              value={formData.birthDate}
+                              onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                              className="pl-9 bg-background border-border text-foreground focus-visible:ring-primary [color-scheme:dark]"
+                              disabled={isSubmitting}
+                          />
+                        </div>
+                      </div>
+
+                      {/* --- AQUI AGREGUÉ EL INPUT QUE FALTABA --- */}
+                      <div className="space-y-1.5 col-span-2">
+                        <Label className="text-muted-foreground text-xs">Ciudad de Origen</Label>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                              value={formData.cityOrigin}
+                              onChange={(e) => setFormData({ ...formData, cityOrigin: e.target.value })}
+                              placeholder="Ej: Bogotá"
+                              className="pl-9 bg-background border-border text-foreground focus-visible:ring-primary"
+                              disabled={isSubmitting}
+                          />
+                        </div>
+                      </div>
+                      {/* ----------------------------------------- */}
+
+                    </div>
                   </div>
                 </div>
 
-                {/* Sección: Detalles de la Estadía */}
+                {/* Detalles Estadía */}
                 <div className="space-y-4 pt-4 border-t border-border">
                   <h3 className="text-sm font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
                     <CalendarDays className="h-4 w-4" /> Detalles de la Estadía
@@ -443,7 +484,6 @@ export function NewReservationModal({
                   </div>
                 </div>
 
-                {/* Botón de acción extra: Enviar Correo */}
                 <div className="flex items-center space-x-2 pt-4 border-t border-border">
                   <Switch
                       id="email-mode"
@@ -458,7 +498,6 @@ export function NewReservationModal({
 
               </TabsContent>
 
-              {/* --- TAB MANTENIMIENTO --- */}
               <TabsContent value="maintenance" className="p-6 space-y-5 mt-0">
                 <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-sm text-destructive flex items-start gap-3">
                   <Wrench className="h-5 w-5 shrink-0 mt-0.5" />
@@ -545,7 +584,6 @@ export function NewReservationModal({
                 </div>
               </TabsContent>
 
-              {/* Footer de Acciones (Común) */}
               <div className="p-6 pt-0 flex gap-3 sticky bottom-0 bg-card z-10 pb-6 border-t border-border mt-4">
                 <Button
                     type="button"

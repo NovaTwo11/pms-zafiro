@@ -19,7 +19,6 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -33,7 +32,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckInWizard } from "@/components/checkin-wizard"
 import { ReservationGuestList } from "./reservation-guest-list"
 import { CheckoutModal } from "@/components/checkout-modal"
-import { api, reservationsApi, updateGuestInfo } from "@/lib/api"
+import { GuestFormDrawer } from "@/components/guest-form-drawer" // IMPORTADO CORRECTAMENTE
+import { api, reservationsApi } from "@/lib/api"
 import { ReservationDto, GuestDetailDto, RoomDto } from "@/types"
 
 // Utility para clases
@@ -52,9 +52,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     // 1. ESTADOS
     const [reservation, setReservation] = useState<ReservationDto | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [isRefreshing, setIsRefreshing] = useState(false)
 
-    // UI States
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeTab, setActiveTab] = useState("general")
     const [isCheckinWizardOpen, setIsCheckinWizardOpen] = useState(false)
@@ -79,7 +77,6 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     // ==========================================
     const fetchReservation = useCallback(async () => {
         try {
-            setIsRefreshing(true)
             const data = await reservationsApi.getById(reservationId) as unknown as ReservationDto
             setReservation(data)
         } catch (error) {
@@ -89,7 +86,6 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
             })
         } finally {
             setIsLoading(false)
-            setIsRefreshing(false)
         }
     }, [reservationId])
 
@@ -138,7 +134,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         // Si ya tiene folio, abrir modal normal
         if (reservation.folioId) {
             // Si el balance es negativo (pagado de más), mostrar 0, o dejar que el usuario ponga monto
-            const initialAmount = reservation.balance > 0 ? reservation.balance : 0;
+            const initialAmount = (reservation.balance ?? 0) > 0 ? (reservation.balance ?? 0) : 0;
             setModalBalance(initialAmount);
             setShowPaymentModal(true);
             return;
@@ -147,7 +143,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         // Si NO tiene folio (Pre-Checkin), intentar crearlo "On-the-fly"
         try {
             setIsProcessing(true);
-            const res = await reservationsApi.ensureFolio(reservationId);
+            await reservationsApi.ensureFolio(reservationId);
             toast.success("Cuenta habilitada para pagos anticipados");
 
             // Recargar datos para obtener el nuevo folioId en el estado
@@ -207,7 +203,6 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         setAvailableRooms([]); // Reset
         try {
             // Cargar habitaciones disponibles para mover
-            // Nota: getAvailableRoomsForMove debe implementarse en api.ts o simularse aquí
             const rooms = await reservationsApi.getAvailableRoomsForMove(reservationId);
             setAvailableRooms(rooms);
         } catch (e) {
@@ -220,7 +215,6 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         if (!selectedNewRoom) return;
         try {
             setIsProcessing(true);
-            // Asumimos segmento 0 (principal) para simplificar en esta vista
             await reservationsApi.moveSegment(reservationId, 0, selectedNewRoom);
             toast.success("Habitación cambiada exitosamente");
             setIsChangeRoomOpen(false);
@@ -234,11 +228,27 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     };
 
     // --- GESTIÓN DE HUÉSPEDES (Edición) ---
-    // Nota: Esta lógica simplificada asume que el modal de edición llama a una API de update
-    // Si ReservationGuestList maneja el modal internamente, pasar este callback
-    const handleGuestUpdate = async (updatedGuest: GuestDetailDto) => {
-        // Recargar datos para reflejar cambios
-        await fetchReservation();
+    // Esta función recibe los datos del Drawer, los formatea y llama a la API de reservas
+    const handleGuestUpdate = async (formData: any) => {
+        try {
+            console.log("Datos recibidos del formulario:", formData);
+
+            // CORRECCIÓN: Si el Drawer devuelve datos pero no guardó, lo hacemos aquí.
+            // Verificamos si formData tiene datos y si editingGuest tiene ID.
+            if (formData && editingGuest && editingGuest.id) {
+                // Hacemos la llamada explícita para asegurar el guardado
+                await api.put(`/guests/${editingGuest.id}`, formData);
+                toast.success("Huésped actualizado correctamente");
+            }
+
+            // Recargamos la reserva para ver los cambios reflejados
+            await fetchReservation();
+            setEditingGuest(null);
+
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al actualizar huésped");
+        }
     }
 
     // --- UTILS ---
@@ -303,11 +313,16 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
 
     // Titular principal (Fallback seguro)
     const mainGuest = displayGuests.find(g => g.esTitular) || displayGuests[0] || {
+        id: "",
         primerNombre: reservation.mainGuestName || "Huésped",
         primerApellido: "",
         correo: "",
         telefono: "",
-        numeroId: "---"
+        numeroId: "---",
+        tipoId: "",
+        nacionalidad: "",
+        esTitular: true,
+        isSigned: false
     } as GuestDetailDto
 
     // Stepper logic
@@ -319,14 +334,13 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
 
             {/* --- MODALES --- */}
 
-            {/* 1. Modal Editar Huésped (Placeholder simple) */}
-            <Dialog open={!!editingGuest} onOpenChange={(open) => !open && setEditingGuest(null)}>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>Editar Huésped</DialogTitle></DialogHeader>
-                    <div className="py-4 text-sm text-muted-foreground">Funcionalidad de edición completa pendiente de implementación.</div>
-                    <DialogFooter><Button onClick={() => setEditingGuest(null)}>Cerrar</Button></DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {/* 1. Modal Editar Huésped (REEMPLAZADO CON EL DRAWER REAL) */}
+            <GuestFormDrawer
+                open={!!editingGuest}
+                onOpenChange={(open) => !open && setEditingGuest(null)}
+                guestToEdit={editingGuest}
+                onGuestSaved={handleGuestUpdate}
+            />
 
             {/* 2. Modal Confirmar Salida */}
             <AlertDialog open={showConfirmCheckout} onOpenChange={setShowConfirmCheckout}>
@@ -586,7 +600,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                     guests={displayGuests}
                                     // CORRECCIÓN NAN: Pasamos un número seguro
                                     maxGuests={totalCapacity}
-                                    onEditGuest={setEditingGuest}
+                                    onEditGuest={setEditingGuest} // Conecta con el estado del drawer
                                 />
                             </TabsContent>
 

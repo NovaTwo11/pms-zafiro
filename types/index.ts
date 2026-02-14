@@ -122,19 +122,20 @@ export interface ReservationSegmentDto {
 export interface GuestDetailDto {
     id: string;
     primerNombre: string;
-    segundoNombre: string;
+    segundoNombre?: string;
     primerApellido: string;
-    segundoApellido: string;
+    segundoApellido?: string;
     correo: string;
     telefono: string;
     paisOrigen: string;
-    ciudadOrigen: string;
+    ciudadOrigen?: string;
     paisResidencia: string;
     ciudadResidencia: string;
     direccionResidencia: string;
     tipoId: string;
     numeroId: string;
     nacionalidad: string;
+    fechaNacimiento?: string;
     ocupacion: string;
     esTitular: boolean;
     isSigned: boolean;

@@ -51,39 +51,48 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import api from "@/lib/api"
 import { Separator } from "@/components/ui/separator"
 
 // --- SCHEMA ---
+// Esquema actualizado para soportar campos opcionales completos y lógica de nombres
 const formSchema = z.object({
-    nombre: z.string().min(2, "Requerido"),
-    apellido: z.string().optional(),
+    primerNombre: z.string().min(2, "Requerido"),
+    segundoNombre: z.string().optional(),
+    primerApellido: z.string().min(2, "Requerido"),
+    segundoApellido: z.string().optional(),
     tipoDocumento: z.string(),
     numeroDocumento: z.string().min(3, "Requerido"),
-    email: z.string().email("Inválido").optional().or(z.literal("")),
+    // Permitir string vacío o email válido
+    email: z.union([z.literal(""), z.string().email("Email inválido")]),
     telefono: z.string().optional(),
     nacionalidad: z.string().optional(),
+    ciudadOrigen: z.string().optional(),
     fechaNacimiento: z.date().optional(),
 })
 
 // --- TYPES ---
-interface GuestData {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    phone: string
-    nationality: string
-    documentType: string
-    documentNumber: string
-    dateOfBirth?: Date
+// Actualizamos la interfaz para reflejar la estructura detallada que el backend espera y envía
+export interface GuestDetailDto {
+    id?: string
+    primerNombre: string
+    segundoNombre?: string
+    primerApellido: string
+    segundoApellido?: string
+    correo?: string
+    telefono?: string
+    nacionalidad: string
+    tipoId: string
+    numeroId: string
+    fechaNacimiento?: string // ISO string desde backend
+    ciudadOrigen?: string
+    esTitular?: boolean
 }
 
 interface GuestFormDrawerProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    onGuestSaved?: () => void
-    guestToEdit?: GuestData | null
+    onGuestSaved?: (data: any) => void // Callback para notificar al padre
+    guestToEdit?: GuestDetailDto | null
 }
 
 export function GuestFormDrawer({
@@ -94,42 +103,56 @@ export function GuestFormDrawer({
                                 }: GuestFormDrawerProps) {
     const [isSubmitting, setIsSubmitting] = useState(false)
 
+    // Configuración del formulario con valores por defecto seguros
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            nombre: "",
-            apellido: "",
+            primerNombre: "",
+            segundoNombre: "",
+            primerApellido: "",
+            segundoApellido: "",
             tipoDocumento: "CC",
             numeroDocumento: "",
             email: "",
             telefono: "",
             nacionalidad: "Colombiana",
+            ciudadOrigen: "",
         },
     })
 
-    // EFECTO: Rellenar o Limpiar
+    // EFECTO: Rellenar formulario al editar o limpiar al crear nuevo
     useEffect(() => {
         if (open) {
             if (guestToEdit) {
+                // Mapeo inverso de DTO a Formulario
                 form.reset({
-                    nombre: guestToEdit.firstName,
-                    apellido: guestToEdit.lastName,
-                    tipoDocumento: guestToEdit.documentType || "CC",
-                    numeroDocumento: guestToEdit.documentNumber,
-                    email: guestToEdit.email || "",
-                    telefono: guestToEdit.phone || "",
-                    nacionalidad: guestToEdit.nationality || "Colombiana",
-                    fechaNacimiento: guestToEdit.dateOfBirth
+                    primerNombre: guestToEdit.primerNombre,
+                    segundoNombre: guestToEdit.segundoNombre || "",
+                    primerApellido: guestToEdit.primerApellido,
+                    segundoApellido: guestToEdit.segundoApellido || "",
+                    tipoDocumento: guestToEdit.tipoId || "CC",
+                    numeroDocumento: guestToEdit.numeroId,
+                    email: guestToEdit.correo || "",
+                    telefono: guestToEdit.telefono || "",
+                    nacionalidad: guestToEdit.nacionalidad || "Colombiana",
+                    ciudadOrigen: guestToEdit.ciudadOrigen || "",
+                    // Convertir string ISO a Date object seguro
+                    fechaNacimiento: guestToEdit.fechaNacimiento ? new Date(guestToEdit.fechaNacimiento) : undefined
                 })
             } else {
+                // Reset limpio para nuevo registro
                 form.reset({
-                    nombre: "",
-                    apellido: "",
+                    primerNombre: "",
+                    segundoNombre: "",
+                    primerApellido: "",
+                    segundoApellido: "",
                     tipoDocumento: "CC",
                     numeroDocumento: "",
                     email: "",
                     telefono: "",
                     nacionalidad: "Colombiana",
+                    ciudadOrigen: "",
+                    fechaNacimiento: undefined
                 })
             }
         }
@@ -138,35 +161,39 @@ export function GuestFormDrawer({
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
         setIsSubmitting(true)
         try {
+            const fechaFormatted = values.fechaNacimiento
+                ? format(values.fechaNacimiento, "yyyy-MM-dd")
+                : null;
+            // Construcción del Payload
             const payload = {
-                firstName: values.nombre,
-                lastName: values.apellido || "",
-                documentType: values.tipoDocumento,
-                documentNumber: values.numeroDocumento,
-                email: values.email,
-                phone: values.telefono,
-                nationality: values.nacionalidad,
-                birthDate: values.fechaNacimiento
-                    ? format(values.fechaNacimiento, "yyyy-MM-dd")
-                    : null
+                id: guestToEdit?.id,
+                primerNombre: values.primerNombre,
+                segundoNombre: values.segundoNombre,
+                primerApellido: values.primerApellido,
+                segundoApellido: values.segundoApellido,
+                tipoId: values.tipoDocumento,
+                numeroId: values.numeroDocumento,
+                correo: values.email,
+                telefono: values.telefono,
+                nacionalidad: values.nacionalidad,
+                ciudadOrigen: values.ciudadOrigen,
+                // Convertir Date a ISO string para transporte seguro
+                fechaNacimiento: fechaFormatted,
+                esTitular: guestToEdit?.esTitular ?? false // Preservar estado
             }
 
-            if (guestToEdit) {
-                // PUT /guests/{id}
-                await api.put(`/guests/${guestToEdit.id}`, payload)
-                toast.success("Perfil actualizado correctamente")
+            // Notificar al componente padre
+            if (onGuestSaved) {
+                await onGuestSaved(payload)
             } else {
-                // POST /guests
-                await api.post('/guests', payload)
-                toast.success("Huésped registrado correctamente")
+                toast.success("Datos listos (Conecte onGuestSaved)")
             }
 
             onOpenChange(false)
-            if (onGuestSaved) onGuestSaved()
 
         } catch (error: any) {
             console.error(error)
-            toast.error("Error al guardar los datos")
+            toast.error("Error al procesar el formulario")
         } finally {
             setIsSubmitting(false)
         }
@@ -174,18 +201,18 @@ export function GuestFormDrawer({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto bg-background border-l border-border p-0 flex flex-col h-full">
+            <SheetContent className="w-full sm:w-[540px] overflow-y-auto bg-background border-l border-border p-0 flex flex-col h-full shadow-2xl">
 
                 {/* HEADER CON ESTILO */}
-                <SheetHeader className="px-6 py-6 border-b border-border bg-card/50">
+                <SheetHeader className="px-6 py-6 border-b border-border bg-card/50 sticky top-0 z-10 backdrop-blur-md">
                     <SheetTitle className="flex items-center gap-2 text-2xl font-serif text-[#D4AF37]">
-                        {guestToEdit ? <User className="h-6 w-6"/> : <User className="h-6 w-6"/>}
-                        {guestToEdit ? "Editar Perfil" : "Nuevo Registro"}
+                        <User className="h-6 w-6"/>
+                        {guestToEdit ? "Editar Huésped" : "Nuevo Huésped"}
                     </SheetTitle>
                     <SheetDescription className="text-muted-foreground">
                         {guestToEdit
-                            ? "Actualiza la información legal y de contacto del huésped."
-                            : "Completa la ficha de registro para el check-in."}
+                            ? `Actualizando datos de ${guestToEdit.esTitular ? "Titular" : "Acompañante"}`
+                            : "Ingrese los datos completos para el registro."}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -197,21 +224,19 @@ export function GuestFormDrawer({
                             {/* SECCIÓN 1: DATOS PERSONALES */}
                             <div className="space-y-4">
                                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                    <User className="h-3 w-3 text-[#D4AF37]" /> Información Personal
+                                    <User className="h-3 w-3 text-[#D4AF37]" /> Identificación Personal
                                 </h3>
 
+                                {/* Nombres */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
-                                        name="nombre"
+                                        name="primerNombre"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Nombre</FormLabel>
+                                                <FormLabel>Primer Nombre *</FormLabel>
                                                 <FormControl>
-                                                    <div className="relative">
-                                                        <User className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                        <Input placeholder="Ej: Juan" className="pl-9 bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
-                                                    </div>
+                                                    <Input placeholder="Juan" className="bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -219,12 +244,42 @@ export function GuestFormDrawer({
                                     />
                                     <FormField
                                         control={form.control}
-                                        name="apellido"
+                                        name="segundoNombre"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Apellido</FormLabel>
+                                                <FormLabel>Segundo Nombre</FormLabel>
                                                 <FormControl>
-                                                    <Input placeholder="Ej: Pérez" className="bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
+                                                    <Input placeholder="" className="bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                {/* Apellidos */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="primerApellido"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Primer Apellido *</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Pérez" className="bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="segundoApellido"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Segundo Apellido</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="" className="bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -246,7 +301,7 @@ export function GuestFormDrawer({
                                                                 variant={"outline"}
                                                                 className={cn("w-full pl-3 text-left font-normal bg-accent/50 border-border hover:bg-accent focus:border-[#D4AF37]", !field.value && "text-muted-foreground")}
                                                             >
-                                                                {field.value ? format(field.value, "PP") : <span>Seleccionar fecha</span>}
+                                                                {field.value ? format(field.value, "PPP") : <span>Seleccionar fecha</span>}
                                                                 <CalendarIcon className="ml-auto h-4 w-4 opacity-50 text-[#D4AF37]" />
                                                             </Button>
                                                         </FormControl>
@@ -258,6 +313,9 @@ export function GuestFormDrawer({
                                                             onSelect={field.onChange}
                                                             disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                                                             initialFocus
+                                                            captionLayout="dropdown"
+                                                            fromYear={1920}
+                                                            toYear={new Date().getFullYear()}
                                                             className="bg-card text-foreground"
                                                         />
                                                     </PopoverContent>
@@ -290,7 +348,7 @@ export function GuestFormDrawer({
                             {/* SECCIÓN 2: DOCUMENTACIÓN LEGAL */}
                             <div className="space-y-4">
                                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                    <FileText className="h-3 w-3 text-[#D4AF37]" /> Documentación Legal
+                                    <FileText className="h-3 w-3 text-[#D4AF37]" /> Documento de Identidad
                                 </h3>
 
                                 <div className="grid grid-cols-3 gap-4">
@@ -307,10 +365,11 @@ export function GuestFormDrawer({
                                                         </SelectTrigger>
                                                     </FormControl>
                                                     <SelectContent>
-                                                        <SelectItem value="CC">CC</SelectItem>
-                                                        <SelectItem value="CE">CE</SelectItem>
-                                                        <SelectItem value="PA">Pass</SelectItem>
-                                                        <SelectItem value="TI">TI</SelectItem>
+                                                        <SelectItem value="CC">C.C.</SelectItem>
+                                                        <SelectItem value="CE">C.E.</SelectItem>
+                                                        <SelectItem value="PASSPORT">Pass</SelectItem>
+                                                        <SelectItem value="TI">T.I.</SelectItem>
+                                                        <SelectItem value="RC">R.C.</SelectItem>
                                                     </SelectContent>
                                                 </Select>
                                                 <FormMessage />
@@ -322,7 +381,7 @@ export function GuestFormDrawer({
                                         name="numeroDocumento"
                                         render={({ field }) => (
                                             <FormItem className="col-span-2">
-                                                <FormLabel>Número Documento</FormLabel>
+                                                <FormLabel>Número</FormLabel>
                                                 <FormControl>
                                                     <div className="relative">
                                                         <CreditCard className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -341,10 +400,10 @@ export function GuestFormDrawer({
                             {/* SECCIÓN 3: CONTACTO */}
                             <div className="space-y-4">
                                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest flex items-center gap-2">
-                                    <Briefcase className="h-3 w-3 text-[#D4AF37]" /> Contacto
+                                    <Briefcase className="h-3 w-3 text-[#D4AF37]" /> Contacto y Ubicación
                                 </h3>
 
-                                <div className="space-y-4">
+                                <div className="grid grid-cols-1 gap-4">
                                     <FormField
                                         control={form.control}
                                         name="email"
@@ -361,17 +420,33 @@ export function GuestFormDrawer({
                                             </FormItem>
                                         )}
                                     />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
                                         name="telefono"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <FormLabel>Teléfono / WhatsApp</FormLabel>
+                                                <FormLabel>Teléfono</FormLabel>
                                                 <FormControl>
                                                     <div className="relative">
                                                         <Phone className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                                                        <Input placeholder="+57 300 123 4567" className="pl-9 bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
+                                                        <Input placeholder="+57 300..." className="pl-9 bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
                                                     </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="ciudadOrigen"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Ciudad Origen</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="Ej: Bogotá" className="bg-accent/50 border-border focus:border-[#D4AF37]" {...field} />
                                                 </FormControl>
                                                 <FormMessage />
                                             </FormItem>
@@ -379,21 +454,21 @@ export function GuestFormDrawer({
                                     />
                                 </div>
                             </div>
-
-                            {/* Espaciador invisible para empujar el footer si es necesario en móviles */}
-                            <div className="h-4"></div>
+                            {/* Padding extra al final */}
+                            <div className="h-8"></div>
                         </form>
                     </Form>
                 </div>
 
                 {/* FOOTER ACCIONES */}
-                <SheetFooter className="px-6 py-6 border-t border-border bg-card/50 flex flex-col sm:flex-row gap-3 sm:justify-between items-center w-full">
+                <SheetFooter className="px-6 py-6 border-t border-border bg-card/50 flex flex-col sm:flex-row gap-3 sm:justify-between items-center w-full sticky bottom-0 z-10 backdrop-blur-md">
+                    {/* Botón de eliminar */}
                     {guestToEdit && (
                         <Button
                             type="button"
                             variant="ghost"
                             className="text-red-400 hover:text-red-300 hover:bg-red-400/10 w-full sm:w-auto"
-                            onClick={() => toast.info("Funcionalidad de eliminar pendiente de implementación")}
+                            onClick={() => toast.info("Para eliminar, use el menú en la lista principal")}
                         >
                             <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                         </Button>
@@ -416,7 +491,7 @@ export function GuestFormDrawer({
                             {isSubmitting ? (
                                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Guardando...</>
                             ) : (
-                                guestToEdit ? "Guardar Cambios" : "Crear Huésped"
+                                "Guardar Cambios"
                             )}
                         </Button>
                     </div>
