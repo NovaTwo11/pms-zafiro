@@ -385,7 +385,8 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
   return (
       <>
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-          <SheetContent className="w-full sm:max-w-[500px] bg-card border-l border-border p-0 flex flex-col" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <SheetContent className="w-full sm:max-w-[500px] bg-card border-l border-border p-0 flex flex-col"
+                        onCloseAutoFocus={(e) => e.preventDefault()}>
             {/* Header */}
             <SheetHeader className="p-6 border-b border-border">
               <div className="flex items-start justify-between">
@@ -396,8 +397,8 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                   <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
                   {isGuest && folio.checkIn && (
                       <p className="text-xs text-muted-foreground mt-2">
-                        {format(folio.checkIn, "dd MMM", { locale: es })} -{" "}
-                        {format(folio.checkOut, "dd MMM", { locale: es })} • {folio.nights} noches
+                        {format(folio.checkIn, "dd MMM", {locale: es})} -{" "}
+                        {format(folio.checkOut, "dd MMM", {locale: es})} • {folio.nights} noches
                       </p>
                   )}
                 </div>
@@ -413,20 +414,22 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                               !canCheckOut && "opacity-50 cursor-not-allowed",
                           )}
                       >
-                        <LogOut className="h-4 w-4 mr-1" />
+                        <LogOut className="h-4 w-4 mr-1"/>
                         Check-out
                       </Button>
                   )}
-                  <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                    <X className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" onClick={onClose}
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                    <X className="h-4 w-4"/>
                   </Button>
                 </div>
               </div>
 
               {/* Aviso de Saldo Pendiente */}
               {currentBalance > 0 && (
-                  <div className="mt-3 p-3 rounded-lg bg-[#CF6679]/10 border border-[#CF6679]/30 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-[#CF6679] shrink-0" />
+                  <div
+                      className="mt-3 p-3 rounded-lg bg-[#CF6679]/10 border border-[#CF6679]/30 flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-[#CF6679] shrink-0"/>
                     <p className="text-xs text-[#CF6679]">
                       Pendiente: <strong>{formatCurrency(currentBalance)}</strong>
                     </p>
@@ -460,10 +463,10 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
               {loading ? (
                   <div className="flex justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/>
                   </div>
               ) : groupedItems.length === 0 ? (
-                  <div className="text-center py-8 text-[#666666]">
+                  <div className="text-center py-8 text-muted-foreground">
                     <p>No hay consumos registrados</p>
                   </div>
               ) : (
@@ -475,35 +478,43 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                       return (
                           <button
                               key={group.id}
-                              onClick={() => { setSelectedGroup(group); setDetailModalOpen(true); }}
-                              className="w-full flex items-center gap-3 p-3 rounded-lg bg-background border border-border transition-all duration-300 hover:border-[#D4AF37]/50 hover:bg-accent group"                          >
+                              onClick={() => {
+                                setSelectedGroup(group);
+                                setDetailModalOpen(true);
+                              }}
+                              className="w-full flex items-center gap-3 p-3 rounded-lg bg-background border border-border transition-all duration-300 hover:border-primary/50 hover:bg-accent/10 group"
+                          >
+                            {/* Fondo del icono: Success para pagos, muted para el resto */}
                             <div className={cn(
                                 "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-colors",
-                                isPayment ? "bg-[#059669]/10" : "bg-accent group-hover:bg-[#2A2A2A]",
+                                isPayment ? "bg-success/10" : "bg-muted group-hover:bg-secondary",
                             )}>
-                              <Icon className={cn("h-5 w-5", isPayment ? "text-[#059669]" : "text-muted-foreground")} />
+                              <Icon className={cn("h-5 w-5", isPayment ? "text-success" : "text-muted-foreground")}/>
                             </div>
 
                             <div className="flex-1 min-w-0 text-left">
                               <div className="flex items-center gap-2">
                                 <p className="text-sm font-medium text-foreground truncate">{group.description}</p>
                                 {group.totalQuantity > 1 && !isPayment && (
-                                    <span className="text-[10px] bg-[#333333] text-muted-foreground px-1.5 py-0.5 rounded-full">
-                                x{group.totalQuantity}
-                            </span>
+                                    <span
+                                        className="text-[10px] bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full">
+                    x{group.totalQuantity}
+                  </span>
                                 )}
                               </div>
-                              <p className="text-xs text-[#666666]">
+                              <p className="text-xs text-muted-foreground">
                                 {group.history.length} {group.history.length === 1 ? 'registro' : 'registros'}
                               </p>
                             </div>
 
                             <div className="flex items-center gap-3">
-                              <p className={cn("text-sm font-semibold", isPayment ? "text-[#059669]" : "text-foreground")}>
+                              <p className={cn("text-sm font-semibold", isPayment ? "text-success" : "text-foreground")}>
                                 {isPayment ? "-" : ""}
                                 {formatCurrency(group.totalAmount)}
                               </p>
-                              <ChevronRight className="h-4 w-4 text-[#333333] group-hover:text-[#D4AF37] transition-colors" />
+                              {/* Chevron que cambia a dorado al hacer hover en el botón */}
+                              <ChevronRight
+                                  className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors"/>
                             </div>
                           </button>
                       )
@@ -523,14 +534,14 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                         currentBalance <= 0 && "opacity-50 cursor-not-allowed",
                     )}
                 >
-                  <CreditCard className="h-4 w-4 mr-2" />
+                  <CreditCard className="h-4 w-4 mr-2"/>
                   Abonar
                 </Button>
                 <Button
                     onClick={() => router.push('/pos')}
                     className="flex-1 bg-primary text-[#0F0F0F] hover:bg-primary/90 transition-all duration-300"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="h-4 w-4 mr-2"/>
                   Cargar
                 </Button>
               </div>
@@ -542,7 +553,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                       onClick={handleDeleteFolio}
                       className="w-full text-[#CF6679] hover:text-[#CF6679] hover:bg-[#CF6679]/10 border border-[#CF6679]/20"
                   >
-                    <Trash2 className="h-4 w-4 mr-2" />
+                    <Trash2 className="h-4 w-4 mr-2"/>
                     Eliminar Folio
                   </Button>
               )}
@@ -553,9 +564,10 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
               {isConfirmingCheckout ? (
                   // --- MODO CONFIRMACIÓN ---
                   <div className="w-full flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <div className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-sm text-destructive">
+                    <div
+                        className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-sm text-destructive">
                       <p className="font-semibold flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4" /> ¿Confirmar salida?
+                        <AlertTriangle className="h-4 w-4"/> ¿Confirmar salida?
                       </p>
                       <p className="text-xs opacity-90 mt-1">
                         Se cerrará el folio y la habitación pasará a estado <strong>SUCIA</strong>.
@@ -577,9 +589,9 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                           className="bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
                       >
                         {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            <Loader2 className="h-4 w-4 animate-spin mr-2"/>
                         ) : (
-                            <LogOut className="h-4 w-4 mr-2" />
+                            <LogOut className="h-4 w-4 mr-2"/>
                         )}
                         Sí, Confirmar Salida
                       </Button>
@@ -594,7 +606,7 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                         onClick={() => setIsConfirmingCheckout(true)}
                         // Revisa que 'in-house' sea exactamente como lo envía tu backend
                         disabled={loading || (folio?.status !== 'in-house' && folio?.status !== 'Open')}>
-                      <LogOut className="h-4 w-4 mr-2" />
+                      <LogOut className="h-4 w-4 mr-2"/>
                       Check-out
                     </Button>
                   </div>
@@ -607,13 +619,15 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
         <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
           <DialogContent className="sm:max-w-[500px] bg-card border-border">
             <DialogHeader>
-              <DialogTitle className="font-[family-name:var(--font-heading)] text-xl text-foreground flex items-center gap-2">
+              <DialogTitle
+                  className="font-[family-name:var(--font-heading)] text-xl text-foreground flex items-center gap-2">
                 {selectedGroup && (
                     <>
                       <div className="p-2 bg-accent rounded-md">
                         {(() => {
                           const Icon = getCategoryIcon(selectedGroup.category)
-                          return <Icon className="h-5 w-5 text-[#D4AF37]" />
+                          // Usamos text-primary para el dorado (Zafiro Gold)
+                          return <Icon className="h-5 w-5 text-primary"/>
                         })()}
                       </div>
                       {selectedGroup.description}
@@ -628,14 +642,16 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
             {selectedGroup && (
                 <div className="mt-4">
                   {/* Header Resumen Grupo */}
-                  <div className="flex justify-between items-center mb-6 bg-background p-3 rounded-lg border border-border">
+                  <div
+                      className="flex justify-between items-center mb-6 bg-background p-3 rounded-lg border border-border">
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Total Unidades</p>
                       <p className="text-xl font-bold text-foreground">{selectedGroup.totalQuantity}</p>
                     </div>
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground mb-1">Valor Acumulado</p>
-                      <p className={cn("text-xl font-bold", selectedGroup.category === 'payment' ? "text-[#059669]" : "text-foreground")}>
+                      {/* Usamos text-success en lugar del verde quemado */}
+                      <p className={cn("text-xl font-bold", selectedGroup.category === 'payment' ? "text-success" : "text-foreground")}>
                         {formatCurrency(selectedGroup.totalAmount)}
                       </p>
                     </div>
@@ -643,19 +659,20 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
                   {/* Lista de Transacciones Individuales */}
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                    {selectedGroup.history.sort((a,b) => b.date.getTime() - a.date.getTime()).map((item) => (
+                    {selectedGroup.history.sort((a, b) => b.date.getTime() - a.date.getTime()).map((item) => (
                         <div key={item.id} className="relative pl-6 pb-2 last:pb-0 border-l border-border group">
                           <div className="absolute left-[-5px] top-1 h-2.5 w-2.5 rounded-full bg-primary" />
-                          <div className="flex justify-between items-start bg-[#151515]/50 p-2 rounded-md hover:bg-[#151515] transition-colors">
+                          {/* Cambiado el fondo hardcoded por bg-muted/50 para que funcione en light/dark */}
+                          <div className="flex justify-between items-start bg-muted/50 p-2 rounded-md hover:bg-muted transition-colors">
                             <div className="flex flex-col">
-                                <span className="text-sm text-foreground font-medium flex items-center gap-2">
-                                   <Calendar className="h-3 w-3 text-[#666666]" />
-                                  {format(item.date, "dd MMM yyyy", { locale: es })}
-                                </span>
+                  <span className="text-sm text-foreground font-medium flex items-center gap-2">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    {format(item.date, "dd MMM yyyy", { locale: es })}
+                  </span>
                               <span className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                                   <Clock className="h-3 w-3 text-[#666666]" />
+                    <Clock className="h-3 w-3 text-muted-foreground" />
                                 {format(item.date, "hh:mm a", { locale: es })}
-                                </span>
+                  </span>
                               {item.user && (
                                   <span className="text-[10px] text-muted-foreground mt-1">Usuario: {item.user}</span>
                               )}
@@ -663,9 +680,9 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
 
                             <div className="flex items-center gap-3">
                               <div className="text-right">
-                                <span className="text-sm font-semibold text-foreground">
-                                    {formatCurrency(item.amount)}
-                                </span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatCurrency(item.amount)}
+                    </span>
                                 {item.quantity > 0 && item.type !== 'Payment' && (
                                     <p className="text-xs text-muted-foreground">
                                       {item.quantity} x {formatCurrency(item.unitPrice)}
@@ -681,10 +698,14 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="bg-card border-border">
                                   <DropdownMenuItem onClick={() => handleEditClick(item)} className="text-foreground focus:bg-accent cursor-pointer">
-                                    <Pencil className="mr-2 h-4 w-4 text-[#D4AF37]" />
+                                    <Pencil className="mr-2 h-4 w-4 text-primary" />
                                     <span>Editar</span>
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDeleteTransaction(item.id)} className="text-[#CF6679] focus:bg-[#CF6679]/10 focus:text-[#CF6679] cursor-pointer">
+                                  {/* Usamos text-destructive para el color de eliminar */}
+                                  <DropdownMenuItem
+                                      onClick={() => handleDeleteTransaction(item.id)}
+                                      className="text-destructive focus:bg-destructive/10 focus:text-destructive cursor-pointer"
+                                  >
                                     <Trash2 className="mr-2 h-4 w-4" />
                                     <span>Eliminar</span>
                                   </DropdownMenuItem>

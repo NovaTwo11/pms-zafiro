@@ -27,14 +27,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // System Components & API
 import { CheckInWizard } from "@/components/checkin-wizard"
 import { ReservationGuestList } from "./reservation-guest-list"
 import { CheckoutModal } from "@/components/checkout-modal"
-import { api, reservationsApi } from "@/lib/api"
-import { ReservationDto, GuestDetailDto } from "@/types"
+import { api, reservationsApi, updateGuestInfo } from "@/lib/api"
+import { ReservationDto, GuestDetailDto, RoomDto } from "@/types"
 
 // Utility para clases
 function cn(...classes: (string | undefined | null | false)[]) {
@@ -66,6 +66,10 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     const [showConfirmCheckout, setShowConfirmCheckout] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
     const [isProcessing, setIsProcessing] = useState(false)
+
+    // Estados para Cambio de Habitación
+    const [availableRooms, setAvailableRooms] = useState<RoomDto[]>([])
+    const [selectedNewRoom, setSelectedNewRoom] = useState<string>("")
 
     // Balance para el modal de pagos (Estado local temporal)
     const [modalBalance, setModalBalance] = useState(0)
@@ -127,16 +131,48 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         }
     }
 
-    // --- PAGOS ---
+    // --- PAGOS (Lógica Flexible Pre-Checkin) ---
+    const handleOpenPayment = async () => {
+        if (!reservation) return;
+
+        // Si ya tiene folio, abrir modal normal
+        if (reservation.folioId) {
+            // Si el balance es negativo (pagado de más), mostrar 0, o dejar que el usuario ponga monto
+            const initialAmount = reservation.balance > 0 ? reservation.balance : 0;
+            setModalBalance(initialAmount);
+            setShowPaymentModal(true);
+            return;
+        }
+
+        // Si NO tiene folio (Pre-Checkin), intentar crearlo "On-the-fly"
+        try {
+            setIsProcessing(true);
+            const res = await reservationsApi.ensureFolio(reservationId);
+            toast.success("Cuenta habilitada para pagos anticipados");
+
+            // Recargar datos para obtener el nuevo folioId en el estado
+            await fetchReservation();
+
+            // Abrir modal asumiendo deuda total inicial
+            setModalBalance(reservation.totalAmount ?? 0);
+            setShowPaymentModal(true);
+        } catch (error) {
+            console.error(error);
+            toast.error("Error", { description: "No se pudo habilitar la cuenta de cobro." });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handlePaymentComplete = async (paymentData: any) => {
         if (!reservation) return;
         setIsProcessing(true)
 
-        // Obtener Folio ID seguro
+        // Obtener Folio ID seguro (ahora debería existir tras el ensureFolio)
         const targetFolioId = folioId || reservation.folioId;
 
         if (!targetFolioId) {
-            toast.error("Error de Folio", { description: "Reserva sin folio activo (Check-in pendiente)." });
+            toast.error("Error de Folio", { description: "No se pudo identificar la cuenta destino." });
             setIsProcessing(false);
             return;
         }
@@ -163,6 +199,46 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
         } finally {
             setIsProcessing(false)
         }
+    }
+
+    // --- CAMBIO DE HABITACIÓN ---
+    const handleOpenMoveRoom = async () => {
+        setIsChangeRoomOpen(true);
+        setAvailableRooms([]); // Reset
+        try {
+            // Cargar habitaciones disponibles para mover
+            // Nota: getAvailableRoomsForMove debe implementarse en api.ts o simularse aquí
+            const rooms = await reservationsApi.getAvailableRoomsForMove(reservationId);
+            setAvailableRooms(rooms);
+        } catch (e) {
+            console.error(e);
+            toast.error("Error cargando habitaciones disponibles");
+        }
+    };
+
+    const handleConfirmMoveRoom = async () => {
+        if (!selectedNewRoom) return;
+        try {
+            setIsProcessing(true);
+            // Asumimos segmento 0 (principal) para simplificar en esta vista
+            await reservationsApi.moveSegment(reservationId, 0, selectedNewRoom);
+            toast.success("Habitación cambiada exitosamente");
+            setIsChangeRoomOpen(false);
+            await fetchReservation(); // Recargar UI
+        } catch (error: any) {
+            console.error(error);
+            toast.error("Error al cambiar habitación", { description: error.response?.data?.message });
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    // --- GESTIÓN DE HUÉSPEDES (Edición) ---
+    // Nota: Esta lógica simplificada asume que el modal de edición llama a una API de update
+    // Si ReservationGuestList maneja el modal internamente, pasar este callback
+    const handleGuestUpdate = async (updatedGuest: GuestDetailDto) => {
+        // Recargar datos para reflejar cambios
+        await fetchReservation();
     }
 
     // --- UTILS ---
@@ -288,8 +364,45 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                 onComplete={handlePaymentComplete}
             />
 
+            {/* 4. Modal de Cambio de Habitación (NUEVO) */}
             <Dialog open={isChangeRoomOpen} onOpenChange={setIsChangeRoomOpen}>
-                <DialogContent><DialogTitle>Cambio de Habitación</DialogTitle></DialogContent>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Mover Reservación</DialogTitle>
+                        <DialogDescription>Seleccione la nueva habitación para asignar a esta reserva.</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label>Nueva Habitación</Label>
+                            <Select onValueChange={setSelectedNewRoom}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Seleccionar habitación..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableRooms.length === 0 ? (
+                                        <div className="p-2 text-xs text-muted-foreground text-center">Cargando o sin disponibilidad...</div>
+                                    ) : (
+                                        availableRooms.map(r => (
+                                            <SelectItem key={r.id} value={r.id}>
+                                                {r.number} - {r.category} (${r.basePrice.toLocaleString()})
+                                            </SelectItem>
+                                        ))
+                                    )}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded text-xs text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800">
+                            <p><strong>Nota:</strong> Esta acción moverá el segmento principal de la reserva. Si la reserva tiene múltiples segmentos, solo se afectará el actual.</p>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsChangeRoomOpen(false)}>Cancelar</Button>
+                        <Button onClick={handleConfirmMoveRoom} disabled={isProcessing || !selectedNewRoom}>
+                            {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <ArrowRightLeft className="h-4 w-4 mr-2"/>}
+                            Confirmar Cambio
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
             </Dialog>
 
             {/* --- HEADER --- */}
@@ -450,7 +563,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                                     <p className="text-sm text-muted-foreground">{reservation.roomName}</p>
                                                 </div>
                                             </div>
-                                            <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => setIsChangeRoomOpen(true)}>
+                                            <Button variant="outline" size="sm" className="w-full mt-4" onClick={handleOpenMoveRoom}>
                                                 <ArrowRightLeft className="h-3 w-3 mr-2" /> Cambiar
                                             </Button>
                                         </CardContent>
@@ -561,16 +674,11 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                 )}
 
                                 <Button className="w-full font-bold"
-                                        onClick={() => {
-                                            if (!reservation.folioId) {
-                                                toast.error("Acción requerida", {description: "Debes realizar el Check-in para habilitar la cuenta."});
-                                                return;
-                                            }
-                                            setModalBalance(currentBalanceCalc);
-                                            setShowPaymentModal(true);
-                                        }}
-                                        disabled={currentBalanceCalc <= 0 && reservation.status !== 'CheckedIn'}                                >
-                                    <CreditCard className="h-4 w-4 mr-2" /> Registrar Pago
+                                        onClick={handleOpenPayment} // MODIFICADO: Usa la nueva lógica flexible
+                                        disabled={reservation.status === 'Cancelled'} // Menos restrictivo
+                                >
+                                    <CreditCard className="h-4 w-4 mr-2" />
+                                    {reservation.folioId ? "Registrar Pago" : "Habilitar Cuenta y Pagar"}
                                 </Button>
                             </CardContent>
                         </Card>
@@ -593,6 +701,17 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                         <Phone className="h-4 w-4" /> <span>{mainGuest.telefono || "Sin teléfono"}</span>
                                     </div>
                                 </div>
+
+                                {/* NUEVO: Visualización de Firma Digital */}
+                                {(mainGuest.isSigned) && (
+                                    <div className="mt-4 border-t pt-4">
+                                        <div className="flex items-center gap-2 text-[#059669] bg-[#059669]/10 p-2 rounded border border-[#059669]/20">
+                                            <CheckCircle2 className="h-4 w-4"/>
+                                            <span className="text-xs font-bold">Registro Legal Firmado</span>
+                                        </div>
+                                    </div>
+                                )}
+
                                 <Separator className="my-4"/>
                                 <Button size="sm" variant="outline" className="w-full text-xs" onClick={handleWhatsApp} disabled={!mainGuest.telefono}>
                                     Contactar por WhatsApp

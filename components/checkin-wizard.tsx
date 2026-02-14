@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import { checkInReservation, updateGuestInfo } from "@/lib/api" // Asegúrate de tener estas en lib/api.ts
+import {api, checkInReservation, reservationsApi, updateGuestInfo} from "@/lib/api" // Asegúrate de tener estas en lib/api.ts
 
 // --- INTERFACES ---
 export interface GuestFormData {
@@ -131,21 +131,45 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     setIsPaymentModalOpen(true)
   }
 
-  const handleRegisterPayment = () => {
+  const handleRegisterPayment = async () => {
     const amount = parseFloat(paymentAmount)
     if (isNaN(amount) || amount <= 0) return
 
-    // TODO: En el futuro conectar con el endpoint real POST /api/folios/{id}/transactions
-    // await api.post(`/folios/${reservation.id}/transactions`, { amount, description: "Abono Check-in" })
+    try {
+      // 1. Asegurar que existe un folio donde guardar el dinero
+      // Esto crea el folio en BD si no existe, para poder asociar la transacción
+      const { folioId } = await reservationsApi.ensureFolio(reservation.id);
 
-    const newPaid = localPaidAmount + amount
-    setLocalPaidAmount(newPaid)
-    setIsPaymentModalOpen(false)
-    toast.success("Pago registrado localmente", { description: "El saldo ha sido actualizado para este proceso." })
+      // 2. Mapear método de pago (Ajusta los IDs según tu DB)
+      const methodMap: Record<string, number> = {
+        "efectivo": 1,
+        "tarjeta": 2,
+        "transferencia": 4
+      };
+      const methodId = methodMap[paymentMethod] || 1;
 
-    // Si ya saldó la cuenta, permitir avanzar fluidamente
-    if (reservation.totalAmount - newPaid <= 100) {
-      setTimeout(() => setCurrentStep(1), 500)
+      // 3. ENVIAR TRANSACCIÓN REAL AL BACKEND
+      await api.post(`/folios/${folioId}/transactions`, {
+        amount: amount,
+        description: `Abono Check-in (${paymentMethod})`,
+        type: 1, // 1 = Payment
+        paymentMethod: methodId
+      });
+
+      // 4. Actualizar UI Local
+      const newPaid = localPaidAmount + amount
+      setLocalPaidAmount(newPaid)
+      setIsPaymentModalOpen(false)
+      toast.success("Pago registrado", { description: "El abono se ha guardado en la cuenta." })
+
+      // Avanzar si ya pagó
+      if (reservation.totalAmount - newPaid <= 100) {
+        setTimeout(() => setCurrentStep(1), 500)
+      }
+
+    } catch (error) {
+      console.error(error)
+      toast.error("Error al procesar pago", { description: "No se pudo guardar el abono." })
     }
   }
 
@@ -175,7 +199,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     setIsSubmitting(true)
 
     try {
-      // 1. Preparar Payload para el Backend
+      // 1. Preparar Payload
       const guestPayload: any = {
         nacionalidad: mainGuest.nacionalidad,
         tipoId: mainGuest.tipoId,
@@ -188,31 +212,27 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
         correo: mainGuest.correo || "",
         direccion: mainGuest.direccion || "",
         ciudadOrigen: mainGuest.ciudadOrigen || "",
-        // Mapeamos acompañantes
         companions: companions.map(c => ({
           primerNombre: c.primerNombre,
           primerApellido: c.primerApellido,
           numeroId: c.numeroId,
-          nacionalidad: c.nacionalidad
+          nacionalidad: c.nacionalidad,
+          tipoId: c.tipoId
         })),
-        signatureBase64: signature // <- Incorporamos la firma digital al payload
+        signatureBase64: signature
       }
 
-      // 2. Actualizar datos del huésped
+      // 2. Actualizar Huésped
       await updateGuestInfo(reservation.id, guestPayload)
 
-      // 3. Ejecutar Check-in Transaccional
+      // 3. Ejecutar Check-in (Aquí el backend genera el cargo)
       const response = await checkInReservation(reservation.id)
 
       toast.success("¡Check-in Exitoso!", {
-        description: `Habitación ${reservation.roomNumber} entregada correctamente.`,
-        action: {
-          label: "Ver Folio",
-          onClick: () => router.push(`/folios?id=${reservation.id}`) // Asumiendo que el ID de reserva basta para buscar el folio
-        }
+        description: `Habitación ${reservation.roomNumber} entregada.`,
       })
 
-      // 4. Refrescar vistas globales (Cronograma, Dashboard, Habitaciones)
+      // 4. Refrescar Datos
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reservations"] }),
         queryClient.invalidateQueries({ queryKey: ["rooms"] }),
@@ -221,10 +241,17 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
 
       onClose()
 
+      // 🔴 CORRECCIÓN CLAVE 404: Usar query param en lugar de ruta dinámica
+      if (response.folioId) {
+        router.push(`/folios?id=${response.folioId}`)
+      } else {
+        router.push(`/folios?reservationId=${reservation.id}`)
+      }
+
     } catch (error: any) {
       console.error(error)
       toast.error("Error en el proceso", {
-        description: error.response?.data?.message || "No se pudo completar el check-in. Intente nuevamente."
+        description: error.response?.data?.message || "Error desconocido."
       })
     } finally {
       setIsSubmitting(false)
@@ -460,6 +487,12 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                             </div>
                             <div className="space-y-1"><Label className="text-xs">Primer Apellido</Label>
                               <Input className="h-9 bg-background" value={comp.primerApellido} onChange={e => updateCompanion(comp.id, "primerApellido", e.target.value)} />
+                            </div>
+                            <div className="space-y-1"><Label className="text-xs">Tipo Doc.</Label>
+                              <Select value={comp.tipoId} onValueChange={v => updateCompanion(comp.id, "tipoId", v)}>
+                                <SelectTrigger className="h-9 bg-background"><SelectValue /></SelectTrigger>
+                                <SelectContent>{documentTypes.map(d => <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>)}</SelectContent>
+                              </Select>
                             </div>
                             <div className="space-y-1"><Label className="text-xs">Nacionalidad</Label>
                               <Select value={comp.nacionalidad} onValueChange={v => updateCompanion(comp.id, "nacionalidad", v)}>

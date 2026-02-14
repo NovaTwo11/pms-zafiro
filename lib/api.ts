@@ -174,6 +174,16 @@ export const reservationsApi = {
     moveSegment: async (id: string, segmentIndex: number, newRoomId: string) => {
         const response = await api.put(`/reservations/${id}/segments/${segmentIndex}/move`, { newRoomId });
         return response.data;
+    },
+    ensureFolio: async (id: string) => {
+        const response = await api.post(`/reservations/${id}/ensure-folio`);
+        return response.data; // Retorna { folioId: string }
+    },
+    getAvailableRoomsForMove: async (reservationId: string) => {
+        // Idealmente: GET /reservations/{id}/available-rooms-move
+        // Por ahora simulamos una llamada a Rooms filtrando en cliente o un endpoint simple
+        const response = await api.get('/rooms');
+        return response.data.filter((r: any) => r.status === 'Available');
     }
 };
 

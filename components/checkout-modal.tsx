@@ -11,15 +11,17 @@ import {
   X,
   Users,
   ArrowLeft,
-  AlertTriangle
+  AlertTriangle,
+  Eraser
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+// Asegúrate de tener este store o elimina la validación si no usas caja todavía
 import { useCashierStore } from "@/lib/store"
 
-// --- Tipos Exportados para reutilización ---
+// --- Tipos Exportados ---
 export interface ActiveFolio {
   id: string
   roomNumber: string
@@ -28,17 +30,15 @@ export interface ActiveFolio {
   status: string
 }
 
-// PaymentMethodType alineado con las opciones de UI
-export type PaymentMethodType = "Cash" | "CreditCard" | "Transfer" | "RoomCharge" | "DayPass"
+export type PaymentMethodType = "Cash" | "CreditCard" | "DebitCard" | "Transfer" | "RoomCharge" | "DayPass"
 
-// --- MAPEO CON EL BACKEND (Domain/Enums.cs) ---
-// Aseguramos que estos IDs coincidan con tu enum PaymentMethod en C#
+// --- MAPEO CON BACKEND ---
 const PAYMENT_METHOD_IDS: Record<string, number> = {
   "Cash": 1,
   "CreditCard": 2,
   "DebitCard": 3,
   "Transfer": 4,
-  "RoomCharge": 0, // Métodos lógicos, no financieros directos
+  "RoomCharge": 0,
   "DayPass": 0
 }
 
@@ -47,19 +47,18 @@ interface CheckoutModalProps {
   onClose: () => void
   total: number
   activeFolios: ActiveFolio[]
-  // Opción para pre-seleccionar un folio (útil si venimos del Check-out de habitación)
   defaultFolioId?: string
   onComplete: (data: {
     method: PaymentMethodType,
     methodId: number,
-    folioId?: string, // El ID del folio al que se aplica el pago/cargo
+    folioId?: string,
     finalAmount: number,
     discount: number,
     notes?: string
   }) => void
 }
 
-// Datos Mock para Pasadías (Reemplazar con fetch real a API de ExternalFolios)
+// Mock Pasadías
 const availablePasadias = [
   { id: "e1", alias: "Familia Pérez", description: "Evento de cumpleaños" },
   { id: "e2", alias: "Empresa ABC Corp", description: "Almuerzo ejecutivo" },
@@ -74,30 +73,38 @@ export function CheckoutModal({
                                 onComplete
                               }: CheckoutModalProps) {
 
-  const { isShiftOpen } = useCashierStore()
+  // Estado de Caja (Opcional: Si no usas store global, pon true por defecto)
+  const isShiftOpen = useCashierStore ? useCashierStore((s) => s.isShiftOpen) : true
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType | null>(null)
   const [roomSearch, setRoomSearch] = useState("")
 
+  // Selección de Destino (Para cargos)
   const [selectedRoom, setSelectedRoom] = useState<ActiveFolio | null>(null)
   const [selectedPasadia, setSelectedPasadia] = useState<(typeof availablePasadias)[0] | null>(null)
 
-  // Estados para descuento
+  // --- MONTO EDITABLE (Requisito Clave) ---
+  const [editableAmount, setEditableAmount] = useState<string>("")
+
+  // Descuentos
   const [showDiscount, setShowDiscount] = useState(false)
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent")
   const [discountValue, setDiscountValue] = useState("")
 
-  // Efecto para pre-seleccionar folio si se pasa por props (Flujo Check-out)
+  // Sincronizar monto inicial al abrir
   useEffect(() => {
-    if (isOpen && defaultFolioId && activeFolios.length > 0) {
-      const preSelected = activeFolios.find(f => f.id === defaultFolioId)
-      if (preSelected) {
-        setSelectedRoom(preSelected)
-        // Si venimos de checkout, asumimos que vamos a pagar (Cash/Card), no cargar a OTRO cuarto.
-        // Pero no seteamos paymentMethod automáticamente para dejar elegir al cajero.
+    if (isOpen) {
+      setEditableAmount(total.toString())
+      // Pre-selección de folio si viene del check-out
+      if (defaultFolioId && activeFolios.length > 0) {
+        const preSelected = activeFolios.find(f => f.id === defaultFolioId)
+        if (preSelected) setSelectedRoom(preSelected)
       }
+    } else {
+      // Reset al cerrar
+      resetState()
     }
-  }, [isOpen, defaultFolioId, activeFolios])
+  }, [isOpen, total, defaultFolioId, activeFolios])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("es-CO", {
@@ -108,49 +115,44 @@ export function CheckoutModal({
     }).format(amount)
   }
 
+  // Cálculos Dinámicos
+  const currentAmount = parseFloat(editableAmount) || 0
+
   const calculateDiscount = () => {
-    const value = Number.parseFloat(discountValue) || 0
+    const value = parseFloat(discountValue) || 0
     if (discountType === "percent") {
-      return (total * value) / 100
+      return (currentAmount * value) / 100
     }
     return value
   }
 
   const discountAmount = calculateDiscount()
-  const finalTotal = Math.max(0, total - discountAmount)
+  const finalTotal = Math.max(0, currentAmount - discountAmount)
 
-  // Filtros
-  const filteredRooms = activeFolios.filter(
-      (folio) =>
-          // Usamos el operador ?. (optional chaining) y ?? (nullish coalescing)
-          // para evitar el error si los datos vienen vacíos
-          (folio.roomNumber?.includes(roomSearch) ?? false) ||
-          (folio.guestName?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false)
+  // Filtros de búsqueda
+  const filteredRooms = activeFolios.filter((folio) =>
+      (folio.roomNumber?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false) ||
+      (folio.guestName?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false)
   )
 
-  const filteredPasadias = availablePasadias.filter(
-      (p) => p.alias.toLowerCase().includes(roomSearch.toLowerCase()) ||
-          p.description.toLowerCase().includes(roomSearch.toLowerCase())
+  const filteredPasadias = availablePasadias.filter((p) =>
+      p.alias.toLowerCase().includes(roomSearch.toLowerCase()) ||
+      p.description.toLowerCase().includes(roomSearch.toLowerCase())
   )
 
   const handleComplete = () => {
-    // Validaciones de negocio
     if (paymentMethod === "RoomCharge" && !selectedRoom) return;
     if (paymentMethod === "DayPass" && !selectedPasadia) return;
     if (!paymentMethod) return;
 
-    // Obtener ID del método para el backend
-    const methodId = PAYMENT_METHOD_IDS[paymentMethod] || 1; // Default a Cash si falla
+    const methodId = PAYMENT_METHOD_IDS[paymentMethod] || 1;
 
-    // Determinar el Folio ID destino
-    let targetFolioId = undefined;
+    // Lógica de destino del cargo
+    let targetFolioId = defaultFolioId; // Por defecto el actual (pago directo)
 
-    // CASO 1: Cargo a Habitación (POS) -> El folio destino es el seleccionado
     if (paymentMethod === "RoomCharge") targetFolioId = selectedRoom?.id;
-    // CASO 2: Pasadía -> El folio destino es el externo seleccionado
     else if (paymentMethod === "DayPass") targetFolioId = selectedPasadia?.id;
-    // CASO 3: Pago Directo (Cash/Card) -> Si había un folio pre-seleccionado (Check-out), usamos ese
-    else if (selectedRoom) targetFolioId = selectedRoom.id;
+    else if (selectedRoom) targetFolioId = selectedRoom.id; // Pago cash asociado a habitación seleccionada
 
     onComplete({
       method: paymentMethod,
@@ -161,7 +163,7 @@ export function CheckoutModal({
       notes: showDiscount ? `Descuento aplicado: ${formatCurrency(discountAmount)}` : undefined
     })
 
-    resetState()
+    // No reseteamos aquí, el padre cerrará el modal
   }
 
   const handleClose = () => {
@@ -172,20 +174,20 @@ export function CheckoutModal({
   const resetState = () => {
     setPaymentMethod(null)
     setRoomSearch("")
-    // No reseteamos selectedRoom si venía por defecto hasta cerrar completamente
     if (!defaultFolioId) setSelectedRoom(null)
     setSelectedPasadia(null)
     setShowDiscount(false)
     setDiscountValue("")
+    setEditableAmount("")
   }
 
   return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent className="sm:max-w-[500px] bg-card border-border p-0 [&>button]:hidden duration-200 gap-0 shadow-2xl">
+        <DialogContent className="sm:max-w-[500px] bg-card border-border p-0 gap-0 shadow-2xl overflow-hidden">
 
           {/* HEADER */}
           <DialogHeader className="p-6 pb-4 border-b border-border bg-muted/10">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-2">
               <DialogTitle className="font-serif text-2xl text-foreground flex items-center gap-2">
                 {selectedRoom ? (
                     <>
@@ -193,187 +195,117 @@ export function CheckoutModal({
                       <span>Registrar Pago</span>
                     </>
                 ) : (
-                    "Cobrar Orden"
+                    "Cobrar"
                 )}
               </DialogTitle>
-              <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleClose}
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent rounded-full"
-              >
+              <Button variant="ghost" size="icon" onClick={handleClose} className="h-8 w-8 rounded-full hover:bg-destructive/10 hover:text-destructive">
                 <X className="h-4 w-4" />
               </Button>
             </div>
 
             {isShiftOpen && (
-                <div className="text-center pt-4">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Monto a Cobrar</p>
-                  {discountAmount > 0 ? (
-                      <div className="flex flex-col items-center animate-in zoom-in-95">
-                        <p className="text-lg text-muted-foreground line-through opacity-70">{formatCurrency(total)}</p>
-                        <p className="text-4xl font-black text-[#D4AF37] tracking-tight">{formatCurrency(finalTotal)}</p>
-                        <p className="text-xs text-[#059669] font-bold bg-[#059669]/10 px-2 py-1 rounded-full mt-1 border border-[#059669]/20">
-                          Ahorras: {formatCurrency(discountAmount)}
+                <div className="text-center pt-2 flex flex-col items-center">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Monto a Cobrar</p>
+
+                  {/* INPUT EDITABLE GIGANTE */}
+                  <div className="relative group">
+                    <span className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">$</span>
+                    <Input
+                        type="number"
+                        value={editableAmount}
+                        onChange={(e) => setEditableAmount(e.target.value)}
+                        className="text-4xl font-black text-[#D4AF37] tracking-tight text-center border-none shadow-none focus-visible:ring-0 w-48 h-12 p-0 bg-transparent placeholder:text-muted/20"
+                        placeholder="0"
+                    />
+                    <Eraser
+                        className="absolute right-[-2rem] top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-50 cursor-pointer hover:!opacity-100 transition-opacity"
+                        onClick={() => setEditableAmount("")}
+                    />
+                  </div>
+
+                  {discountAmount > 0 && (
+                      <div className="flex items-center gap-2 mt-2 animate-in slide-in-from-bottom-1">
+                        <p className="text-xs text-[#059669] font-bold bg-[#059669]/10 px-2 py-0.5 rounded-full border border-[#059669]/20">
+                          - {formatCurrency(discountAmount)} (Desc.)
+                        </p>
+                        <p className="text-sm font-bold text-foreground border-t border-foreground/20">
+                          Final: {formatCurrency(finalTotal)}
                         </p>
                       </div>
-                  ) : (
-                      <p className="text-4xl font-black text-[#D4AF37] tracking-tight">{formatCurrency(total)}</p>
                   )}
                 </div>
             )}
           </DialogHeader>
 
           {/* BODY */}
-          <div className="p-6">
+          <div className="p-6 min-h-[300px]">
 
-            {/* --- VALIDACIÓN DE CAJA CERRADA --- */}
             {!isShiftOpen ? (
                 <div className="flex flex-col items-center justify-center py-6 text-center space-y-4 animate-in zoom-in-95 bg-red-50/50 rounded-xl border border-red-100">
-                  <div className="h-16 w-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center ring-4 ring-red-50 dark:ring-red-900/10">
-                    <AlertTriangle className="h-8 w-8 text-red-600 dark:text-red-400" />
+                  <div className="h-16 w-16 bg-red-100 rounded-full flex items-center justify-center ring-4 ring-red-50">
+                    <AlertTriangle className="h-8 w-8 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-red-700 dark:text-red-400">Caja Cerrada</h3>
+                    <h3 className="text-xl font-bold text-red-700">Caja Cerrada</h3>
                     <p className="text-muted-foreground text-sm max-w-[280px] mx-auto mt-2 leading-relaxed">
                       Para procesar pagos, primero debes abrir un turno en el módulo de Caja.
                     </p>
                   </div>
-                  <Button variant="outline" onClick={onClose} className="mt-2 border-red-200 hover:bg-red-100 hover:text-red-800 text-red-700">
-                    Entendido, cerrar
-                  </Button>
+                  <Button variant="outline" onClick={onClose} className="mt-2 text-red-700 hover:bg-red-50">Cerrar</Button>
                 </div>
             ) : (
-                // --- CAJA ABIERTA: FLUJO DE PAGO ---
                 <>
                   {paymentMethod === null ? (
+                      /* SELECCIÓN DE MÉTODO */
                       <div className="space-y-5 animate-in fade-in duration-300">
 
-                        {/* Descuento Toggle */}
+                        {/* Toggle Descuento */}
                         {!showDiscount ? (
                             <Button
                                 variant="outline"
                                 onClick={() => setShowDiscount(true)}
-                                className="w-full border-dashed border-2 border-muted hover:border-[#059669] hover:text-[#059669] hover:bg-[#059669]/5 transition-all text-muted-foreground"
+                                className="w-full border-dashed border-2 text-muted-foreground hover:text-primary hover:border-primary/50"
                             >
-                              <Percent className="h-4 w-4 mr-2" />
-                              Agregar Descuento
+                              <Percent className="h-4 w-4 mr-2" /> Agregar Descuento / Ajuste
                             </Button>
                         ) : (
-                            <div className="p-4 rounded-xl border border-[#059669]/30 bg-[#059669]/5 space-y-3 animate-in fade-in slide-in-from-top-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-bold text-[#059669] flex items-center gap-2">
-                                  <Percent className="h-4 w-4"/> Configurar Descuento
-                                </span>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                      setShowDiscount(false)
-                                      setDiscountValue("")
-                                    }}
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-full"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
+                            <div className="p-3 rounded-lg border bg-muted/20 space-y-3 animate-in fade-in slide-in-from-top-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs font-bold uppercase text-muted-foreground">Configurar Descuento</span>
+                                <X className="h-4 w-4 cursor-pointer text-muted-foreground" onClick={() => { setShowDiscount(false); setDiscountValue(""); }}/>
                               </div>
                               <div className="flex gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setDiscountType("percent")}
-                                    className={cn(
-                                        "flex-1 transition-all h-9 text-xs font-medium border",
-                                        discountType === "percent"
-                                            ? "bg-[#059669] text-white border-[#059669] shadow-sm"
-                                            : "hover:bg-accent"
-                                    )}
-                                >
-                                  % Porcentaje
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setDiscountType("fixed")}
-                                    className={cn(
-                                        "flex-1 transition-all h-9 text-xs font-medium border",
-                                        discountType === "fixed"
-                                            ? "bg-[#059669] text-white border-[#059669] shadow-sm"
-                                            : "hover:bg-accent"
-                                    )}
-                                >
-                                  $ Valor Fijo
-                                </Button>
+                                <div className="flex bg-muted rounded p-1 gap-1">
+                                  <button onClick={() => setDiscountType("percent")} className={cn("px-3 py-1 text-xs rounded transition-all", discountType === "percent" ? "bg-background shadow font-bold" : "text-muted-foreground")}>%</button>
+                                  <button onClick={() => setDiscountType("fixed")} className={cn("px-3 py-1 text-xs rounded transition-all", discountType === "fixed" ? "bg-background shadow font-bold" : "text-muted-foreground")}>$</button>
+                                </div>
+                                <Input
+                                    type="number"
+                                    placeholder={discountType === "percent" ? "Porcentaje (ej. 10)" : "Monto Fijo"}
+                                    value={discountValue}
+                                    onChange={(e) => setDiscountValue(e.target.value)}
+                                    className="h-8 bg-background"
+                                />
                               </div>
-                              <Input
-                                  type="number"
-                                  placeholder={discountType === "percent" ? "Ej: 10 (%)" : "Ej: 5000 ($)"}
-                                  value={discountValue}
-                                  onChange={(e) => setDiscountValue(e.target.value)}
-                                  className="bg-background border-border focus:ring-1 focus:ring-[#059669] h-10"
-                                  autoFocus
-                              />
                             </div>
                         )}
 
                         <div className="grid grid-cols-3 gap-3">
-                          <PaymentOption
-                              icon={Banknote}
-                              label="Efectivo"
-                              color="text-[#059669]"
-                              borderColor="group-hover:border-[#059669]"
-                              bgColor="group-hover:bg-[#059669]/5"
-                              onClick={() => setPaymentMethod("Cash")}
-                          />
-                          <PaymentOption
-                              icon={CreditCard}
-                              label="Tarjeta"
-                              color="text-[#3B82F6]"
-                              borderColor="group-hover:border-[#3B82F6]"
-                              bgColor="group-hover:bg-[#3B82F6]/5"
-                              onClick={() => setPaymentMethod("CreditCard")}
-                          />
-                          <PaymentOption
-                              icon={Building2}
-                              label="Transferencia"
-                              color="text-[#8B5CF6]"
-                              borderColor="group-hover:border-[#8B5CF6]"
-                              bgColor="group-hover:bg-[#8B5CF6]/5"
-                              onClick={() => setPaymentMethod("Transfer")}
-                          />
+                          <PaymentOption icon={Banknote} label="Efectivo" color="text-[#059669]" onClick={() => setPaymentMethod("Cash")} />
+                          <PaymentOption icon={CreditCard} label="Tarjeta" color="text-[#3B82F6]" onClick={() => setPaymentMethod("CreditCard")} />
+                          <PaymentOption icon={Building2} label="Transfer." color="text-[#8B5CF6]" onClick={() => setPaymentMethod("Transfer")} />
                         </div>
 
-                        {/* Opciones de Cargo (Solo si no hay folio pre-seleccionado o si queremos permitir split) */}
+                        {/* Opciones de Cargo (Solo si no hay folio pre-seleccionado) */}
                         {!selectedRoom && (
                             <>
                               <div className="relative py-2">
-                                <div className="absolute inset-0 flex items-center">
-                                  <span className="w-full border-t border-border" />
-                                </div>
-                                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider">
-                                  <span className="bg-card px-2 text-muted-foreground">Opciones de Cargo</span>
-                                </div>
+                                <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                                <div className="relative flex justify-center text-[10px] uppercase font-bold tracking-wider"><span className="bg-card px-2 text-muted-foreground">Cargos Internos</span></div>
                               </div>
-
                               <div className="grid grid-cols-2 gap-3">
-                                <PaymentOption
-                                    icon={BedDouble}
-                                    label="A la Habitación"
-                                    color="text-[#D4AF37]"
-                                    borderColor="group-hover:border-[#D4AF37]"
-                                    bgColor="group-hover:bg-[#D4AF37]/5"
-                                    onClick={() => setPaymentMethod("RoomCharge")}
-                                    className="h-16 flex-row gap-3"
-                                />
-                                <PaymentOption
-                                    icon={Users}
-                                    label="Pasadía / Externo"
-                                    color="text-[#D4AF37]"
-                                    borderColor="group-hover:border-[#D4AF37]"
-                                    bgColor="group-hover:bg-[#D4AF37]/5"
-                                    onClick={() => setPaymentMethod("DayPass")}
-                                    className="h-16 flex-row gap-3"
-                                />
+                                <PaymentOption icon={BedDouble} label="A Habitación" color="text-[#D4AF37]" onClick={() => setPaymentMethod("RoomCharge")} className="flex-row gap-3 h-14" />
+                                <PaymentOption icon={Users} label="Pasadía" color="text-[#D4AF37]" onClick={() => setPaymentMethod("DayPass")} className="flex-row gap-3 h-14" />
                               </div>
                             </>
                         )}
@@ -381,97 +313,37 @@ export function CheckoutModal({
 
                   ) : paymentMethod === "RoomCharge" && !selectedRoom ? (
 
-                      /* SELECCIÓN DE HABITACIÓN (Si no venía pre-seleccionada) */
-                      <div className="space-y-4 animate-in slide-in-from-right-10 duration-300 h-full flex flex-col">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPaymentMethod(null)}
-                            className="text-muted-foreground hover:text-foreground self-start pl-0 -ml-2 mb-2"
-                        >
-                          <ArrowLeft className="h-4 w-4 mr-1" /> Volver a métodos
-                        </Button>
-
+                      /* BUSCADOR HABITACIÓN */
+                      <div className="space-y-4 animate-in slide-in-from-right-10 duration-200">
+                        <Button variant="ghost" size="sm" onClick={() => setPaymentMethod(null)} className="pl-0 -ml-2 text-muted-foreground"><ArrowLeft className="h-4 w-4 mr-1"/> Volver</Button>
                         <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                              placeholder="Buscar por habitación o huésped..."
-                              value={roomSearch}
-                              onChange={(e) => setRoomSearch(e.target.value)}
-                              className="pl-9 h-11 focus-visible:ring-[#D4AF37]"
-                              autoFocus
-                          />
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/>
+                          <Input placeholder="Buscar hab o huésped..." value={roomSearch} onChange={e => setRoomSearch(e.target.value)} className="pl-9" autoFocus />
                         </div>
-
-                        <div className="flex-1 overflow-y-auto custom-scrollbar -mr-2 pr-2 space-y-2 max-h-[300px]">
-                          {filteredRooms.length === 0 ? (
-                              <div className="flex flex-col items-center justify-center py-10 opacity-50">
-                                <BedDouble className="h-10 w-10 mb-2" />
-                                <p className="text-sm">No se encontraron huéspedes</p>
+                        <div className="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-2">
+                          {filteredRooms.map(f => (
+                              <div key={f.id} onClick={() => setSelectedRoom(f)} className="p-3 border rounded hover:border-[#D4AF37] hover:bg-accent/50 cursor-pointer flex justify-between items-center group">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs group-hover:bg-[#D4AF37] group-hover:text-white transition-colors">{f.roomNumber}</div>
+                                  <div><p className="text-sm font-medium">{f.guestName}</p></div>
+                                </div>
+                                <span className={cn("text-xs font-bold", f.balance > 0 ? "text-red-500" : "text-green-500")}>{formatCurrency(f.balance)}</span>
                               </div>
-                          ) : (
-                              filteredRooms.map((folio) => (
-                                  <div
-                                      key={folio.id}
-                                      onClick={() => setSelectedRoom(folio)}
-                                      className="cursor-pointer p-3 rounded-lg border border-border bg-card hover:border-[#D4AF37] hover:shadow-md transition-all flex items-center justify-between group"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center font-bold text-foreground group-hover:bg-[#D4AF37] group-hover:text-white transition-colors">
-                                        {folio.roomNumber}
-                                      </div>
-                                      <div>
-                                        <p className="font-medium leading-none">{folio.guestName}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Folio: {folio.status}</p>
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-xs text-muted-foreground">Saldo</p>
-                                      <p className={cn("font-bold text-sm", folio.balance > 0 ? "text-red-500" : "text-green-600")}>
-                                        {formatCurrency(folio.balance)}
-                                      </p>
-                                    </div>
-                                  </div>
-                              ))
-                          )}
+                          ))}
                         </div>
                       </div>
 
                   ) : paymentMethod === "DayPass" && !selectedPasadia ? (
 
-                      /* SELECCIÓN DE PASADÍA */
-                      <div className="space-y-4 animate-in slide-in-from-right-10 duration-300 h-full flex flex-col">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setPaymentMethod(null)}
-                            className="text-muted-foreground hover:text-foreground self-start pl-0 -ml-2 mb-2"
-                        >
-                          <ArrowLeft className="h-4 w-4 mr-1" /> Volver a métodos
-                        </Button>
-
-                        <Input
-                            placeholder="Buscar cliente externo..."
-                            value={roomSearch}
-                            onChange={(e) => setRoomSearch(e.target.value)}
-                            className="focus-visible:ring-[#D4AF37]"
-                            autoFocus
-                        />
-
+                      /* BUSCADOR PASADÍA */
+                      <div className="space-y-4 animate-in slide-in-from-right-10 duration-200">
+                        <Button variant="ghost" size="sm" onClick={() => setPaymentMethod(null)} className="pl-0 -ml-2 text-muted-foreground"><ArrowLeft className="h-4 w-4 mr-1"/> Volver</Button>
+                        <Input placeholder="Buscar cliente externo..." value={roomSearch} onChange={e => setRoomSearch(e.target.value)} autoFocus />
                         <div className="space-y-2">
-                          {filteredPasadias.map((pasadia) => (
-                              <div
-                                  key={pasadia.id}
-                                  onClick={() => setSelectedPasadia(pasadia)}
-                                  className="cursor-pointer p-3 rounded-lg border border-border hover:bg-accent/50 flex items-center gap-3 transition-colors"
-                              >
-                                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                                  <Users className="h-5 w-5" />
-                                </div>
-                                <div>
-                                  <p className="font-medium">{pasadia.alias}</p>
-                                  <p className="text-xs text-muted-foreground">{pasadia.description}</p>
-                                </div>
+                          {filteredPasadias.map(p => (
+                              <div key={p.id} onClick={() => setSelectedPasadia(p)} className="p-3 border rounded hover:bg-accent cursor-pointer">
+                                <p className="font-bold text-sm">{p.alias}</p>
+                                <p className="text-xs text-muted-foreground">{p.description}</p>
                               </div>
                           ))}
                         </div>
@@ -479,87 +351,43 @@ export function CheckoutModal({
 
                   ) : (
 
-                      /* CONFIRMACIÓN FINAL */
-                      <div className="space-y-6 animate-in zoom-in-95 duration-300">
-                        <div className="bg-accent/30 rounded-xl p-4 border border-border">
-                          <div className="flex items-start gap-4">
-                            <div className={cn(
-                                "h-12 w-12 rounded-full flex items-center justify-center shrink-0",
-                                paymentMethod === "Cash" ? "bg-[#059669]/10 text-[#059669]" :
-                                    paymentMethod === "CreditCard" ? "bg-[#3B82F6]/10 text-[#3B82F6]" :
-                                        paymentMethod === "Transfer" ? "bg-[#8B5CF6]/10 text-[#8B5CF6]" :
-                                            "bg-[#D4AF37]/10 text-[#D4AF37]"
-                            )}>
-                              {paymentMethod === "Cash" && <Banknote className="h-6 w-6" />}
-                              {paymentMethod === "CreditCard" && <CreditCard className="h-6 w-6" />}
-                              {paymentMethod === "Transfer" && <Building2 className="h-6 w-6" />}
-                              {(paymentMethod === "RoomCharge" || paymentMethod === "DayPass") && <BedDouble className="h-6 w-6" />}
-                            </div>
-
-                            <div className="space-y-1">
-                              <p className="text-sm text-muted-foreground font-medium">Método de Pago</p>
-                              <h3 className="text-lg font-bold text-foreground">
-                                {paymentMethod === "Cash" && "Efectivo"}
-                                {paymentMethod === "CreditCard" && "Tarjeta de Crédito/Débito"}
-                                {paymentMethod === "Transfer" && "Transferencia Bancaria"}
-                                {paymentMethod === "RoomCharge" && "Cargo a Habitación"}
-                                {paymentMethod === "DayPass" && "Cuenta Externa"}
-                              </h3>
-
-                              {/* Mostrar detalle del destino si es cargo */}
-                              {selectedRoom && paymentMethod === "RoomCharge" && (
-                                  <p className="text-sm text-[#D4AF37] font-medium pt-1">
-                                    Destino: Hab. {selectedRoom.roomNumber} ({selectedRoom.guestName})
-                                  </p>
-                              )}
-                              {selectedPasadia && paymentMethod === "DayPass" && (
-                                  <p className="text-sm text-[#D4AF37] font-medium pt-1">
-                                    Cliente: {selectedPasadia.alias}
-                                  </p>
-                              )}
-                              {/* NUEVO: Feedback Visual para Ventas Directas */}
-                              {!selectedRoom && !selectedPasadia && ["Cash", "CreditCard", "Transfer"].includes(paymentMethod) && (
-                                  <p className="text-sm text-[#059669] font-medium pt-1">
-                                    Tipo: Venta Directa (Público General)
-                                  </p>
-                              )}
-                            </div>
+                      /* CONFIRMACIÓN */
+                      <div className="space-y-6 animate-in zoom-in-95 duration-200">
+                        <div className="bg-accent/30 rounded-xl p-4 border flex gap-4 items-start">
+                          <div className={cn("h-12 w-12 rounded-full flex items-center justify-center shrink-0",
+                              paymentMethod === "Cash" ? "bg-green-100 text-green-600" :
+                                  paymentMethod === "CreditCard" ? "bg-blue-100 text-blue-600" : "bg-orange-100 text-orange-600"
+                          )}>
+                            {paymentMethod === "Cash" && <Banknote />}
+                            {paymentMethod === "CreditCard" && <CreditCard />}
+                            {(paymentMethod === "RoomCharge" || paymentMethod === "DayPass") && <BedDouble />}
+                            {paymentMethod === "Transfer" && <Building2 />}
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground font-medium">Confirmar Transacción</p>
+                            <h3 className="text-lg font-bold">
+                              {paymentMethod === "Cash" ? "Pago en Efectivo" :
+                                  paymentMethod === "CreditCard" ? "Pago con Tarjeta" :
+                                      paymentMethod === "Transfer" ? "Transferencia" : "Cargo a Cuenta"}
+                            </h3>
+                            {(selectedRoom || selectedPasadia) && (
+                                <p className="text-sm text-[#D4AF37]">
+                                  Destino: {selectedRoom ? `Hab. ${selectedRoom.roomNumber}` : selectedPasadia?.alias}
+                                </p>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex gap-3">
-                          <Button
-                              variant="outline"
-                              onClick={() => {
-                                // Si veníamos pre-seleccionados, volvemos al menú principal sin borrar el cuarto
-                                if (defaultFolioId && selectedRoom?.id === defaultFolioId) {
-                                  setPaymentMethod(null)
-                                } else if (paymentMethod === "RoomCharge") {
-                                  setSelectedRoom(null)
-                                } else if (paymentMethod === "DayPass") {
-                                  setSelectedPasadia(null)
-                                } else {
-                                  setPaymentMethod(null)
-                                }
-                              }}
-                              className="flex-1"
-                          >
-                            Atrás
-                          </Button>
-                          <Button
-                              onClick={handleComplete}
-                              className={cn(
-                                  "flex-[2] font-bold text-base shadow-lg hover:shadow-xl transition-all",
-                                  paymentMethod === "Cash"
-                                      ? "bg-[#059669] hover:bg-[#059669]/90 text-white"
-                                      : paymentMethod === "CreditCard"
-                                          ? "bg-[#3B82F6] hover:bg-[#3B82F6]/90 text-white"
-                                          : paymentMethod === "Transfer"
-                                              ? "bg-[#8B5CF6] hover:bg-[#8B5CF6]/90 text-white"
-                                              : "bg-[#D4AF37] hover:bg-[#B5952F] text-white",
-                              )}
-                          >
-                            Confirmar {(!selectedRoom && !selectedPasadia && ["Cash", "CreditCard", "Transfer"].includes(paymentMethod)) ? `Venta Directa (${formatCurrency(finalTotal)})` : formatCurrency(finalTotal)}
+                        <div className="flex gap-3 pt-4">
+                          <Button variant="outline" onClick={() => {
+                            if (defaultFolioId && selectedRoom?.id === defaultFolioId) setPaymentMethod(null);
+                            else if (paymentMethod === "RoomCharge") setSelectedRoom(null);
+                            else if (paymentMethod === "DayPass") setSelectedPasadia(null);
+                            else setPaymentMethod(null);
+                          }} className="flex-1">Atrás</Button>
+
+                          <Button onClick={handleComplete} className="flex-[2] font-bold text-lg bg-[#D4AF37] hover:bg-[#B5952F] text-white shadow-lg">
+                            Confirmar {formatCurrency(finalTotal)}
                           </Button>
                         </div>
                       </div>
@@ -572,36 +400,12 @@ export function CheckoutModal({
   )
 }
 
-// Subcomponente auxiliar para botones de método de pago
-function PaymentOption({
-                         icon: Icon,
-                         label,
-                         color,
-                         borderColor,
-                         bgColor,
-                         onClick,
-                         className
-                       }: {
-  icon: any,
-  label: string,
-  color: string,
-  borderColor: string,
-  bgColor: string,
-  onClick: () => void,
-  className?: string
-}) {
+// Subcomponente UI
+function PaymentOption({ icon: Icon, label, color, onClick, className }: any) {
   return (
-      <button
-          onClick={onClick}
-          className={cn(
-              "flex flex-col items-center justify-center h-24 rounded-xl border border-border bg-card transition-all duration-200 active:scale-95 group shadow-sm hover:shadow-md",
-              borderColor,
-              bgColor,
-              className
-          )}
-      >
-        <Icon className={cn("h-8 w-8 mb-2 transition-transform group-hover:scale-110", color)} />
-        <span className="text-xs font-semibold text-foreground group-hover:text-foreground/80">{label}</span>
+      <button onClick={onClick} className={cn("flex flex-col items-center justify-center h-24 rounded-xl border bg-card hover:border-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all group active:scale-95", className)}>
+        <Icon className={cn("h-7 w-7 mb-2 transition-transform group-hover:scale-110", color)} />
+        <span className="text-xs font-semibold text-foreground">{label}</span>
       </button>
   )
 }
