@@ -32,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckInWizard } from "@/components/checkin-wizard"
 import { ReservationGuestList } from "./reservation-guest-list"
 import { CheckoutModal } from "@/components/checkout-modal"
-import { GuestFormDrawer } from "@/components/guest-form-drawer" // IMPORTADO CORRECTAMENTE
+import { GuestFormDrawer } from "@/components/guest-form-drawer"
 import { api, reservationsApi } from "@/lib/api"
 import { ReservationDto, GuestDetailDto, RoomDto } from "@/types"
 
@@ -60,6 +60,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
 
     // Modal States
     const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false)
+    const [isCancelling, setIsCancelling] = useState(false) // NUEVO: Estado de carga para cancelación
     const [isChangeRoomOpen, setIsChangeRoomOpen] = useState(false)
     const [showConfirmCheckout, setShowConfirmCheckout] = useState(false)
     const [showPaymentModal, setShowPaymentModal] = useState(false)
@@ -96,6 +97,24 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
     // ==========================================
     // 3. HANDLERS LÓGICOS
     // ==========================================
+
+    // --- CANCELAR RESERVA (NUEVO) ---
+    const handleCancelReservation = async () => {
+        if (!reservation) return;
+        setIsCancelling(true);
+        try {
+            await reservationsApi.cancel(reservation.id);
+            toast.success("Reserva cancelada correctamente");
+            setIsCancelDialogOpen(false);
+            await fetchReservation(); // Refrescar el estado a 'Cancelled'
+            router.refresh();
+        } catch (error) {
+            console.error(error);
+            toast.error("Error al cancelar la reserva");
+        } finally {
+            setIsCancelling(false);
+        }
+    }
 
     // --- CHECKOUT ---
     const handleCheckOutRequest = async () => {
@@ -334,13 +353,36 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
 
             {/* --- MODALES --- */}
 
-            {/* 1. Modal Editar Huésped (REEMPLAZADO CON EL DRAWER REAL) */}
+            {/* 1. Modal Editar Huésped */}
             <GuestFormDrawer
                 open={!!editingGuest}
                 onOpenChange={(open) => !open && setEditingGuest(null)}
                 guestToEdit={editingGuest}
                 onGuestSaved={handleGuestUpdate}
             />
+
+            {/* Modal Confirmar Cancelación (NUEVO) */}
+            <AlertDialog open={isCancelDialogOpen} onOpenChange={setIsCancelDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>¿Estás seguro de cancelar?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esto no se puede deshacer. La reserva pasará a estado Cancelado y se liberará la disponibilidad de la habitación <strong>{reservation.roomId}</strong>.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isCancelling}>Volver</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleCancelReservation}
+                            disabled={isCancelling}
+                            className="bg-destructive text-white hover:bg-destructive/90"
+                        >
+                            {isCancelling ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <XCircle className="h-4 w-4 mr-2"/>}
+                            Sí, cancelar reserva
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* 2. Modal Confirmar Salida */}
             <AlertDialog open={showConfirmCheckout} onOpenChange={setShowConfirmCheckout}>
@@ -360,7 +402,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                 </AlertDialogContent>
             </AlertDialog>
 
-            {/* 3. Modal de Pagos (CheckoutModal) - CORREGIDO */}
+            {/* 3. Modal de Pagos (CheckoutModal) */}
             <CheckoutModal
                 isOpen={showPaymentModal}
                 onClose={() => setShowPaymentModal(false)}
@@ -378,7 +420,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                 onComplete={handlePaymentComplete}
             />
 
-            {/* 4. Modal de Cambio de Habitación (NUEVO) */}
+            {/* 4. Modal de Cambio de Habitación */}
             <Dialog open={isChangeRoomOpen} onOpenChange={setIsChangeRoomOpen}>
                 <DialogContent>
                     <DialogHeader>
@@ -491,7 +533,10 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                     checkIn: reservation.checkIn,
                                     checkOut: reservation.checkOut,
                                     totalAmount: safeTotal,
-                                    paidAmount: safePaid
+                                    paidAmount: safePaid,
+                                    // NUEVO: Pasamos los datos crudos para pre-cargar
+                                    mainGuestData: mainGuest,
+                                    companionsData: displayGuests.filter(g => !g.esTitular)
                                 }}
                                 onComplete={() => {
                                     setIsCheckinWizardOpen(false);
@@ -503,7 +548,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                     </div>
                 </div>
 
-                {/* Progress Bar (Stepper) - CORREGIDO */}
+                {/* Progress Bar (Stepper) */}
                 <div className="mt-6 flex items-center justify-between max-w-3xl mx-auto pb-2">
                     {steps.map((step, index) => {
                         const stepNum = index + 1;
@@ -598,9 +643,8 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                             <TabsContent value="huespedes" className="mt-4">
                                 <ReservationGuestList
                                     guests={displayGuests}
-                                    // CORRECCIÓN NAN: Pasamos un número seguro
                                     maxGuests={totalCapacity}
-                                    onEditGuest={setEditingGuest} // Conecta con el estado del drawer
+                                    onEditGuest={setEditingGuest}
                                 />
                             </TabsContent>
 
@@ -688,8 +732,8 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                 )}
 
                                 <Button className="w-full font-bold"
-                                        onClick={handleOpenPayment} // MODIFICADO: Usa la nueva lógica flexible
-                                        disabled={reservation.status === 'Cancelled'} // Menos restrictivo
+                                        onClick={handleOpenPayment}
+                                        disabled={reservation.status === 'Cancelled'}
                                 >
                                     <CreditCard className="h-4 w-4 mr-2" />
                                     {reservation.folioId ? "Registrar Pago" : "Habilitar Cuenta y Pagar"}
@@ -716,7 +760,7 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                                     </div>
                                 </div>
 
-                                {/* NUEVO: Visualización de Firma Digital */}
+                                {/* Visualización de Firma Digital */}
                                 {(mainGuest.isSigned) && (
                                     <div className="mt-4 border-t pt-4">
                                         <div className="flex items-center gap-2 text-[#059669] bg-[#059669]/10 p-2 rounded border border-[#059669]/20">

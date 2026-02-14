@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
-import {api, checkInReservation, reservationsApi, updateGuestInfo} from "@/lib/api" // Asegúrate de tener estas en lib/api.ts
+import { api, checkInReservation, reservationsApi, updateGuestInfo } from "@/lib/api"
 
 // --- INTERFACES ---
 export interface GuestFormData {
@@ -26,18 +26,14 @@ export interface GuestFormData {
   nacionalidad: string
   tipoId: string
   numeroId: string
-  fechaCumpleanos: string
+  fechaNacimiento: string // Renombrado para consistencia
   primerNombre: string
   primerApellido: string
   segundoNombre?: string
   segundoApellido?: string
-  genero: string
   telefono: string
   correo?: string
-  ocupacion?: string
-  direccion?: string
   ciudadOrigen?: string
-  ciudadDestino?: string
 }
 
 interface CheckinWizardProps {
@@ -51,6 +47,9 @@ interface CheckinWizardProps {
     checkOut: Date | string
     totalAmount: number
     paidAmount: number
+    // NUEVO: Datos inyectados desde el padre
+    mainGuestData?: any
+    companionsData?: any[]
   }
   onComplete?: (data?: any) => void
 }
@@ -77,31 +76,46 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   const [paymentMethod, setPaymentMethod] = useState("efectivo")
 
   // --- ESTADOS DEL WIZARD ---
-  // Si hay deuda, forzamos iniciar en paso 0 (Pagos). Si no, directo a paso 1 (Titular)
   const [currentStep, setCurrentStep] = useState(hasDebt ? 0 : 1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Datos del Titular
-  const [mainGuest, setMainGuest] = useState<GuestFormData>({
-    id: "main",
-    nacionalidad: "Colombia",
-    tipoId: "CC",
-    numeroId: "",
-    fechaCumpleanos: "",
-    primerNombre: reservation.guestName.split(" ")[0] || "",
-    primerApellido: reservation.guestName.split(" ").slice(1).join(" ") || "",
-    segundoNombre: "",
-    segundoApellido: "",
-    genero: "",
-    telefono: "",
-    correo: "",
-    ocupacion: "",
-    direccion: "",
-    ciudadOrigen: "",
-    ciudadDestino: ""
+  // PRE-CARGA DATOS DEL TITULAR
+  const [mainGuest, setMainGuest] = useState<GuestFormData>(() => {
+    const mg = reservation.mainGuestData;
+    return {
+      id: mg?.id || "main",
+      nacionalidad: mg?.nacionalidad || "Colombia",
+      tipoId: mg?.tipoId || "CC",
+      numeroId: mg?.numeroId || "",
+      fechaNacimiento: mg?.fechaNacimiento ? mg.fechaNacimiento.split('T')[0] : "",
+      primerNombre: mg?.primerNombre || reservation.guestName.split(" ")[0] || "",
+      primerApellido: mg?.primerApellido || reservation.guestName.split(" ").slice(1).join(" ") || "",
+      segundoNombre: mg?.segundoNombre || "",
+      segundoApellido: mg?.segundoApellido || "",
+      telefono: mg?.telefono || "",
+      correo: mg?.correo || "",
+      ciudadOrigen: mg?.ciudadOrigen || "",
+    }
   })
 
-  const [companions, setCompanions] = useState<GuestFormData[]>([])
+  // PRE-CARGA DATOS ACOMPAÑANTES
+  const [companions, setCompanions] = useState<GuestFormData[]>(() => {
+    if (!reservation.companionsData || reservation.companionsData.length === 0) return [];
+    return reservation.companionsData.map((c: any) => ({
+      id: c.id || Date.now().toString() + Math.random(),
+      nacionalidad: c.nacionalidad || "Colombia",
+      tipoId: c.tipoId || "CC",
+      numeroId: c.numeroId || "",
+      fechaNacimiento: c.fechaNacimiento ? c.fechaNacimiento.split('T')[0] : "",
+      primerNombre: c.primerNombre || "",
+      primerApellido: c.primerApellido || "",
+      segundoNombre: c.segundoNombre || "",
+      segundoApellido: c.segundoApellido || "",
+      telefono: c.telefono || "",
+      correo: c.correo || "",
+      ciudadOrigen: c.ciudadOrigen || "",
+    }))
+  })
 
   // Firma y Legal
   const [signature, setSignature] = useState<string>("")
@@ -125,7 +139,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
 
   const isStep3Valid = () => signature.length > 0 && termsAccepted && dataPolicyAccepted
 
-  // --- HANDLERS ---
+  // --- HANDLERS PAGOS ---
   const handleOpenPayment = () => {
     setPaymentAmount(pendingAmount.toString())
     setIsPaymentModalOpen(true)
@@ -136,11 +150,8 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     if (isNaN(amount) || amount <= 0) return
 
     try {
-      // 1. Asegurar que existe un folio donde guardar el dinero
-      // Esto crea el folio en BD si no existe, para poder asociar la transacción
       const { folioId } = await reservationsApi.ensureFolio(reservation.id);
 
-      // 2. Mapear método de pago (Ajusta los IDs según tu DB)
       const methodMap: Record<string, number> = {
         "efectivo": 1,
         "tarjeta": 2,
@@ -148,44 +159,41 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
       };
       const methodId = methodMap[paymentMethod] || 1;
 
-      // 3. ENVIAR TRANSACCIÓN REAL AL BACKEND
       await api.post(`/folios/${folioId}/transactions`, {
         amount: amount,
         description: `Abono Check-in (${paymentMethod})`,
-        type: 1, // 1 = Payment
+        type: 1,
         paymentMethod: methodId
       });
 
-      // 4. Actualizar UI Local
       const newPaid = localPaidAmount + amount
       setLocalPaidAmount(newPaid)
       setIsPaymentModalOpen(false)
-      toast.success("Pago registrado", { description: "El abono se ha guardado en la cuenta." })
+      toast.success("Pago registrado")
 
-      // Avanzar si ya pagó
       if (reservation.totalAmount - newPaid <= 100) {
         setTimeout(() => setCurrentStep(1), 500)
       }
-
     } catch (error) {
       console.error(error)
-      toast.error("Error al procesar pago", { description: "No se pudo guardar el abono." })
+      toast.error("Error al procesar pago")
     }
   }
 
+  // --- HANDLERS ACOMPAÑANTES ---
   const addCompanion = () => {
     setCompanions([...companions, {
       id: Date.now().toString(),
       nacionalidad: "Colombia",
       tipoId: "CC",
       numeroId: "",
-      fechaCumpleanos: "",
+      fechaNacimiento: "",
       primerNombre: "",
       primerApellido: "",
       segundoNombre: "",
       segundoApellido: "",
-      genero: "",
-      telefono: ""
+      telefono: "",
+      ciudadOrigen: ""
     }])
   }
 
@@ -199,7 +207,6 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     setIsSubmitting(true)
 
     try {
-      // 1. Preparar Payload
       const guestPayload: any = {
         nacionalidad: mainGuest.nacionalidad,
         tipoId: mainGuest.tipoId,
@@ -210,29 +217,27 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
         segundoApellido: mainGuest.segundoApellido || "",
         telefono: mainGuest.telefono,
         correo: mainGuest.correo || "",
-        direccion: mainGuest.direccion || "",
         ciudadOrigen: mainGuest.ciudadOrigen || "",
+        fechaNacimiento: mainGuest.fechaNacimiento || "",
         companions: companions.map(c => ({
           primerNombre: c.primerNombre,
+          segundoNombre: c.segundoNombre || "",
           primerApellido: c.primerApellido,
+          segundoApellido: c.segundoApellido || "",
           numeroId: c.numeroId,
           nacionalidad: c.nacionalidad,
-          tipoId: c.tipoId
+          tipoId: c.tipoId,
+          fechaNacimiento: c.fechaNacimiento || "",
+          ciudadOrigen: c.ciudadOrigen || ""
         })),
         signatureBase64: signature
       }
 
-      // 2. Actualizar Huésped
       await updateGuestInfo(reservation.id, guestPayload)
-
-      // 3. Ejecutar Check-in (Aquí el backend genera el cargo)
       const response = await checkInReservation(reservation.id)
 
-      toast.success("¡Check-in Exitoso!", {
-        description: `Habitación ${reservation.roomNumber} entregada.`,
-      })
+      toast.success("¡Check-in Exitoso!")
 
-      // 4. Refrescar Datos
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reservations"] }),
         queryClient.invalidateQueries({ queryKey: ["rooms"] }),
@@ -241,7 +246,6 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
 
       onClose()
 
-      // 🔴 CORRECCIÓN CLAVE 404: Usar query param en lugar de ruta dinámica
       if (response.folioId) {
         router.push(`/folios?id=${response.folioId}`)
       } else {
@@ -250,9 +254,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
 
     } catch (error: any) {
       console.error(error)
-      toast.error("Error en el proceso", {
-        description: error.response?.data?.message || "Error desconocido."
-      })
+      toast.error("Error en el proceso", { description: error.response?.data?.message || "Error desconocido." })
     } finally {
       setIsSubmitting(false)
     }
@@ -295,7 +297,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     if (!isDrawing) return
     const ctx = canvasRef.current?.getContext("2d")
     if (!ctx) return
-    e.preventDefault() // Prevenir scroll en móviles al firmar
+    e.preventDefault()
     const { x, y } = getCoordinates(e.nativeEvent)
     ctx.lineTo(x, y)
     ctx.stroke()
@@ -313,19 +315,17 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     ctx.fillStyle = "#ffffff"
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.lineWidth = 2
-    ctx.strokeStyle = "#0F0F0F" // Trazo oscuro
+    ctx.strokeStyle = "#0F0F0F"
     ctx.lineCap = "round"
     setSignature("")
   }
 
   useEffect(() => {
     if (currentStep === 3) {
-      // Timeout para asegurar que el canvas se montó y dimensionó antes de limpiar/pintar
       setTimeout(() => clearSignature(), 100)
     }
   }, [currentStep])
 
-  // Lógica de filtrado de los pasos a renderizar
   const steps = [
     { number: 0, title: "Pagos", icon: CreditCard, hidden: !hasDebt },
     { number: 1, title: "Titular", icon: User, hidden: false },
@@ -336,14 +336,11 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && !isSubmitting && onClose()}>
         <DialogContent className="w-full max-w-[95vw] lg:max-w-7xl h-[95vh] flex flex-col p-0 bg-background border-border shadow-2xl overflow-hidden">
-
-          {/* Header Oculto para Accesibilidad */}
           <DialogHeader className="sr-only">
             <DialogTitle>Asistente de Check-in</DialogTitle>
             <DialogDescription>Complete el flujo para registrar el ingreso.</DialogDescription>
           </DialogHeader>
 
-          {/* Custom Header Visual */}
           <div className="bg-card px-4 md:px-8 py-4 md:py-6 border-b border-border shrink-0">
             <div className="flex justify-between items-start mb-4 md:mb-6">
               <div>
@@ -357,7 +354,6 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
               </Button>
             </div>
 
-            {/* Stepper Dinámico */}
             <div className="flex items-center justify-start md:justify-center gap-2 md:gap-4 overflow-x-auto pb-2 scrollbar-hide">
               {steps.map((step, idx) => {
                 const isActive = currentStep === step.number
@@ -377,12 +373,8 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
             </div>
           </div>
 
-          {/* Body */}
           <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1 bg-background">
-
-            {/* ========================================================
-                PASO 0: DEUDA (Sólo si owes > 100)
-            ======================================================== */}
+            {/* --- PASO 0: DEUDA --- */}
             {currentStep === 0 && (
                 <div className="flex flex-col items-center justify-center h-full space-y-8 animate-in fade-in zoom-in-95 duration-300">
                   <div className="text-center space-y-4">
@@ -407,9 +399,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                 </div>
             )}
 
-            {/* ========================================================
-                PASO 1: TITULAR
-            ======================================================== */}
+            {/* --- PASO 1: TITULAR --- */}
             {currentStep === 1 && (
                 <div className="space-y-8 max-w-6xl mx-auto animate-in slide-in-from-right-4 duration-300">
                   <h3 className="text-xl font-bold text-primary border-b border-border pb-4">Información del Titular</h3>
@@ -429,6 +419,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                     <div className="space-y-2 xl:col-span-2"><Label>Número ID *</Label>
                       <Input className="bg-card" value={mainGuest.numeroId} onChange={e => setMainGuest({...mainGuest, numeroId: e.target.value})} placeholder="Ej: 1094..."/>
                     </div>
+
                     <div className="space-y-2"><Label>Primer Nombre *</Label>
                       <Input className="bg-card" value={mainGuest.primerNombre} onChange={e => setMainGuest({...mainGuest, primerNombre: e.target.value})}/>
                     </div>
@@ -441,22 +432,24 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                     <div className="space-y-2"><Label>Segundo Apellido</Label>
                       <Input className="bg-card" value={mainGuest.segundoApellido} onChange={e => setMainGuest({...mainGuest, segundoApellido: e.target.value})}/>
                     </div>
+
                     <div className="space-y-2"><Label>Teléfono *</Label>
                       <Input className="bg-card" type="tel" value={mainGuest.telefono} onChange={e => setMainGuest({...mainGuest, telefono: e.target.value})}/>
                     </div>
-                    <div className="space-y-2 xl:col-span-2"><Label>Dirección</Label>
-                      <Input className="bg-card" value={mainGuest.direccion} onChange={e => setMainGuest({...mainGuest, direccion: e.target.value})}/>
+                    <div className="space-y-2"><Label>Correo Electrónico</Label>
+                      <Input className="bg-card" type="email" value={mainGuest.correo} onChange={e => setMainGuest({...mainGuest, correo: e.target.value})}/>
                     </div>
-                    <div className="space-y-2 xl:col-span-1"><Label>Ciudad Origen</Label>
+                    <div className="space-y-2"><Label>Ciudad Origen</Label>
                       <Input className="bg-card" value={mainGuest.ciudadOrigen} onChange={e => setMainGuest({...mainGuest, ciudadOrigen: e.target.value})}/>
+                    </div>
+                    <div className="space-y-2"><Label>Fecha Nacimiento</Label>
+                      <Input type="date" className="bg-card" value={mainGuest.fechaNacimiento} onChange={e => setMainGuest({...mainGuest, fechaNacimiento: e.target.value})}/>
                     </div>
                   </div>
                 </div>
             )}
 
-            {/* ========================================================
-                PASO 2: ACOMPAÑANTES
-            ======================================================== */}
+            {/* --- PASO 2: ACOMPAÑANTES --- */}
             {currentStep === 2 && (
                 <div className="space-y-8 max-w-6xl mx-auto animate-in slide-in-from-right-4 duration-300">
                   <div className="flex justify-between items-center bg-card p-6 rounded-xl border border-border shadow-sm">
@@ -478,6 +471,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                             }}><Trash2 className="h-4 w-4"/></Button>
                           </div>
                           <Badge variant="outline" className="mb-4 text-primary border-primary/30">Huésped #{idx+1}</Badge>
+
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="space-y-1"><Label className="text-xs">No. Documento</Label>
                               <Input className="h-9 bg-background" value={comp.numeroId} onChange={e => updateCompanion(comp.id, "numeroId", e.target.value)} />
@@ -500,6 +494,12 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                                 <SelectContent>{countries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                               </Select>
                             </div>
+                            <div className="space-y-1"><Label className="text-xs">Ciudad Origen</Label>
+                              <Input className="h-9 bg-background" value={comp.ciudadOrigen} onChange={e => updateCompanion(comp.id, "ciudadOrigen", e.target.value)} />
+                            </div>
+                            <div className="space-y-1 md:col-span-2"><Label className="text-xs">Fecha Nacimiento</Label>
+                              <Input type="date" className="h-9 bg-background w-full" value={comp.fechaNacimiento} onChange={e => updateCompanion(comp.id, "fechaNacimiento", e.target.value)} />
+                            </div>
                           </div>
                         </div>
                     ))}
@@ -513,9 +513,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                 </div>
             )}
 
-            {/* ========================================================
-                PASO 3: FIRMA
-            ======================================================== */}
+            {/* --- PASO 3: FIRMA --- */}
             {currentStep === 3 && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto h-full animate-in slide-in-from-right-4 duration-300">
                   <div className="space-y-6 flex flex-col justify-center">
@@ -571,9 +569,6 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
             )}
           </div>
 
-          {/* ========================================================
-              FOOTER NAVEGACIÓN
-          ======================================================== */}
           <div className="px-4 md:px-8 py-4 md:py-6 bg-card border-t border-border flex justify-between shrink-0">
             <Button variant="outline" size="lg" className="border-border hover:bg-accent" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} disabled={isSubmitting}>
               <ChevronLeft className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Atrás</span>
@@ -603,9 +598,6 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
             )}
           </div>
 
-          {/* ========================================================
-              MODAL DE PAGO (Step 0 Helper)
-          ======================================================== */}
           <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
             <DialogContent className="sm:max-w-md bg-card border-border">
               <DialogHeader>
