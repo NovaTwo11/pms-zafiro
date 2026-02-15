@@ -66,7 +66,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   const router = useRouter()
   const queryClient = useQueryClient()
 
-  // --- NUEVO: Estado de carga para los datos de la BD ---
+  // --- Estado de carga para los datos de la BD ---
   const [isLoadingData, setIsLoadingData] = useState(false)
 
   // --- ESTADOS FINANCIEROS ---
@@ -107,51 +107,57 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
     const loadFullReservationDetails = async () => {
       setIsLoadingData(true);
       try {
-        // Hacemos el fetch usando la API que ya tienes configurada
+        // Hacemos el fetch usando la API
         const fullRes = await reservationsApi.getById(reservation.id);
 
-        // Ajusta "mainGuest" según como venga la propiedad desde tu backend en C#
-        // A veces Entity Framework lo mapea como 'mainGuest', 'guest' o está plano en la respuesta.
-        const guestData = fullRes.mainGuest || fullRes.guest || fullRes;
+        // Validamos que exista la lista unificada de guests desde C#
+        if (fullRes && Array.isArray(fullRes.guests)) {
 
-        if (guestData && guestData.numeroId) {
-          setMainGuest(prev => ({
-            ...prev,
-            nacionalidad: guestData.nacionalidad || prev.nacionalidad,
-            tipoId: guestData.tipoId || prev.tipoId,
-            numeroId: guestData.numeroId || prev.numeroId,
-            primerNombre: guestData.primerNombre || prev.primerNombre,
-            primerApellido: guestData.primerApellido || prev.primerApellido,
-            segundoNombre: guestData.segundoNombre || "",
-            segundoApellido: guestData.segundoApellido || "",
-            telefono: guestData.telefono || prev.telefono,
-            correo: guestData.correo || "",
-            ciudadOrigen: guestData.ciudadOrigen || "",
-            fechaNacimiento: guestData.fechaNacimiento ? guestData.fechaNacimiento.split('T')[0] : "",
-          }));
+          // 1. Extraer al TITULAR
+          const titular = fullRes.guests.find((g: any) => g.esTitular === true);
+          if (titular) {
+            setMainGuest(prev => ({
+              ...prev,
+              id: titular.id || prev.id,
+              nacionalidad: titular.nacionalidad || prev.nacionalidad,
+              tipoId: titular.tipoId || prev.tipoId,
+              numeroId: titular.numeroId || prev.numeroId,
+              primerNombre: titular.primerNombre || prev.primerNombre,
+              primerApellido: titular.primerApellido || prev.primerApellido,
+              segundoNombre: titular.segundoNombre || "",
+              segundoApellido: titular.segundoApellido || "",
+              telefono: titular.telefono || prev.telefono,
+              correo: titular.correo || "",
+              ciudadOrigen: titular.ciudadOrigen || "",
+              // Cortamos la fecha en la 'T' para evitar bugs en el input type="date"
+              fechaNacimiento: titular.fechaNacimiento ? titular.fechaNacimiento.split('T')[0] : "",
+            }));
+          }
+
+          // 2. Extraer ACOMPAÑANTES
+          const acompanantes = fullRes.guests.filter((g: any) => g.esTitular === false);
+          if (acompanantes.length > 0) {
+            setCompanions(acompanantes.map((c: any) => ({
+              id: c.id?.toString() || Date.now().toString() + Math.random(),
+              nacionalidad: c.nacionalidad || "Colombia",
+              tipoId: c.tipoId || "CC",
+              numeroId: c.numeroId || "",
+              fechaNacimiento: c.fechaNacimiento ? c.fechaNacimiento.split('T')[0] : "",
+              primerNombre: c.primerNombre || "",
+              primerApellido: c.primerApellido || "",
+              segundoNombre: c.segundoNombre || "",
+              segundoApellido: c.segundoApellido || "",
+              telefono: c.telefono || "",
+              correo: c.correo || "",
+              ciudadOrigen: c.ciudadOrigen || "",
+            })));
+          } else {
+            setCompanions([]);
+          }
         }
-
-        // Poblamos los acompañantes si existen
-        if (fullRes.companions && Array.isArray(fullRes.companions) && fullRes.companions.length > 0) {
-          setCompanions(fullRes.companions.map((c: any) => ({
-            id: c.id?.toString() || Date.now().toString() + Math.random(),
-            nacionalidad: c.nacionalidad || "Colombia",
-            tipoId: c.tipoId || "CC",
-            numeroId: c.numeroId || "",
-            fechaNacimiento: c.fechaNacimiento ? c.fechaNacimiento.split('T')[0] : "",
-            primerNombre: c.primerNombre || "",
-            primerApellido: c.primerApellido || "",
-            segundoNombre: c.segundoNombre || "",
-            segundoApellido: c.segundoApellido || "",
-            telefono: c.telefono || "",
-            correo: c.correo || "",
-            ciudadOrigen: c.ciudadOrigen || "",
-          })));
-        }
-
       } catch (error) {
         console.error("Error al obtener detalles del pre-checkin:", error);
-        // Si falla, el usuario simplemente verá los campos vacíos para llenarlos a mano
+        toast.error("No se pudieron cargar los datos previos del huésped.");
       } finally {
         setIsLoadingData(false);
       }
@@ -418,13 +424,13 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
 
           <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1 bg-background relative">
 
-            {/* Pantalla de carga mientras se obtienen los datos */}
-            {isLoadingData ? (
+            {/* PANTALLA DE CARGA */}
+            {isLoadingData && (
                 <div className="absolute inset-0 z-10 bg-background/80 flex flex-col items-center justify-center animate-in fade-in duration-200">
                   <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
                   <p className="text-muted-foreground font-medium">Recuperando datos del huésped...</p>
                 </div>
-            ) : null}
+            )}
 
             {/* --- PASO 0: DEUDA --- */}
             {currentStep === 0 && (
