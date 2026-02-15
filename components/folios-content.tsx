@@ -103,13 +103,15 @@ export function FoliosContent() {
 
   // Filtrado
   const filteredGuestFolios = guestFolios.filter(
-      (f) => f.guestName?.toLowerCase().includes(searchQuery.toLowerCase()) || f.roomNumber?.includes(searchQuery),
+      (f) =>
+          (f.guestName || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (f.roomNumber || "").includes(searchQuery),
   )
 
   const filteredExternalFolios = externalFolios.filter(
       (f) =>
-          f.alias?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          f.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+          (f.alias || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (f.description || "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const handleCreateFolio = async () => {

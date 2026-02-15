@@ -18,21 +18,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
-// Asegúrate de tener este store o elimina la validación si no usas caja todavía
 import { useCashierStore } from "@/lib/store"
 
-// --- Tipos Exportados ---
 export interface ActiveFolio {
   id: string
   roomNumber: string
   guestName: string
   balance: number
   status: string
+  description?: string // Añadido para los folios externos
 }
 
 export type PaymentMethodType = "Cash" | "CreditCard" | "DebitCard" | "Transfer" | "RoomCharge" | "DayPass"
 
-// --- MAPEO CON BACKEND ---
 const PAYMENT_METHOD_IDS: Record<string, number> = {
   "Cash": 1,
   "CreditCard": 2,
@@ -58,12 +56,6 @@ interface CheckoutModalProps {
   }) => void
 }
 
-// Mock Pasadías
-const availablePasadias = [
-  { id: "e1", alias: "Familia Pérez", description: "Evento de cumpleaños" },
-  { id: "e2", alias: "Empresa ABC Corp", description: "Almuerzo ejecutivo" },
-]
-
 export function CheckoutModal({
                                 isOpen,
                                 onClose,
@@ -73,35 +65,28 @@ export function CheckoutModal({
                                 onComplete
                               }: CheckoutModalProps) {
 
-  // Estado de Caja (Opcional: Si no usas store global, pon true por defecto)
   const isShiftOpen = useCashierStore ? useCashierStore((s) => s.isShiftOpen) : true
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType | null>(null)
   const [roomSearch, setRoomSearch] = useState("")
 
-  // Selección de Destino (Para cargos)
+  // Un solo estado para el destino (sea habitación o pasadía)
   const [selectedRoom, setSelectedRoom] = useState<ActiveFolio | null>(null)
-  const [selectedPasadia, setSelectedPasadia] = useState<(typeof availablePasadias)[0] | null>(null)
 
-  // --- MONTO EDITABLE (Requisito Clave) ---
   const [editableAmount, setEditableAmount] = useState<string>("")
 
-  // Descuentos
   const [showDiscount, setShowDiscount] = useState(false)
   const [discountType, setDiscountType] = useState<"percent" | "fixed">("percent")
   const [discountValue, setDiscountValue] = useState("")
 
-  // Sincronizar monto inicial al abrir
   useEffect(() => {
     if (isOpen) {
       setEditableAmount(total.toString())
-      // Pre-selección de folio si viene del check-out
       if (defaultFolioId && activeFolios.length > 0) {
         const preSelected = activeFolios.find(f => f.id === defaultFolioId)
         if (preSelected) setSelectedRoom(preSelected)
       }
     } else {
-      // Reset al cerrar
       resetState()
     }
   }, [isOpen, total, defaultFolioId, activeFolios])
@@ -115,7 +100,6 @@ export function CheckoutModal({
     }).format(amount)
   }
 
-  // Cálculos Dinámicos
   const currentAmount = parseFloat(editableAmount) || 0
 
   const calculateDiscount = () => {
@@ -129,30 +113,30 @@ export function CheckoutModal({
   const discountAmount = calculateDiscount()
   const finalTotal = Math.max(0, currentAmount - discountAmount)
 
-  // Filtros de búsqueda
+  // --- FILTROS SEPARADOS USANDO LOS DATOS REALES ---
+
+  // Filtro 1: Solo Huéspedes reales (RoomNumber NO es "EXT")
   const filteredRooms = activeFolios.filter((folio) =>
-      (folio.roomNumber?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false) ||
-      (folio.guestName?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false)
+      folio.roomNumber !== "EXT" &&
+      ((folio.roomNumber?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false) ||
+          (folio.guestName?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false))
   )
 
-  const filteredPasadias = availablePasadias.filter((p) =>
-      p.alias.toLowerCase().includes(roomSearch.toLowerCase()) ||
-      p.description.toLowerCase().includes(roomSearch.toLowerCase())
+  // Filtro 2: Solo Pasadías reales (RoomNumber ES "EXT")
+  const filteredPasadias = activeFolios.filter((folio) =>
+      folio.roomNumber === "EXT" &&
+      ((folio.guestName?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false) ||
+          (folio.description?.toLowerCase().includes(roomSearch.toLowerCase()) ?? false))
   )
 
   const handleComplete = () => {
-    if (paymentMethod === "RoomCharge" && !selectedRoom) return;
-    if (paymentMethod === "DayPass" && !selectedPasadia) return;
+    if ((paymentMethod === "RoomCharge" || paymentMethod === "DayPass") && !selectedRoom) return;
     if (!paymentMethod) return;
 
     const methodId = PAYMENT_METHOD_IDS[paymentMethod] || 1;
 
-    // Lógica de destino del cargo
-    let targetFolioId = defaultFolioId; // Por defecto el actual (pago directo)
-
-    if (paymentMethod === "RoomCharge") targetFolioId = selectedRoom?.id;
-    else if (paymentMethod === "DayPass") targetFolioId = selectedPasadia?.id;
-    else if (selectedRoom) targetFolioId = selectedRoom.id; // Pago cash asociado a habitación seleccionada
+    // El destino siempre es selectedRoom.id (ya sea habitación o pasadía)
+    let targetFolioId = defaultFolioId || selectedRoom?.id;
 
     onComplete({
       method: paymentMethod,
@@ -162,8 +146,6 @@ export function CheckoutModal({
       discount: discountAmount,
       notes: showDiscount ? `Descuento aplicado: ${formatCurrency(discountAmount)}` : undefined
     })
-
-    // No reseteamos aquí, el padre cerrará el modal
   }
 
   const handleClose = () => {
@@ -175,7 +157,6 @@ export function CheckoutModal({
     setPaymentMethod(null)
     setRoomSearch("")
     if (!defaultFolioId) setSelectedRoom(null)
-    setSelectedPasadia(null)
     setShowDiscount(false)
     setDiscountValue("")
     setEditableAmount("")
@@ -191,8 +172,10 @@ export function CheckoutModal({
               <DialogTitle className="font-serif text-2xl text-foreground flex items-center gap-2">
                 {selectedRoom ? (
                     <>
-                      <span className="bg-[#D4AF37] text-white text-xs px-2 py-1 rounded">Hab. {selectedRoom.roomNumber}</span>
-                      <span>Registrar Pago</span>
+                      <span className="bg-[#D4AF37] text-white text-xs px-2 py-1 rounded">
+                        {selectedRoom.roomNumber === "EXT" ? "EXT" : `Hab. ${selectedRoom.roomNumber}`}
+                      </span>
+                      <span>Registrar Cargo</span>
                     </>
                 ) : (
                     "Cobrar"
@@ -207,28 +190,27 @@ export function CheckoutModal({
                 <div className="text-center pt-2 flex flex-col items-center">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Monto a Cobrar</p>
 
-                  {/* INPUT EDITABLE GIGANTE */}
-                  <div className="relative group">
-                    <span className="absolute left-[-1.5rem] top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">$</span>
+                  <div className="relative group flex items-center justify-center">
+                    <span className="text-2xl font-bold text-muted-foreground mr-1">$</span>
                     <Input
                         type="number"
                         value={editableAmount}
                         onChange={(e) => setEditableAmount(e.target.value)}
-                        className="text-4xl font-black text-[#D4AF37] tracking-tight text-center border-none shadow-none focus-visible:ring-0 w-48 h-12 p-0 bg-transparent placeholder:text-muted/20"
+                        className="text-4xl font-black text-[#D4AF37] tracking-tight text-center border-none shadow-none focus-visible:ring-0 w-48 h-12 p-0 bg-transparent placeholder:text-muted/20 inline-block"
                         placeholder="0"
                     />
                     <Eraser
-                        className="absolute right-[-2rem] top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-50 cursor-pointer hover:!opacity-100 transition-opacity"
+                        className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-50 cursor-pointer hover:!opacity-100 transition-opacity ml-1"
                         onClick={() => setEditableAmount("")}
                     />
                   </div>
 
                   {discountAmount > 0 && (
-                      <div className="flex items-center gap-2 mt-2 animate-in slide-in-from-bottom-1">
+                      <div className="flex items-center justify-center gap-2 mt-2 animate-in slide-in-from-bottom-1">
                         <p className="text-xs text-[#059669] font-bold bg-[#059669]/10 px-2 py-0.5 rounded-full border border-[#059669]/20">
                           - {formatCurrency(discountAmount)} (Desc.)
                         </p>
-                        <p className="text-sm font-bold text-foreground border-t border-foreground/20">
+                        <p className="text-sm font-bold text-foreground border-t border-foreground/20 pt-1">
                           Final: {formatCurrency(finalTotal)}
                         </p>
                       </div>
@@ -296,7 +278,6 @@ export function CheckoutModal({
                           <PaymentOption icon={Building2} label="Transfer." color="text-[#8B5CF6]" onClick={() => setPaymentMethod("Transfer")} />
                         </div>
 
-                        {/* Opciones de Cargo (Solo si no hay folio pre-seleccionado) */}
                         {!selectedRoom && (
                             <>
                               <div className="relative py-2">
@@ -321,31 +302,48 @@ export function CheckoutModal({
                           <Input placeholder="Buscar hab o huésped..." value={roomSearch} onChange={e => setRoomSearch(e.target.value)} className="pl-9" autoFocus />
                         </div>
                         <div className="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-2">
-                          {filteredRooms.map(f => (
-                              <div key={f.id} onClick={() => setSelectedRoom(f)} className="p-3 border rounded hover:border-[#D4AF37] hover:bg-accent/50 cursor-pointer flex justify-between items-center group">
-                                <div className="flex items-center gap-3">
-                                  <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs group-hover:bg-[#D4AF37] group-hover:text-white transition-colors">{f.roomNumber}</div>
-                                  <div><p className="text-sm font-medium">{f.guestName}</p></div>
-                                </div>
-                                <span className={cn("text-xs font-bold", f.balance > 0 ? "text-red-500" : "text-green-500")}>{formatCurrency(f.balance)}</span>
-                              </div>
-                          ))}
+                          {filteredRooms.length === 0 ? (
+                              <p className="text-center text-sm text-muted-foreground py-4">No hay habitaciones activas</p>
+                          ) : (
+                              filteredRooms.map(f => (
+                                  <div key={f.id} onClick={() => setSelectedRoom(f)} className="p-3 border rounded hover:border-[#D4AF37] hover:bg-accent/50 cursor-pointer flex justify-between items-center group">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs group-hover:bg-[#D4AF37] group-hover:text-white transition-colors">{f.roomNumber}</div>
+                                      <div><p className="text-sm font-medium">{f.guestName}</p></div>
+                                    </div>
+                                    <span className={cn("text-xs font-bold", f.balance > 0 ? "text-red-500" : "text-green-500")}>{formatCurrency(f.balance)}</span>
+                                  </div>
+                              ))
+                          )}
                         </div>
                       </div>
 
-                  ) : paymentMethod === "DayPass" && !selectedPasadia ? (
+                  ) : paymentMethod === "DayPass" && !selectedRoom ? (
 
-                      /* BUSCADOR PASADÍA */
+                      /* BUSCADOR PASADÍA (Ahora usa los datos reales) */
                       <div className="space-y-4 animate-in slide-in-from-right-10 duration-200">
                         <Button variant="ghost" size="sm" onClick={() => setPaymentMethod(null)} className="pl-0 -ml-2 text-muted-foreground"><ArrowLeft className="h-4 w-4 mr-1"/> Volver</Button>
-                        <Input placeholder="Buscar cliente externo..." value={roomSearch} onChange={e => setRoomSearch(e.target.value)} autoFocus />
-                        <div className="space-y-2">
-                          {filteredPasadias.map(p => (
-                              <div key={p.id} onClick={() => setSelectedPasadia(p)} className="p-3 border rounded hover:bg-accent cursor-pointer">
-                                <p className="font-bold text-sm">{p.alias}</p>
-                                <p className="text-xs text-muted-foreground">{p.description}</p>
-                              </div>
-                          ))}
+                        <div className="relative">
+                          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"/>
+                          <Input placeholder="Buscar cliente externo..." value={roomSearch} onChange={e => setRoomSearch(e.target.value)} className="pl-9" autoFocus />
+                        </div>
+                        <div className="flex-1 overflow-y-auto max-h-[250px] space-y-2 pr-2">
+                          {filteredPasadias.length === 0 ? (
+                              <p className="text-center text-sm text-muted-foreground py-4">No hay pasadías activos</p>
+                          ) : (
+                              filteredPasadias.map(p => (
+                                  <div key={p.id} onClick={() => setSelectedRoom(p)} className="p-3 border rounded hover:border-[#D4AF37] hover:bg-accent/50 cursor-pointer flex justify-between items-center group">
+                                    <div className="flex items-center gap-3">
+                                      <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center font-bold text-xs group-hover:bg-[#D4AF37] group-hover:text-white transition-colors">EXT</div>
+                                      <div>
+                                        <p className="font-bold text-sm">{p.guestName}</p>
+                                        {p.description && <p className="text-xs text-muted-foreground">{p.description}</p>}
+                                      </div>
+                                    </div>
+                                    <span className={cn("text-xs font-bold", p.balance > 0 ? "text-red-500" : "text-green-500")}>{formatCurrency(p.balance)}</span>
+                                  </div>
+                              ))
+                          )}
                         </div>
                       </div>
 
@@ -370,9 +368,9 @@ export function CheckoutModal({
                                   paymentMethod === "CreditCard" ? "Pago con Tarjeta" :
                                       paymentMethod === "Transfer" ? "Transferencia" : "Cargo a Cuenta"}
                             </h3>
-                            {(selectedRoom || selectedPasadia) && (
+                            {selectedRoom && (
                                 <p className="text-sm text-[#D4AF37]">
-                                  Destino: {selectedRoom ? `Hab. ${selectedRoom.roomNumber}` : selectedPasadia?.alias}
+                                  Destino: {selectedRoom.roomNumber === "EXT" ? selectedRoom.guestName : `Hab. ${selectedRoom.roomNumber}`}
                                 </p>
                             )}
                           </div>
@@ -381,9 +379,7 @@ export function CheckoutModal({
                         <div className="flex gap-3 pt-4">
                           <Button variant="outline" onClick={() => {
                             if (defaultFolioId && selectedRoom?.id === defaultFolioId) setPaymentMethod(null);
-                            else if (paymentMethod === "RoomCharge") setSelectedRoom(null);
-                            else if (paymentMethod === "DayPass") setSelectedPasadia(null);
-                            else setPaymentMethod(null);
+                            else setSelectedRoom(null); // Limpiamos el destino sea cual sea
                           }} className="flex-1">Atrás</Button>
 
                           <Button onClick={handleComplete} className="flex-[2] font-bold text-lg bg-[#D4AF37] hover:bg-[#B5952F] text-white shadow-lg">
@@ -400,7 +396,6 @@ export function CheckoutModal({
   )
 }
 
-// Subcomponente UI
 function PaymentOption({ icon: Icon, label, color, onClick, className }: any) {
   return (
       <button onClick={onClick} className={cn("flex flex-col items-center justify-center h-24 rounded-xl border bg-card hover:border-[#D4AF37] hover:bg-[#D4AF37]/5 transition-all group active:scale-95", className)}>

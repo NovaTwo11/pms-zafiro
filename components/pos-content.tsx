@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 // --- Tipos Backend ---
 interface CashierShift {
   id: string;
-  status: 0 | 1; // 0=Open, 1=Closed según Enum Backend
+  status: 0 | 1;
 }
 
 interface Product {
@@ -33,19 +33,15 @@ interface Product {
 }
 
 export function POSContent() {
-  // --- Estados de Negocio ---
   const [selectedCategory, setSelectedCategory] = useState("all")
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const { items, addItem, clearCart, total } = usePOSStore()
 
-  // Usamos el store global de caja para sincronizar estado
   const { checkStatus } = useCashierStore()
 
-  // --- Estados de Datos Reales ---
   const [shift, setShift] = useState<CashierShift | null>(null)
   const [activeFolios, setActiveFolios] = useState<ActiveFolio[]>([])
 
-  // Nuevos estados para Inventario Real
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<{id: string, name: string}[]>([{ id: "all", name: "Todo" }])
 
@@ -54,7 +50,6 @@ export function POSContent() {
   const [closeShiftModalOpen, setCloseShiftModalOpen] = useState(false)
   const [amountInput, setAmountInput] = useState("")
 
-  // --- Carga Inicial ---
   const initData = async () => {
     try {
       setLoading(true)
@@ -62,7 +57,7 @@ export function POSContent() {
       // 1. Turno (Cashier)
       try {
         const { data: shiftData } = await api.get("/cashier/status")
-        if (shiftData && shiftData.status === 0) { // 0 = Open
+        if (shiftData && shiftData.status === 0) {
           setShift(shiftData)
         } else {
           setShift(null)
@@ -73,13 +68,27 @@ export function POSContent() {
         setOpenShiftModalOpen(true)
       }
 
-      // 2. Huéspedes Activos (Folios)
+      // 2. Huéspedes Activos y Pasadías (Folios unificados)
       try {
-        const { data: foliosData } = await api.get("/folios/active-guests")
-        setActiveFolios(foliosData)
+        const [guestsRes, externalsRes] = await Promise.all([
+          api.get("/folios/active-guests"),
+          api.get("/folios/active-externals")
+        ]);
+
+        // Combinamos y adaptamos los externos para que el CheckoutModal los entienda
+        const combinedFolios = [
+          ...guestsRes.data,
+          ...externalsRes.data.map((ext: any) => ({
+            ...ext,
+            roomNumber: "EXT", // Identificador clave
+            guestName: ext.alias // Reutilizamos el campo guestName para mostrar el Alias
+          }))
+        ];
+
+        setActiveFolios(combinedFolios);
       } catch (e) {
         console.error("Error cargando folios", e)
-        toast.error("No se pudieron cargar los huéspedes activos")
+        toast.error("No se pudieron cargar las cuentas activas")
       }
 
       // 3. Productos Reales e Inventario
@@ -88,7 +97,6 @@ export function POSContent() {
         const activeProducts = productsData.filter((p: Product) => p.isActive);
         setProducts(activeProducts);
 
-        // Extraer categorías únicas dinámicamente
         const uniqueCats = Array.from(new Set(activeProducts.map((p: Product) => p.category)));
         const catList = [
           { id: "all", name: "Todo" },
@@ -109,7 +117,6 @@ export function POSContent() {
     initData()
   }, [])
 
-  // --- Handlers Caja ---
   const handleOpenShift = async () => {
     if (!amountInput) return toast.error("Ingresa el monto base")
     try {
@@ -117,7 +124,7 @@ export function POSContent() {
       setShift(data)
       setOpenShiftModalOpen(false)
       setAmountInput("")
-      checkStatus() // Actualiza store global
+      checkStatus()
       toast.success("Caja abierta correctamente")
     } catch (error: any) {
       const msg = error.response?.data || "Error al abrir caja";
@@ -134,7 +141,7 @@ export function POSContent() {
       setOpenShiftModalOpen(true)
       setAmountInput("")
       clearCart()
-      checkStatus() // Actualiza store global
+      checkStatus()
       toast.success("Turno cerrado correctamente")
     } catch {
       toast.error("Error al cerrar caja")
@@ -148,13 +155,11 @@ export function POSContent() {
       return
     }
 
-    // Validación opcional: Descomenta si deseas evitar vender sin stock desde el frontend
-    /*
+    // Validación descomentada: Bloquea venta si no hay stock
     if (product.isStockTracked && product.stock <= 0) {
       toast.error(`El producto ${product.name} no tiene stock disponible`);
       return;
     }
-    */
 
     addItem({
       id: product.id,
@@ -164,25 +169,23 @@ export function POSContent() {
     })
   }
 
-  // --- Lógica Principal de Cobro ---
   const handlePaymentComplete = async (paymentData: {
     method: PaymentMethodType,
     methodId: number,
     folioId?: string,
     finalAmount: number,
-    discount: number
+    discount: number,
+    notes?: string
   }) => {
 
     if (!shift) return toast.error("No hay turno abierto")
 
     let targetFolioId = paymentData.folioId
-
     const loadingToast = toast.loading("Procesando venta...")
 
     try {
       // --- FLUJO 1: VENTA DIRECTA (Público General) ---
       if (!targetFolioId && ["Cash", "CreditCard", "Transfer"].includes(paymentData.method)) {
-
         const payload = {
           totalAmount: paymentData.finalAmount,
           paymentMethod: paymentData.methodId,
@@ -193,22 +196,19 @@ export function POSContent() {
             quantity: item.quantity
           }))
         };
-
         await api.post('/cashier/direct-sale', payload);
-
       }
       // --- FLUJO 2: VENTA A FOLIO (Huésped / Pasadía) ---
       else {
-
         if (!targetFolioId) {
           toast.dismiss(loadingToast);
           toast.error("Seleccione un folio/habitación para registrar la venta.");
           return;
         }
 
-        // PASO 1: Registrar los consumos (Charges) e INYECTAR productId
-        const chargePromises = items.map(item => {
-          return api.post(`/folios/${targetFolioId}/transactions`, {
+        // PASO 1: Registrar los consumos SECUENCIALMENTE (Previene error de concurrencia en C#)
+        for (const item of items) {
+          await api.post(`/folios/${targetFolioId}/transactions`, {
             amount: item.price * item.quantity,
             description: item.name,
             type: 0, // Charge
@@ -217,11 +217,22 @@ export function POSContent() {
             category: "Restaurante",
             cashierShiftId: shift.id,
             paymentMethod: 0, // None
-            productId: item.id // Conecta POS con el Inventario Real en el backend
-          })
-        })
+            productId: item.id
+          });
+        }
 
-        await Promise.all(chargePromises)
+        if (paymentData.discount > 0) {
+          await api.post(`/folios/${targetFolioId}/transactions`, {
+            amount: -paymentData.discount, // Valor negativo reduce el balance a pagar
+            description: paymentData.notes || "Descuento en Punto de Venta",
+            type: 0, // Sigue siendo un Charge (Corrección)
+            quantity: 1,
+            unitPrice: -paymentData.discount,
+            category: "Restaurante",
+            cashierShiftId: shift.id,
+            paymentMethod: 0 // None
+          });
+        }
 
         // PASO 2: Registrar el PAGO inmediato si no es crédito a habitación
         if (paymentData.method !== "RoomCharge" && paymentData.method !== "DayPass") {
@@ -243,7 +254,6 @@ export function POSContent() {
       clearCart()
       setCheckoutOpen(false)
 
-      // Actualizamos datos de fondo
       checkStatus()
       initData()
 
@@ -254,13 +264,12 @@ export function POSContent() {
     }
   }
 
-  // Preparamos los productos mapeados para el renderizado del componente ProductGrid
   const mappedProducts = products.map(p => ({
     id: p.id,
     name: p.name,
     price: p.unitPrice,
     category: p.category,
-    image: p.imageUrl || "/file.svg", // Fallback de imagen
+    image: p.imageUrl || "/file.svg",
     stock: p.stock,
     isStockTracked: p.isStockTracked
   }));
@@ -275,7 +284,6 @@ export function POSContent() {
       <>
         <div className="h-[calc(100vh-112px)] flex flex-col lg:flex-row gap-6 relative">
 
-          {/* Overlay de Bloqueo si no hay turno */}
           {!shift && (
               <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center text-center p-4">
                 <LogOut className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
@@ -287,7 +295,6 @@ export function POSContent() {
               </div>
           )}
 
-          {/* Catálogo */}
           <div className="flex-1 flex flex-col min-w-0">
             <div className="mb-4 flex justify-between items-center">
               <div>
@@ -318,15 +325,12 @@ export function POSContent() {
             </div>
           </div>
 
-          {/* Ticket */}
           <div className="w-full lg:w-[380px] shrink-0 border-l border-border pl-6">
             <Ticket items={items} total={total()} onCheckout={() => setCheckoutOpen(true)} />
           </div>
         </div>
 
-        {/* --- Modales de Caja --- */}
-
-        {/* Abrir Caja */}
+        {/* Modales Caja */}
         <Dialog open={openShiftModalOpen} onOpenChange={setOpenShiftModalOpen}>
           <DialogContent className="sm:max-w-md bg-card border-border" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader><DialogTitle>Apertura de Caja</DialogTitle></DialogHeader>
@@ -357,7 +361,6 @@ export function POSContent() {
           </DialogContent>
         </Dialog>
 
-        {/* Cerrar Caja */}
         <Dialog open={closeShiftModalOpen} onOpenChange={setCloseShiftModalOpen}>
           <DialogContent className="sm:max-w-md bg-card border-border">
             <DialogHeader><DialogTitle>Cierre de Caja</DialogTitle></DialogHeader>

@@ -47,7 +47,7 @@ type GuestFolio = {
   checkIn: Date
   checkOut: Date
   nights: number
-  status: "in-house" | "checked-out"
+  status: "Open" | "Closed"
 }
 
 type ExternalFolio = {
@@ -560,58 +560,59 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
             </div>
 
             {/* --- MUEVE EL SHEET FOOTER AQUÍ ADENTRO --- */}
-            <SheetFooter className="px-6 py-4 border-t border-border mt-auto mb-6">
-              {isConfirmingCheckout ? (
-                  // --- MODO CONFIRMACIÓN ---
-                  <div className="w-full flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                    <div
-                        className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-sm text-destructive">
-                      <p className="font-semibold flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4"/> ¿Confirmar salida?
-                      </p>
-                      <p className="text-xs opacity-90 mt-1">
-                        Se cerrará el folio y la habitación pasará a estado <strong>SUCIA</strong>.
-                      </p>
-                    </div>
+            {isGuest && (
+                <SheetFooter className="px-6 py-4 border-t border-border mt-auto mb-6">
+                  {isConfirmingCheckout ? (
+                      // --- MODO CONFIRMACIÓN ---
+                      <div className="w-full flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                        <div className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-sm text-destructive">
+                          <p className="font-semibold flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4"/> ¿Confirmar salida?
+                          </p>
+                          <p className="text-xs opacity-90 mt-1">
+                            Se cerrará el folio y la habitación pasará a estado <strong>SUCIA</strong>.
+                          </p>
+                        </div>
 
-                    <div className="flex gap-2 justify-end">
-                      <Button
-                          variant="outline"
-                          onClick={() => setIsConfirmingCheckout(false)}
-                          disabled={loading}
-                      >
-                        Cancelar
-                      </Button>
-                      <Button
-                          variant="destructive"
-                          onClick={executeCheckOut}
-                          disabled={loading}
-                          className="bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
-                      >
-                        {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-2"/>
-                        ) : (
-                            <LogOut className="h-4 w-4 mr-2"/>
-                        )}
-                        Sí, Confirmar Salida
-                      </Button>
-                    </div>
-                  </div>
-              ) : (
-                  // --- MODO NORMAL ---
-                  <div className="flex w-full sm:justify-between sm:space-x-2">
-                    <Button
-                        type="button"
-                        className="w-full sm:w-auto ml-auto bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
-                        onClick={() => setIsConfirmingCheckout(true)}
-                        // Revisa que 'in-house' sea exactamente como lo envía tu backend
-                        disabled={loading || (folio?.status !== 'in-house' && folio?.status !== 'Open')}>
-                      <LogOut className="h-4 w-4 mr-2"/>
-                      Check-out
-                    </Button>
-                  </div>
-              )}
-            </SheetFooter>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                              variant="outline"
+                              onClick={() => setIsConfirmingCheckout(false)}
+                              disabled={loading}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                              variant="destructive"
+                              onClick={executeCheckOut}
+                              disabled={loading}
+                              className="bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
+                          >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2"/>
+                            ) : (
+                                <LogOut className="h-4 w-4 mr-2"/>
+                            )}
+                            Sí, Confirmar Salida
+                          </Button>
+                        </div>
+                      </div>
+                  ) : (
+                      // --- MODO NORMAL ---
+                      <div className="flex w-full sm:justify-between sm:space-x-2">
+                        <Button
+                            type="button"
+                            className="w-full sm:w-auto ml-auto bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
+                            onClick={() => setIsConfirmingCheckout(true)}
+                            disabled={loading || folio?.status !== 'Open'}
+                        >
+                          <LogOut className="h-4 w-4 mr-2" />
+                          Check-out
+                        </Button>
+                      </div>
+                  )}
+                </SheetFooter>
+            )}
 
           </SheetContent> {/* <--- EL SHEET CONTENT SE CIERRA AQUÍ */}
         </Sheet>
@@ -855,60 +856,6 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
             </div>
           </DialogContent>
         </Dialog>
-
-        <SheetFooter className="px-6 py-4 border-t border-border mt-auto">
-          {isConfirmingCheckout ? (
-              // --- MODO CONFIRMACIÓN (Rojo y Alerta) ---
-              <div className="w-full flex flex-col gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-                <div className="bg-destructive/10 p-3 rounded-md border border-destructive/20 text-sm text-destructive">
-                  <p className="font-semibold flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" /> ¿Confirmar salida?
-                  </p>
-                  <p className="text-xs opacity-90 mt-1">
-                    Se cerrará el folio y la habitación pasará a estado <strong>SUCIA</strong>.
-                  </p>
-                </div>
-
-                <div className="flex gap-2 justify-end">
-                  <Button
-                      variant="outline"
-                      onClick={() => setIsConfirmingCheckout(false)}
-                      disabled={loading}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                      variant="destructive"
-                      onClick={executeCheckOut}
-                      disabled={loading}
-                      className="bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
-                  >
-                    {loading ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                        <LogOut className="h-4 w-4 mr-2" />
-                    )}
-                    Sí, Confirmar Salida
-                  </Button>
-                </div>
-              </div>
-          ) : (
-              // --- MODO NORMAL ---
-              <div className="flex w-full sm:justify-between sm:space-x-2">
-                {/* ... Aquí irían tus otros botones (ej. Guardar, Imprimir) si los tienes ... */}
-
-                {/* Botón Check-out Inicial */}
-                <Button
-                    type="button" // Importante: type="button" para no enviar formulario
-                    className="w-full sm:w-auto ml-auto bg-[#CF6679] hover:bg-[#CF6679]/90 text-white"
-                    onClick={() => setIsConfirmingCheckout(true)} // Solo cambia el estado local
-                    disabled={loading || (folio?.status !== 'in-house' && folio?.status !== 'Open')}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Check-out
-                </Button>
-              </div>
-          )}
-        </SheetFooter>
       </>
   )
 }
