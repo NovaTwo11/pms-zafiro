@@ -373,10 +373,28 @@ export function FolioDrawer({ folio, isOpen, onClose, onUpdate }: FolioDrawerPro
     setTransactionToEdit(null)
   }
 
-  const handleDeleteFolio = () => {
-    if (confirm(`¿Estás seguro de eliminar el folio "${folio.type}" de forma permanente?`)) {
-      console.log("Folio eliminado:", folio.id)
-      onClose()
+  const handleDeleteFolio = async () => {
+    // Validación segura para TypeScript: Comprobamos el tipo antes de pedir la propiedad
+    const folioName = folio?.type === "external" ? folio.alias : "Seleccionado";
+
+    if (confirm(`¿Estás seguro de eliminar el folio externo "${folioName}" de forma permanente? Esta acción borrará su historial.`)) {
+
+      const toastId = toast.loading("Eliminando folio...");
+
+      try {
+        await api.delete(`/folios/${folio?.id}`);
+
+        toast.success("Folio eliminado correctamente", { id: toastId });
+
+        // Cerramos el Drawer y le avisamos al componente padre que recargue la lista
+        onClose();
+        if (onUpdate) onUpdate();
+
+      } catch (error: any) {
+        console.error(error);
+        const errorMessage = error.response?.data?.message || "Error al intentar eliminar el folio";
+        toast.error(errorMessage, { id: toastId });
+      }
     }
   }
 
