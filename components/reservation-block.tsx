@@ -38,10 +38,18 @@ export function ReservationBlock({
 
   const getOriginIcon = () => {
     if (reservation.origin === "booking") {
-      return <Globe className="h-3 w-3 text-[#003580] shrink-0" title="Booking.com" />
+      return (
+          <div title="Booking.com">
+            <Globe className="h-3 w-3 text-[#003580] shrink-0" />
+          </div>
+      )
     }
     if (reservation.origin === "direct") {
-      return <Hotel className="h-3 w-3 text-[#D4AF37] shrink-0" title="Reserva Directa" />
+      return (
+          <div title="Reserva Directa">
+            <Hotel className="h-3 w-3 text-[#D4AF37] shrink-0" />
+          </div>
+      )
     }
     return null
   }

@@ -86,12 +86,6 @@ export const dashboardApi = {
     }
 };
 
-export interface CheckInResponse {
-    message: string;
-    folioId: string;
-    status: string;
-}
-
 export async function updateGuestInfo(reservationId: string, data: GuestFormData & { companions: GuestFormData[] }) {
     // Nota: fetch nativo NO usa los interceptores de axios.
     // Debemos inyectar el header manualmente si usamos fetch.

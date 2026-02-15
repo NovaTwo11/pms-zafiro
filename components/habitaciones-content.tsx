@@ -360,7 +360,7 @@ export function HabitacionesContent() {
                                   {visualStatus === "blocked" ? <Lock className="h-4 w-4"/> : <User className="h-4 w-4"/>}
                                   <span className="font-bold text-sm truncate max-w-[120px]">
                                       {reservation?.id
-                                          ? "Huésped #" + (reservation.confirmationCode || "REF-????").slice(-4)
+                                          ? "Huésped #" + (reservation.code || "REF-????").slice(-4)
                                           : "Bloqueada"}
                                   </span>
                                 </div>

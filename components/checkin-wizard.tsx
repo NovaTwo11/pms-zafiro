@@ -34,6 +34,7 @@ export interface GuestFormData {
   telefono: string
   correo?: string
   ciudadOrigen?: string
+  direccion?: string;
 }
 
 interface CheckinWizardProps {

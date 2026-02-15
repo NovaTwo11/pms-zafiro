@@ -99,11 +99,15 @@ export function ProductDialog({
                     ...values,
                     id: productToEdit.id,
                     isActive: productToEdit.isActive,
+                    isStockTracked: productToEdit.isStockTracked
                 })
                 toast.success("Producto actualizado correctamente")
             } else {
                 // Crear
-                await productsApi.create(values)
+                await productsApi.create({
+                    ...values,
+                    isStockTracked: true
+                })
                 toast.success("Producto creado correctamente")
             }
             onSuccess()
