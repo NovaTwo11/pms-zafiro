@@ -377,7 +377,10 @@ export function ReservationDetailsContent({ reservationId, folioId }: Reservatio
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isCancelling}>Volver</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={handleCancelReservation}
+                            onClick={(e) => {
+                                e.preventDefault();
+                                handleCancelReservation();
+                            }}
                             disabled={isCancelling}
                             className="bg-destructive text-white hover:bg-destructive/90"
                         >
