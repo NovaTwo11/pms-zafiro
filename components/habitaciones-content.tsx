@@ -115,14 +115,32 @@ export function HabitacionesContent() {
 
   // --- LÓGICA VISUAL ---
   const getRoomVisuals = (room: RoomDto) => {
-    const reservation = reservations.find(r =>
-        r.roomId === room.id &&
-        r.status !== 'Cancelled' && r.status !== 'CheckedOut' &&
-        isWithinInterval(today, { start: parseISO(r.checkIn), end: parseISO(r.checkOut) })
-    )
+    const reservation = reservations.find(r => {
+      if (r.status === 'Cancelled' || r.status === 'CheckedOut') return false;
 
-    const isCheckInToday = reservation && isSameDay(today, parseISO(reservation.checkIn))
-    const isCheckOutToday = reservation && isSameDay(today, parseISO(reservation.checkOut))
+      return r.segments?.some((s: any) => {
+        if (s.roomId !== room.id) return false;
+
+        // Normalizamos las horas a media noche para que la zona horaria no falle
+        const todayDate = new Date();
+        todayDate.setHours(0, 0, 0, 0);
+
+        const startDate = new Date(s.start);
+        startDate.setHours(0, 0, 0, 0);
+
+        const endDate = new Date(s.end);
+        endDate.setHours(0, 0, 0, 0);
+
+        return todayDate >= startDate && todayDate <= endDate;
+      });
+    });
+
+    const isCheckInToday = reservation && reservation.segments?.some((s:any) =>
+        s.roomId === room.id && isSameDay(today, new Date(s.start))
+    );
+    const isCheckOutToday = reservation && reservation.segments?.some((s:any) =>
+        s.roomId === room.id && isSameDay(today, new Date(s.end))
+    );
 
     let visualStatus: VisualReservationStatus = "available"
 
@@ -141,16 +159,15 @@ export function HabitacionesContent() {
 
   // --- HANDLERS ---
   const handleStatusChange = async (roomId: string, newStatus: string) => {
-    // Optimistic UI update
+    // Actualización optimista de la UI
     setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as any } : r))
     try {
-      await api.patch(`/rooms/${roomId}/status`, `"${newStatus}"`, {
-        headers: { "Content-Type": "application/json" }
-      });
-      toast.success(`Estado actualizado`)
+      // CORRECCIÓN: Enviamos un objeto JSON { status: "valor" } en lugar de un string suelto
+      await api.patch(`/rooms/${roomId}/status`, { status: newStatus });
+      toast.success(`Estado actualizado`);
     } catch(e) {
       toast.error("Error al actualizar el estado");
-      fetchData(); // rollback
+      fetchData(); // rollback en caso de fallo real
     }
   }
 
