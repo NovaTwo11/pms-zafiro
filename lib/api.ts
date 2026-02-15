@@ -111,9 +111,14 @@ export async function updateGuestInfo(reservationId: string, data: GuestFormData
             ciudadOrigen: data.ciudadOrigen,
             companions: data.companions?.map(c => ({
                 primerNombre: c.primerNombre,
+                segundoNombre: c.segundoNombre,
                 primerApellido: c.primerApellido,
+                segundoApellido: c.segundoApellido,
                 numeroId: c.numeroId,
-                nacionalidad: c.nacionalidad
+                nacionalidad: c.nacionalidad,
+                tipoId: c.tipoId,
+                fechaNacimiento: c.fechaNacimiento,
+                ciudadOrigen: c.ciudadOrigen
             })) || []
         }),
     })
