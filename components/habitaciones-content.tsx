@@ -34,8 +34,8 @@ const housekeepingConfig: Record<string, any> = {
 }
 
 const reservationStatusConfig: Record<string, any> = {
-  check_in_paid: { label: "En Casa", color: "bg-orange-600", border: "border-orange-700" }, // Pasado a naranja
-  check_in_debt: { label: "En Casa (Deuda)", color: "bg-red-600", border: "border-red-700" }, // Rojo alerta
+  check_in_paid: { label: "En Casa", color: "bg-orange-600", border: "border-orange-700" },
+  check_in_debt: { label: "En Casa (Deuda)", color: "bg-red-600", border: "border-red-700" },
   confirmed_deposit: { label: "Reserva", color: "bg-blue-600", border: "border-blue-700" },
   confirmed_no_deposit: { label: "Reserva", color: "bg-yellow-600", border: "border-yellow-700" },
   blocked: { label: "Bloqueada", color: "bg-gray-600", border: "border-gray-700" },
@@ -104,42 +104,48 @@ export function HabitacionesContent() {
 
   // --- HELPER: Formatear Nombre "Holdan L." ---
   const formatGuestName = (fullName: string) => {
-    if (!fullName || fullName === "Desconocido") return "Ocupada"
+    if (!fullName || fullName === "Desconocido" || fullName === "Bloqueo/Mantenimiento") return "Ocupada"
     const parts = fullName.trim().split(" ").filter(Boolean)
     if (parts.length === 1) return parts[0]
-
-    // Si tiene 3 nombres (Ej: Juan Carlos Perez), tomamos el 3ro como apellido. Si no, el 2do.
     const lastNameIdx = parts.length > 2 ? 2 : 1
     return `${parts[0]} ${parts[lastNameIdx].charAt(0)}.`
   }
 
-  // --- LÓGICA VISUAL ---
+  // --- LÓGICA VISUAL ROBUSTA ---
   const getRoomVisuals = (room: RoomDto) => {
     const reservation = reservations.find(r => {
       if (r.status === 'Cancelled' || r.status === 'CheckedOut') return false;
 
-      return r.segments?.some((s: any) => {
-        if (s.roomId !== room.id) return false;
+      // Búsqueda a prueba de balas (Ignorando mayúsculas en los IDs)
+      const matchBySegment = r.segments?.some((s: any) => {
+        if (!s.roomId) return false;
 
-        // Normalizamos las horas a media noche para que la zona horaria no falle
-        const todayDate = new Date();
-        todayDate.setHours(0, 0, 0, 0);
+        // Evitar fallos si la BD envía el Guid en mayúsculas y JS lo tiene en minúsculas
+        const isSameRoom = String(s.roomId).toLowerCase() === String(room.id).toLowerCase();
 
-        const startDate = new Date(s.start);
-        startDate.setHours(0, 0, 0, 0);
+        // Normalizamos las horas a media noche para la comparación segura
+        const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+        const startDate = new Date(s.start); startDate.setHours(0, 0, 0, 0);
+        const endDate = new Date(s.end); endDate.setHours(0, 0, 0, 0);
 
-        const endDate = new Date(s.end);
-        endDate.setHours(0, 0, 0, 0);
-
-        return todayDate >= startDate && todayDate <= endDate;
+        return isSameRoom && todayDate >= startDate && todayDate <= endDate;
       });
+
+      // Salvavidas: Por si el backend mandó el número de cuarto en vez del Guid
+      const matchByNumber = String(r.roomId) === String(room.number) &&
+          isWithinInterval(today, { start: new Date(r.checkIn), end: new Date(r.checkOut) });
+
+      return matchBySegment || matchByNumber;
     });
 
-    const isCheckInToday = reservation && reservation.segments?.some((s:any) =>
-        s.roomId === room.id && isSameDay(today, new Date(s.start))
+    const isCheckInToday = reservation && (
+        reservation.segments?.some((s:any) => String(s.roomId).toLowerCase() === String(room.id).toLowerCase() && isSameDay(today, new Date(s.start))) ||
+        isSameDay(today, new Date(reservation.checkIn))
     );
-    const isCheckOutToday = reservation && reservation.segments?.some((s:any) =>
-        s.roomId === room.id && isSameDay(today, new Date(s.end))
+
+    const isCheckOutToday = reservation && (
+        reservation.segments?.some((s:any) => String(s.roomId).toLowerCase() === String(room.id).toLowerCase() && isSameDay(today, new Date(s.end))) ||
+        isSameDay(today, new Date(reservation.checkOut))
     );
 
     let visualStatus: VisualReservationStatus = "available"
@@ -148,7 +154,8 @@ export function HabitacionesContent() {
       if (reservation.status === "CheckedIn") visualStatus = (reservation.balance || 0) > 100 ? "check_in_debt" : "check_in_paid"
       else if (reservation.status === "Confirmed") visualStatus = "confirmed_deposit"
       else if (reservation.status === "Pending") visualStatus = "confirmed_no_deposit"
-    } else if (room.status === "Blocked" as any) {
+      else if (reservation.status === "Blocked") visualStatus = "blocked"
+    } else if (room.status === "Other" as any) {
       visualStatus = "blocked"
     }
 
@@ -159,15 +166,15 @@ export function HabitacionesContent() {
 
   // --- HANDLERS ---
   const handleStatusChange = async (roomId: string, newStatus: string) => {
-    // Actualización optimista de la UI
+    // Actualización visual instantánea
     setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as any } : r))
     try {
-      // CORRECCIÓN: Enviamos un objeto JSON { status: "valor" } en lugar de un string suelto
-      await api.patch(`/rooms/${roomId}/status`, { status: newStatus });
-      toast.success(`Estado actualizado`);
+      // Petición al backend con el formato exacto del DTO
+      await api.put(`/rooms/${roomId}/status`, { status: newStatus });
+      toast.success(`Estado de habitación actualizado`);
     } catch(e) {
       toast.error("Error al actualizar el estado");
-      fetchData(); // rollback en caso de fallo real
+      fetchData(); // Deshacer cambios en caso de error
     }
   }
 
@@ -202,7 +209,7 @@ export function HabitacionesContent() {
   const handleDeleteRoom = async (id: string) => {
     if(!confirm("¿Eliminar habitación permanentemente?")) return
     try { await api.delete(`/rooms/${id}`); toast.success("Habitación eliminada"); fetchData() }
-    catch(e) { toast.error("No se puede eliminar (probablemente tiene reservas)") }
+    catch(e) { toast.error("No se puede eliminar (probablemente tiene reservas asociadas)") }
   }
 
   // --- FILTRADO ---

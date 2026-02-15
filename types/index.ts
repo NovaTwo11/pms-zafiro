@@ -5,7 +5,7 @@
 // ==========================================
 
 export type BackendRoomStatus = "Available" | "Occupied" | "Dirty" | "TouchUp" | "Maintenance" | "Blocked";
-export type BackendReservationStatus = "Pending" | "Confirmed" | "CheckedIn" | "CheckedOut" | "Cancelled" | "NoShow";
+export type BackendReservationStatus = "Pending" | "Confirmed" | "CheckedIn" | "CheckedOut" | "Cancelled" | "Blocked" |"NoShow";
 export type DocumentType = "CC" | "CE" | "PA" | "TI" | "RC" | "Passport";
 
 // Enums Financieros
