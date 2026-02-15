@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { toast } from 'sonner'; // Asegúrate de tener sonner instalado
+import { toast } from 'sonner';
 import {
     Product,
     CreateProductDto,
@@ -9,15 +9,22 @@ import {
     DashboardStats,
     RevenueChartData, DemographicData, ActivityItem
 } from '@/types';
-import {GuestFormData} from "@/components/checkin-wizard";
+import { GuestFormData } from "@/components/checkin-wizard";
 
 // 1. Re-exportamos los tipos
 export type { CashierShiftDto, CashierReportDto };
 
+// Tipos para Channel Manager
+export interface ChannelMapping {
+    roomCategory: string;
+    externalRoomId: string;
+    channel: number; // 2 = BookingCom
+}
+
 console.log("API URL ACTUAL:", process.env.NEXT_PUBLIC_API_URL);
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5100/api';
 
-// 2. Helper para leer cookies en el cliente (sin librerías extra)
+// 2. Helper para leer cookies en el cliente
 function getCookie(name: string) {
     if (typeof document === 'undefined') return null;
     const value = `; ${document.cookie}`;
@@ -35,8 +42,6 @@ export const api = axios.create({
 });
 
 // --- INTERCEPTORES DE AUTENTICACIÓN ---
-
-// Request: Inyectar Token
 api.interceptors.request.use(
     (config) => {
         const token = getCookie('token');
@@ -48,15 +53,12 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
-// Response: Manejar errores globales (401)
 api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response && error.response.status === 401) {
-            // Solo redirigimos si no estamos ya en el login para evitar bucles
             if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
                 toast.error("Sesión expirada. Por favor ingrese nuevamente.");
-                // Opcional: Borrar cookie aquí
                 document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
                 window.location.href = '/login';
             }
@@ -65,7 +67,7 @@ api.interceptors.response.use(
     }
 );
 
-// --- FIN INTERCEPTORES ---
+// --- ENDPOINTS ---
 
 export const dashboardApi = {
     getStats: async (): Promise<DashboardStats> => {
@@ -86,79 +88,24 @@ export const dashboardApi = {
     }
 };
 
-export async function updateGuestInfo(reservationId: string, data: GuestFormData & { companions: GuestFormData[] }) {
-    // Nota: fetch nativo NO usa los interceptores de axios.
-    // Debemos inyectar el header manualmente si usamos fetch.
-    const token = getCookie('token');
-
-    const res = await fetch(`${API_URL}/reservations/${reservationId}/guests`, {
-        method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-            nacionalidad: data.nacionalidad,
-            tipoId: data.tipoId,
-            numeroId: data.numeroId,
-            primerNombre: data.primerNombre,
-            primerApellido: data.primerApellido,
-            segundoNombre: data.segundoNombre,
-            segundoApellido: data.segundoApellido,
-            telefono: data.telefono,
-            correo: data.correo,
-            direccion: data.direccion,
-            ciudadOrigen: data.ciudadOrigen,
-            companions: data.companions?.map(c => ({
-                primerNombre: c.primerNombre,
-                segundoNombre: c.segundoNombre,
-                primerApellido: c.primerApellido,
-                segundoApellido: c.segundoApellido,
-                numeroId: c.numeroId,
-                nacionalidad: c.nacionalidad,
-                tipoId: c.tipoId,
-                fechaNacimiento: c.fechaNacimiento,
-                ciudadOrigen: c.ciudadOrigen
-            })) || []
-        }),
-    })
-
-    if (!res.ok) {
-        const error = await res.text()
-        throw new Error(error || "Error al actualizar información del huésped")
+// --- NUEVO: API DE CHANNEL MANAGER ---
+export const channelsApi = {
+    // Obtener categorías de habitación disponibles en PmsZafiro
+    getRoomCategories: async (): Promise<string[]> => {
+        const response = await api.get<string[]>('/channels/room-categories');
+        return response.data;
+    },
+    // Obtener mapeos existentes para un canal (2 = Booking)
+    getMappings: async (channelId: number): Promise<ChannelMapping[]> => {
+        const response = await api.get<ChannelMapping[]>(`/channels/mappings?channel=${channelId}`);
+        return response.data;
+    },
+    // Guardar o actualizar un mapeo
+    saveMapping: async (mapping: ChannelMapping) => {
+        const response = await api.post('/channels/mappings', mapping);
+        return response.data;
     }
-
-    return res.json()
-}
-
-/**
- * Cierra la sesión del usuario eliminando el token y redirigiendo al login.
- */
-export function logout() {
-    // 1. Eliminar la cookie del token (poniendo fecha de expiración en el pasado)
-    document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-
-    // 2. Redirigir forzosamente al login para limpiar el estado de la aplicación
-    window.location.href = '/login';
-}
-
-export async function checkInReservation(id: string) {
-    const token = getCookie('token');
-    const res = await fetch(`${API_URL}/reservations/${id}/checkin`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-        }
-    })
-
-    if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.message || "Error al realizar Check-in")
-    }
-
-    return res.json()
-}
+};
 
 export const cashierApi = {
     getStatus: async () => {
@@ -243,5 +190,70 @@ export const reservationsApi = {
         return response.data.filter((r: any) => r.status === 'Available');
     }
 };
+
+// Funciones independientes que usan fetch (mantienen compatibilidad)
+export async function updateGuestInfo(reservationId: string, data: GuestFormData & { companions: GuestFormData[] }) {
+    const token = getCookie('token');
+    const res = await fetch(`${API_URL}/reservations/${reservationId}/guests`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            // ... Mapeo de datos ...
+            nacionalidad: data.nacionalidad,
+            tipoId: data.tipoId,
+            numeroId: data.numeroId,
+            primerNombre: data.primerNombre,
+            primerApellido: data.primerApellido,
+            segundoNombre: data.segundoNombre,
+            segundoApellido: data.segundoApellido,
+            telefono: data.telefono,
+            correo: data.correo,
+            direccion: data.direccion,
+            ciudadOrigen: data.ciudadOrigen,
+            companions: data.companions?.map(c => ({
+                primerNombre: c.primerNombre,
+                segundoNombre: c.segundoNombre,
+                primerApellido: c.primerApellido,
+                segundoApellido: c.segundoApellido,
+                numeroId: c.numeroId,
+                nacionalidad: c.nacionalidad,
+                tipoId: c.tipoId,
+                fechaNacimiento: c.fechaNacimiento,
+                ciudadOrigen: c.ciudadOrigen
+            })) || []
+        }),
+    })
+
+    if (!res.ok) {
+        const error = await res.text()
+        throw new Error(error || "Error al actualizar información del huésped")
+    }
+    return res.json()
+}
+
+export function logout() {
+    document.cookie = 'token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    window.location.href = '/login';
+}
+
+export async function checkInReservation(id: string) {
+    const token = getCookie('token');
+    const res = await fetch(`${API_URL}/reservations/${id}/checkin`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        }
+    })
+
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData.message || "Error al realizar Check-in")
+    }
+    return res.json()
+}
 
 export default api;

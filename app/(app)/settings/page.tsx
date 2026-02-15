@@ -14,24 +14,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+// Importamos la API real
+import { channelsApi, ChannelMapping } from "@/lib/api"
 
-// Sample staff data
+// Sample staff data (Mantenemos mock por ahora para usuarios)
 const staffMembers = [
   { id: "1", name: "Juan Díaz", email: "juan@hotelzafiro.com", role: "admin" },
   { id: "2", name: "María García", email: "maria@hotelzafiro.com", role: "operator" },
   { id: "3", name: "Carlos López", email: "carlos@hotelzafiro.com", role: "operator" },
 ]
-
-// Tipos para el mapeo
-interface RoomType {
-  id: string; // Usamos string para compatibilidad con selects, aunque venga numero de BD
-  name: string;
-}
-
-interface ChannelMapping {
-  internalRoomTypeId: string;
-  externalRoomId: string;
-}
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("general")
@@ -52,34 +43,66 @@ export default function SettingsPage() {
     factusToken: "",
     siigoToken: "",
     autoInvoice: false,
-    bookingConnected: true, // Simulación: Ya estamos conectados
+    bookingConnected: true, // Simulación: Ya estamos conectados (esto vendría de BD idealmente)
     bookingMachineId: "micros_pms_zafiro", // Simulación
   })
 
   const [staff, setStaff] = useState(staffMembers)
 
-  // --- Estados para Mapeo de Habitaciones (Nuevo) ---
-  const [roomTypes, setRoomTypes] = useState<RoomType[]>([
-    { id: "1", name: "Habitación Doble" },
-    { id: "2", name: "Suite Junior" },
-    { id: "3", name: "Familiar" },
-  ])
+  // --- Estados para Mapeo de Habitaciones (REALES) ---
+  const [roomCategories, setRoomCategories] = useState<string[]>([])
+  const [mappings, setMappings] = useState<ChannelMapping[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  const [mappings, setMappings] = useState<ChannelMapping[]>([
-    { internalRoomTypeId: "1", externalRoomId: "4002341" }
-  ])
+  // Cargar datos reales al montar
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!integrations.bookingConnected) return;
+
+      setIsLoading(true);
+      try {
+        // 1. Obtener categorías de habitaciones existentes en BD (Ej: "Doble", "Suite")
+        const categories = await channelsApi.getRoomCategories();
+        setRoomCategories(categories);
+
+        // 2. Obtener mapeos guardados para Booking (ID 2)
+        const currentMappings = await channelsApi.getMappings(2);
+        setMappings(currentMappings);
+      } catch (error) {
+        console.error("Error cargando configuración:", error);
+        toast.error("Error al cargar la configuración de canales");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (activeTab === 'integrations') {
+      fetchData();
+    }
+  }, [activeTab, integrations.bookingConnected]);
 
   // Función para guardar un mapeo individual
-  const handleSaveMapping = (internalId: string, externalId: string) => {
-    // Aquí iría la llamada a tu API: POST /api/channels/mapping
-    console.log(`Guardando mapeo: PmsID ${internalId} -> BookingID ${externalId}`)
+  const handleSaveMapping = async (categoryName: string, externalId: string) => {
+    try {
+      const newMapping: ChannelMapping = {
+        roomCategory: categoryName,
+        externalRoomId: externalId,
+        channel: 2 // BookingCom
+      };
 
-    setMappings(prev => {
-      const others = prev.filter(m => m.internalRoomTypeId !== internalId)
-      return [...others, { internalRoomTypeId: internalId, externalRoomId: externalId }]
-    })
+      await channelsApi.saveMapping(newMapping);
 
-    toast.success("Mapeo actualizado correctamente")
+      // Actualizar estado local para reflejar cambio
+      setMappings(prev => {
+        const others = prev.filter(m => m.roomCategory !== categoryName)
+        return [...others, newMapping]
+      })
+
+      toast.success(`Mapeo para ${categoryName} guardado correctamente`)
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al guardar el mapeo")
+    }
   }
 
   return (
@@ -263,17 +286,28 @@ export default function SettingsPage() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {roomTypes.map((rt) => {
-                                const mapping = mappings.find(m => m.internalRoomTypeId === rt.id);
-                                return (
-                                    <MappingRow
-                                        key={rt.id}
-                                        roomType={rt}
-                                        initialValue={mapping?.externalRoomId || ""}
-                                        onSave={handleSaveMapping}
-                                    />
-                                );
-                              })}
+                              {isLoading ? (
+                                  <TableRow>
+                                    <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">Cargando datos...</TableCell>
+                                  </TableRow>
+                              ) : roomCategories.length === 0 ? (
+                                  <TableRow>
+                                    <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">No hay categorías de habitación creadas.</TableCell>
+                                  </TableRow>
+                              ) : (
+                                  roomCategories.map((catName) => {
+                                    // Buscar si ya existe mapeo para esta categoría
+                                    const mapping = mappings.find(m => m.roomCategory === catName);
+                                    return (
+                                        <MappingRow
+                                            key={catName}
+                                            categoryName={catName}
+                                            initialValue={mapping?.externalRoomId || ""}
+                                            onSave={handleSaveMapping}
+                                        />
+                                    );
+                                  })
+                              )}
                             </TableBody>
                           </Table>
                         </div>
@@ -371,9 +405,14 @@ export default function SettingsPage() {
 
 // --- SUBCOMPONENTES ---
 
-function MappingRow({ roomType, initialValue, onSave }: { roomType: RoomType, initialValue: string, onSave: (id: string, val: string) => void }) {
+function MappingRow({ categoryName, initialValue, onSave }: { categoryName: string, initialValue: string, onSave: (cat: string, val: string) => void }) {
   const [value, setValue] = useState(initialValue)
   const [isChanged, setIsChanged] = useState(false)
+
+  // Efecto para actualizar el input si la API devuelve un valor tardío
+  useEffect(() => {
+    setValue(initialValue)
+  }, [initialValue])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setValue(e.target.value)
@@ -381,13 +420,13 @@ function MappingRow({ roomType, initialValue, onSave }: { roomType: RoomType, in
   }
 
   const handleSave = () => {
-    onSave(roomType.id, value)
+    onSave(categoryName, value)
     setIsChanged(false)
   }
 
   return (
       <TableRow className="border-border">
-        <TableCell className="font-medium">{roomType.name}</TableCell>
+        <TableCell className="font-medium">{categoryName}</TableCell>
         <TableCell>
           <Input
               placeholder="Ej. 4500213"
