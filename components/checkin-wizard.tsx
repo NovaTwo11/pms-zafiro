@@ -26,7 +26,7 @@ export interface GuestFormData {
   nacionalidad: string
   tipoId: string
   numeroId: string
-  fechaNacimiento: string // Renombrado para consistencia
+  fechaNacimiento: string
   primerNombre: string
   primerApellido: string
   segundoNombre?: string
@@ -48,7 +48,6 @@ interface CheckinWizardProps {
     checkOut: Date | string
     totalAmount: number
     paidAmount: number
-    // NUEVO: Datos inyectados desde el padre
     mainGuestData?: any
     companionsData?: any[]
   }
@@ -67,10 +66,13 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   const router = useRouter()
   const queryClient = useQueryClient()
 
+  // --- NUEVO: Estado de carga para los datos de la BD ---
+  const [isLoadingData, setIsLoadingData] = useState(false)
+
   // --- ESTADOS FINANCIEROS ---
   const [localPaidAmount, setLocalPaidAmount] = useState(reservation.paidAmount)
   const pendingAmount = reservation.totalAmount - localPaidAmount
-  const hasDebt = pendingAmount > 100 // Margen de tolerancia de $100 COP
+  const hasDebt = pendingAmount > 100
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState("")
@@ -80,43 +82,83 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
   const [currentStep, setCurrentStep] = useState(hasDebt ? 0 : 1)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // PRE-CARGA DATOS DEL TITULAR
-  const [mainGuest, setMainGuest] = useState<GuestFormData>(() => {
-    const mg = reservation.mainGuestData;
-    return {
-      id: mg?.id || "main",
-      nacionalidad: mg?.nacionalidad || "Colombia",
-      tipoId: mg?.tipoId || "CC",
-      numeroId: mg?.numeroId || "",
-      fechaNacimiento: mg?.fechaNacimiento ? mg.fechaNacimiento.split('T')[0] : "",
-      primerNombre: mg?.primerNombre || reservation.guestName.split(" ")[0] || "",
-      primerApellido: mg?.primerApellido || reservation.guestName.split(" ").slice(1).join(" ") || "",
-      segundoNombre: mg?.segundoNombre || "",
-      segundoApellido: mg?.segundoApellido || "",
-      telefono: mg?.telefono || "",
-      correo: mg?.correo || "",
-      ciudadOrigen: mg?.ciudadOrigen || "",
-    }
+  // INICIALIZACIÓN BÁSICA (Se sobrescribirá con los datos de la BD)
+  const [mainGuest, setMainGuest] = useState<GuestFormData>({
+    id: reservation.mainGuestData?.id || "main",
+    nacionalidad: reservation.mainGuestData?.nacionalidad || "Colombia",
+    tipoId: reservation.mainGuestData?.tipoId || "CC",
+    numeroId: reservation.mainGuestData?.numeroId || "",
+    fechaNacimiento: reservation.mainGuestData?.fechaNacimiento ? reservation.mainGuestData.fechaNacimiento.split('T')[0] : "",
+    primerNombre: reservation.mainGuestData?.primerNombre || reservation.guestName.split(" ")[0] || "",
+    primerApellido: reservation.mainGuestData?.primerApellido || reservation.guestName.split(" ").slice(1).join(" ") || "",
+    segundoNombre: reservation.mainGuestData?.segundoNombre || "",
+    segundoApellido: reservation.mainGuestData?.segundoApellido || "",
+    telefono: reservation.mainGuestData?.telefono || "",
+    correo: reservation.mainGuestData?.correo || "",
+    ciudadOrigen: reservation.mainGuestData?.ciudadOrigen || "",
   })
 
-  // PRE-CARGA DATOS ACOMPAÑANTES
-  const [companions, setCompanions] = useState<GuestFormData[]>(() => {
-    if (!reservation.companionsData || reservation.companionsData.length === 0) return [];
-    return reservation.companionsData.map((c: any) => ({
-      id: c.id || Date.now().toString() + Math.random(),
-      nacionalidad: c.nacionalidad || "Colombia",
-      tipoId: c.tipoId || "CC",
-      numeroId: c.numeroId || "",
-      fechaNacimiento: c.fechaNacimiento ? c.fechaNacimiento.split('T')[0] : "",
-      primerNombre: c.primerNombre || "",
-      primerApellido: c.primerApellido || "",
-      segundoNombre: c.segundoNombre || "",
-      segundoApellido: c.segundoApellido || "",
-      telefono: c.telefono || "",
-      correo: c.correo || "",
-      ciudadOrigen: c.ciudadOrigen || "",
-    }))
-  })
+  const [companions, setCompanions] = useState<GuestFormData[]>([])
+
+  // --- NUEVO: Fetch de datos completos de la reserva ---
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadFullReservationDetails = async () => {
+      setIsLoadingData(true);
+      try {
+        // Hacemos el fetch usando la API que ya tienes configurada
+        const fullRes = await reservationsApi.getById(reservation.id);
+
+        // Ajusta "mainGuest" según como venga la propiedad desde tu backend en C#
+        // A veces Entity Framework lo mapea como 'mainGuest', 'guest' o está plano en la respuesta.
+        const guestData = fullRes.mainGuest || fullRes.guest || fullRes;
+
+        if (guestData && guestData.numeroId) {
+          setMainGuest(prev => ({
+            ...prev,
+            nacionalidad: guestData.nacionalidad || prev.nacionalidad,
+            tipoId: guestData.tipoId || prev.tipoId,
+            numeroId: guestData.numeroId || prev.numeroId,
+            primerNombre: guestData.primerNombre || prev.primerNombre,
+            primerApellido: guestData.primerApellido || prev.primerApellido,
+            segundoNombre: guestData.segundoNombre || "",
+            segundoApellido: guestData.segundoApellido || "",
+            telefono: guestData.telefono || prev.telefono,
+            correo: guestData.correo || "",
+            ciudadOrigen: guestData.ciudadOrigen || "",
+            fechaNacimiento: guestData.fechaNacimiento ? guestData.fechaNacimiento.split('T')[0] : "",
+          }));
+        }
+
+        // Poblamos los acompañantes si existen
+        if (fullRes.companions && Array.isArray(fullRes.companions) && fullRes.companions.length > 0) {
+          setCompanions(fullRes.companions.map((c: any) => ({
+            id: c.id?.toString() || Date.now().toString() + Math.random(),
+            nacionalidad: c.nacionalidad || "Colombia",
+            tipoId: c.tipoId || "CC",
+            numeroId: c.numeroId || "",
+            fechaNacimiento: c.fechaNacimiento ? c.fechaNacimiento.split('T')[0] : "",
+            primerNombre: c.primerNombre || "",
+            primerApellido: c.primerApellido || "",
+            segundoNombre: c.segundoNombre || "",
+            segundoApellido: c.segundoApellido || "",
+            telefono: c.telefono || "",
+            correo: c.correo || "",
+            ciudadOrigen: c.ciudadOrigen || "",
+          })));
+        }
+
+      } catch (error) {
+        console.error("Error al obtener detalles del pre-checkin:", error);
+        // Si falla, el usuario simplemente verá los campos vacíos para llenarlos a mano
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadFullReservationDetails();
+  }, [isOpen, reservation.id]);
 
   // Firma y Legal
   const [signature, setSignature] = useState<string>("")
@@ -374,7 +416,16 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
             </div>
           </div>
 
-          <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1 bg-background">
+          <div className="px-4 md:px-8 py-6 overflow-y-auto flex-1 bg-background relative">
+
+            {/* Pantalla de carga mientras se obtienen los datos */}
+            {isLoadingData ? (
+                <div className="absolute inset-0 z-10 bg-background/80 flex flex-col items-center justify-center animate-in fade-in duration-200">
+                  <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
+                  <p className="text-muted-foreground font-medium">Recuperando datos del huésped...</p>
+                </div>
+            ) : null}
+
             {/* --- PASO 0: DEUDA --- */}
             {currentStep === 0 && (
                 <div className="flex flex-col items-center justify-center h-full space-y-8 animate-in fade-in zoom-in-95 duration-300">
@@ -571,14 +622,14 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
           </div>
 
           <div className="px-4 md:px-8 py-4 md:py-6 bg-card border-t border-border flex justify-between shrink-0">
-            <Button variant="outline" size="lg" className="border-border hover:bg-accent" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} disabled={isSubmitting}>
+            <Button variant="outline" size="lg" className="border-border hover:bg-accent" onClick={() => currentStep > (hasDebt ? 0 : 1) ? setCurrentStep(currentStep-1) : onClose()} disabled={isSubmitting || isLoadingData}>
               <ChevronLeft className="h-5 w-5 mr-2"/> <span className="hidden sm:inline">Atrás</span>
             </Button>
 
             {currentStep < 3 ? (
                 <Button onClick={() => setCurrentStep(currentStep+1)}
                         size="lg"
-                        disabled={(currentStep === 0 && hasDebt) || (currentStep === 1 && !isMainGuestValid())}
+                        disabled={(currentStep === 0 && hasDebt) || (currentStep === 1 && !isMainGuestValid()) || isLoadingData}
                         className="bg-primary text-[#0F0F0F] hover:bg-primary/90 px-6 md:px-8 font-bold"
                 >
                   Siguiente <ChevronRight className="h-5 w-5 ml-2"/>
@@ -587,7 +638,7 @@ export function CheckInWizard({ isOpen, onClose, reservation }: CheckinWizardPro
                 <Button
                     onClick={handleFinalSubmit}
                     size="lg"
-                    disabled={!isStep3Valid() || isSubmitting}
+                    disabled={!isStep3Valid() || isSubmitting || isLoadingData}
                     className="bg-[#059669] text-white hover:bg-[#059669]/90 px-4 md:px-8 min-w-[200px] font-bold shadow-lg"
                 >
                   {isSubmitting ? (
