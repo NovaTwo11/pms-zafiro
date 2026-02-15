@@ -2,37 +2,17 @@
 
 import { useEffect, useState, useMemo } from "react"
 import {
-  CheckCircle2,
-  AlertCircle,
-  Paintbrush,
-  User,
-  CalendarClock,
-  Filter,
-  Wrench,
-  Lock,
-  Plus,
-  Trash2,
-  MoreVertical,
-  Pencil
+  CheckCircle2, AlertCircle, Paintbrush, User, CalendarClock,
+  Filter, Wrench, Lock, Plus, Trash2, MoreVertical, Pencil, Timer
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
@@ -42,12 +22,7 @@ import api from "@/lib/api"
 import { toast } from "sonner"
 
 // Tipos
-import {
-  RoomDto,
-  ReservationDto,
-  VisualReservationStatus,
-  CreateRoomDto
-} from "@/types"
+import { RoomDto, ReservationDto, VisualReservationStatus, CreateRoomDto } from "@/types"
 
 // --- CONFIGURACIÓN VISUAL ---
 const housekeepingConfig: Record<string, any> = {
@@ -59,10 +34,10 @@ const housekeepingConfig: Record<string, any> = {
 }
 
 const reservationStatusConfig: Record<string, any> = {
-  check_in_paid: { label: "En Casa", color: "bg-green-600", border: "border-green-700" },
-  check_in_debt: { label: "En Casa (Deuda)", color: "bg-red-600", border: "border-red-700" },
+  check_in_paid: { label: "En Casa", color: "bg-orange-600", border: "border-orange-700" }, // Pasado a naranja
+  check_in_debt: { label: "En Casa (Deuda)", color: "bg-red-600", border: "border-red-700" }, // Rojo alerta
   confirmed_deposit: { label: "Reserva", color: "bg-blue-600", border: "border-blue-700" },
-  confirmed_no_deposit: { label: "Reserva", color: "bg-orange-600", border: "border-orange-700" },
+  confirmed_no_deposit: { label: "Reserva", color: "bg-yellow-600", border: "border-yellow-700" },
   blocked: { label: "Bloqueada", color: "bg-gray-600", border: "border-gray-700" },
   available: { label: "Disponible", color: "bg-card", border: "border-border" }
 }
@@ -79,16 +54,11 @@ export function HabitacionesContent() {
   // Modal Crear/Editar
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Estado para el formulario (usado para crear y editar)
-  const [roomFormData, setRoomFormData] = useState<CreateRoomDto>({
-    number: "",
-    floor: 1,
-    category: "Doble",
-    basePrice: 0,
-  })
-  // ID de la habitación que se está editando (null si es crear)
+  const [roomFormData, setRoomFormData] = useState<CreateRoomDto>({ number: "", floor: 1, category: "Doble", basePrice: 0 })
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null)
+
+  // Cuenta regresiva
+  const [timeUntilCleaning, setTimeUntilCleaning] = useState("00:00:00")
 
   const today = new Date()
 
@@ -100,23 +70,48 @@ export function HabitacionesContent() {
         api.get<RoomDto[]>('/rooms'),
         api.get<ReservationDto[]>('/reservations')
       ])
-      // Ordenar por piso y luego por número
-      const sortedRooms = roomsRes.data.sort((a, b) =>
-          a.floor === b.floor ? a.number.localeCompare(b.number) : a.floor - b.floor
-      )
+      const sortedRooms = roomsRes.data.sort((a, b) => a.floor === b.floor ? a.number.localeCompare(b.number) : a.floor - b.floor)
       setRooms(sortedRooms)
       setReservations(resRes.data)
     } catch (error) {
-      console.error(error)
       toast.error("Error al cargar datos")
     } finally {
       setLoading(false)
     }
   }
 
+  // Lógica del Timer de las 6:00 AM
   useEffect(() => {
     fetchData()
+
+    const updateTimer = () => {
+      const now = new Date()
+      const next6AM = new Date(now)
+      next6AM.setHours(6, 0, 0, 0)
+      if (now >= next6AM) next6AM.setDate(next6AM.getDate() + 1)
+
+      const diff = next6AM.getTime() - now.getTime()
+      const h = Math.floor(diff / (1000 * 60 * 60)).toString().padStart(2, '0')
+      const m = Math.floor((diff / 1000 / 60) % 60).toString().padStart(2, '0')
+      const s = Math.floor((diff / 1000) % 60).toString().padStart(2, '0')
+      setTimeUntilCleaning(`${h}:${m}:${s}`)
+    }
+
+    updateTimer()
+    const intId = setInterval(updateTimer, 1000)
+    return () => clearInterval(intId)
   }, [])
+
+  // --- HELPER: Formatear Nombre "Holdan L." ---
+  const formatGuestName = (fullName: string) => {
+    if (!fullName || fullName === "Desconocido") return "Ocupada"
+    const parts = fullName.trim().split(" ").filter(Boolean)
+    if (parts.length === 1) return parts[0]
+
+    // Si tiene 3 nombres (Ej: Juan Carlos Perez), tomamos el 3ro como apellido. Si no, el 2do.
+    const lastNameIdx = parts.length > 2 ? 2 : 1
+    return `${parts[0]} ${parts[lastNameIdx].charAt(0)}.`
+  }
 
   // --- LÓGICA VISUAL ---
   const getRoomVisuals = (room: RoomDto) => {
@@ -132,7 +127,7 @@ export function HabitacionesContent() {
     let visualStatus: VisualReservationStatus = "available"
 
     if (reservation) {
-      if (reservation.status === "CheckedIn") visualStatus = "check_in_debt"
+      if (reservation.status === "CheckedIn") visualStatus = (reservation.balance || 0) > 100 ? "check_in_debt" : "check_in_paid"
       else if (reservation.status === "Confirmed") visualStatus = "confirmed_deposit"
       else if (reservation.status === "Pending") visualStatus = "confirmed_no_deposit"
     } else if (room.status === "Blocked" as any) {
@@ -146,9 +141,17 @@ export function HabitacionesContent() {
 
   // --- HANDLERS ---
   const handleStatusChange = async (roomId: string, newStatus: string) => {
+    // Optimistic UI update
     setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus as any } : r))
-    toast.success(`Estado actualizado a ${newStatus}`)
-    // Aquí iría la llamada real al backend: await api.patch(...)
+    try {
+      await api.patch(`/rooms/${roomId}/status`, `"${newStatus}"`, {
+        headers: { "Content-Type": "application/json" }
+      });
+      toast.success(`Estado actualizado`)
+    } catch(e) {
+      toast.error("Error al actualizar el estado");
+      fetchData(); // rollback
+    }
   }
 
   const handleOpenCreate = () => {
@@ -159,49 +162,30 @@ export function HabitacionesContent() {
 
   const handleOpenEdit = (room: RoomDto) => {
     setEditingRoomId(room.id)
-    setRoomFormData({
-      number: room.number,
-      floor: room.floor,
-      category: room.category,
-      basePrice: room.basePrice
-    })
+    setRoomFormData({ number: room.number, floor: room.floor, category: room.category, basePrice: room.basePrice })
     setIsCreateModalOpen(true)
   }
 
   const handleSaveRoom = async () => {
-    if (!roomFormData.number || roomFormData.basePrice <= 0) {
-      toast.warning("Revisa los datos ingresados")
-      return
-    }
+    if (!roomFormData.number || roomFormData.basePrice <= 0) return toast.warning("Revisa los datos ingresados")
     setIsSubmitting(true)
     try {
       if (editingRoomId) {
-        // Editar
         await api.put(`/rooms/${editingRoomId}`, roomFormData);
-        toast.success("Habitación actualizada correctamente");
+        toast.success("Habitación actualizada");
       } else {
-        // Crear
         await api.post('/rooms', roomFormData)
-        toast.success("Habitación creada correctamente")
+        toast.success("Habitación creada")
       }
       setIsCreateModalOpen(false)
       fetchData()
-    } catch (error) {
-      toast.error("Error al guardar la habitación")
-    } finally {
-      setIsSubmitting(false)
-    }
+    } catch (error) { toast.error("Error al guardar la habitación") } finally { setIsSubmitting(false) }
   }
 
   const handleDeleteRoom = async (id: string) => {
     if(!confirm("¿Eliminar habitación permanentemente?")) return
-    try {
-      await api.delete(`/rooms/${id}`)
-      toast.success("Habitación eliminada")
-      fetchData()
-    } catch(e) {
-      toast.error("No se puede eliminar (probablemente tiene reservas)")
-    }
+    try { await api.delete(`/rooms/${id}`); toast.success("Habitación eliminada"); fetchData() }
+    catch(e) { toast.error("No se puede eliminar (probablemente tiene reservas)") }
   }
 
   // --- FILTRADO ---
@@ -228,63 +212,60 @@ export function HabitacionesContent() {
             <p className="text-muted-foreground">{format(today, "EEEE, d 'de' MMMM", { locale: es })}</p>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground">
-              <Plus className="w-4 h-4 mr-2" /> Nueva Habitación
-            </Button>
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1.5 rounded-full border border-primary/20">
+              <Timer className="w-4 h-4 animate-pulse" />
+              <span className="text-sm font-semibold tracking-widest">{timeUntilCleaning}</span>
+            </div>
+
             <div className="h-10 w-px bg-border hidden sm:block"></div>
+
             <div className="flex gap-4">
               <div className="flex flex-col items-end">
                 <span className="text-xs text-muted-foreground">Sucias</span>
-                <span className="text-xl font-bold text-red-500">
-                    {rooms.filter(r => r.status === 'Dirty').length}
-                </span>
+                <span className="text-xl font-bold text-red-500">{rooms.filter(r => r.status === 'Dirty').length}</span>
               </div>
               <div className="flex flex-col items-end">
                 <span className="text-xs text-muted-foreground">Libres</span>
-                <span className="text-xl font-bold text-emerald-500">
-                    {getRoomVisuals ? rooms.filter(r => getRoomVisuals(r).visualStatus === 'available').length : 0}
-                </span>
+                <span className="text-xl font-bold text-emerald-500">{rooms.filter(r => getRoomVisuals(r).visualStatus === 'available').length}</span>
               </div>
             </div>
+
+            <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground ml-2">
+              <Plus className="w-4 h-4 mr-2" /> Nueva
+            </Button>
           </div>
         </div>
 
         {/* Filtros */}
-        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border bg-card">
+        <div className="flex flex-wrap items-center gap-3 p-4 rounded-xl border bg-card shadow-sm">
           <Filter className="h-4 w-4 text-[#D4AF37] mr-2" />
-
           <Select value={filterOccupancy} onValueChange={(v:any) => setFilterOccupancy(v)}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Ocupación" /></SelectTrigger>
+            <SelectTrigger className="w-[150px] bg-background"><SelectValue placeholder="Ocupación" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
               <SelectItem value="available">Disponibles</SelectItem>
               <SelectItem value="occupied">Ocupadas</SelectItem>
             </SelectContent>
           </Select>
-
           <Select value={filterHousekeeping} onValueChange={setFilterHousekeeping}>
-            <SelectTrigger className="w-[150px]"><SelectValue placeholder="Limpieza" /></SelectTrigger>
+            <SelectTrigger className="w-[150px] bg-background"><SelectValue placeholder="Limpieza" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas</SelectItem>
               <SelectItem value="Available">Limpia</SelectItem>
               <SelectItem value="Dirty">Sucia</SelectItem>
+              <SelectItem value="Occupied">Ocupada</SelectItem>
               <SelectItem value="TouchUp">Retoque</SelectItem>
               <SelectItem value="Maintenance">Mantenimiento</SelectItem>
             </SelectContent>
           </Select>
-
-          <Button variant="ghost" size="sm" onClick={() => {setFilterOccupancy("all"); setFilterHousekeeping("all")}}>
-            Reset
-          </Button>
+          <Button variant="ghost" size="sm" onClick={() => {setFilterOccupancy("all"); setFilterHousekeeping("all")}}>Reset</Button>
         </div>
 
         {/* Grid por Pisos */}
         {distinctFloors.map((floor) => (
             <div key={floor} className="space-y-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-[#D4AF37] opacity-80 pl-1">
-                Piso {floor}
-              </h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-[#D4AF37] opacity-80 pl-1">Piso {floor}</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                 {filteredRooms.filter(r => r.floor === floor).map(room => {
                   const { reservation, visualStatus, isCheckInToday, isCheckOutToday, isSalesAlert } = getRoomVisuals(room)
@@ -319,53 +300,49 @@ export function HabitacionesContent() {
                                 <DropdownMenuLabel>Estado Limpieza</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Available")}>🟢 Limpia</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Occupied")}>🟣 Ocupada (En casa)</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Dirty")}>🔴 Sucia</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusChange(room.id, "TouchUp")}>🟠 Retoque</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleStatusChange(room.id, "Maintenance")}>🔵 Mantenimiento</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
 
-                            {/* Menú de Acciones (Editar/Borrar) */}
+                            {/* Menú Acciones */}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7">
-                                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
-                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7"><MoreVertical className="h-4 w-4 text-muted-foreground" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleOpenEdit(room)}>
-                                  <Pencil className="mr-2 h-4 w-4" /> Editar
-                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenEdit(room)}><Pencil className="mr-2 h-4 w-4" /> Editar</DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeleteRoom(room.id)}>
-                                  <Trash2 className="mr-2 h-4 w-4" /> Eliminar
-                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={() => handleDeleteRoom(room.id)}><Trash2 className="mr-2 h-4 w-4" /> Eliminar</DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
                         </div>
 
-                        {/* Card Bottom */}
+                        {/* Card Bottom - INDICADOR DE DISPONIBILIDAD O HUÉSPED */}
                         <div className="space-y-3">
                           {visualStatus === "available" ? (
-                              <div className="p-3 rounded-lg border border-dashed flex items-center justify-center gap-2 text-muted-foreground/50 bg-background/50">
-                                <CheckCircle2 className="h-4 w-4" /> <span className="text-xs">Disponible</span>
+                              <div className="p-3 rounded-lg border flex items-center justify-center gap-2 text-emerald-600 bg-emerald-500/10 border-emerald-500/20 shadow-sm transition-all hover:bg-emerald-500/20">
+                                <CheckCircle2 className="h-5 w-5" />
+                                <span className="font-bold tracking-wide">DISPONIBLE</span>
                               </div>
                           ) : (
-                              <div className={cn("p-3 rounded-lg border text-white relative overflow-hidden shadow-sm", occConfig.color, occConfig.border)}>
-                                {isCheckInToday && <Badge className="absolute top-0 right-0 rounded-none bg-white text-black hover:bg-white text-[8px] px-1">ENTRADA</Badge>}
-                                {isCheckOutToday && <Badge className="absolute top-0 right-0 rounded-none bg-black/70 text-white hover:bg-black/70 text-[8px] px-1">SALIDA</Badge>}
+                              <div className={cn("p-3 rounded-lg border text-white relative overflow-hidden shadow-md", occConfig.color, occConfig.border)}>
+                                {isCheckInToday && <Badge className="absolute top-0 right-0 rounded-none bg-white text-black hover:bg-white text-[8px] px-1 shadow-sm">ENTRADA</Badge>}
+                                {isCheckOutToday && <Badge className="absolute top-0 right-0 rounded-none bg-black/70 text-white hover:bg-black/70 text-[8px] px-1 shadow-sm">SALIDA</Badge>}
 
                                 <div className="flex items-center gap-2 mb-1 mt-1">
                                   {visualStatus === "blocked" ? <Lock className="h-4 w-4"/> : <User className="h-4 w-4"/>}
-                                  <span className="font-bold text-sm truncate max-w-[120px]">
-                                      {reservation?.id
-                                          ? "Huésped #" + (reservation.code || "REF-????").slice(-4)
+                                  <span className="font-bold text-base truncate pr-2" title={reservation?.mainGuestName}>
+                                      {reservation?.mainGuestName
+                                          ? formatGuestName(reservation.mainGuestName)
                                           : "Bloqueada"}
                                   </span>
                                 </div>
                                 {reservation && (
-                                    <div className="flex items-center gap-1 text-[10px] opacity-90 mt-2">
+                                    <div className="flex items-center gap-1 text-[10px] opacity-90 mt-2 font-medium">
                                       <CalendarClock className="h-3 w-3" />
                                       <span>Salida: {format(parseISO(reservation.checkOut), "dd MMM", {locale: es})}</span>
                                     </div>
@@ -374,9 +351,9 @@ export function HabitacionesContent() {
                           )}
 
                           {isSalesAlert && (
-                              <div className="flex items-center justify-center gap-2 text-red-500 text-[10px] font-bold animate-pulse bg-red-100 dark:bg-red-900/20 py-1 rounded">
+                              <div className="flex items-center justify-center gap-2 text-red-500 text-[10px] font-bold animate-pulse bg-red-100 dark:bg-red-900/20 py-1 rounded border border-red-500/30">
                                 <AlertCircle className="h-3 w-3" />
-                                <span>ATENCIÓN: {room.status === "Maintenance" ? "MANTENIMIENTO" : "LIMPIEZA"}</span>
+                                <span>REQUIERE {room.status === "Maintenance" ? "MANTENIMIENTO" : "LIMPIEZA"}</span>
                               </div>
                           )}
                         </div>
@@ -389,7 +366,7 @@ export function HabitacionesContent() {
 
         {/* Modal Crear/Editar Habitación */}
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-          <DialogContent>
+          <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle>{editingRoomId ? "Editar Habitación" : "Nueva Habitación"}</DialogTitle>
             </DialogHeader>
@@ -397,46 +374,35 @@ export function HabitacionesContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Número</Label>
-                  <Input
-                      placeholder="Ej: 101"
-                      value={roomFormData.number}
-                      onChange={(e) => setRoomFormData({...roomFormData, number: e.target.value})}
-                  />
+                  <Input placeholder="Ej: 101" value={roomFormData.number} onChange={(e) => setRoomFormData({...roomFormData, number: e.target.value})}/>
                 </div>
                 <div className="space-y-2">
                   <Label>Piso</Label>
-                  <Input
-                      type="number"
-                      value={roomFormData.floor}
-                      onChange={(e) => setRoomFormData({...roomFormData, floor: Number(e.target.value)})}
-                  />
+                  <Input type="number" value={roomFormData.floor} onChange={(e) => setRoomFormData({...roomFormData, floor: Number(e.target.value)})}/>
                 </div>
               </div>
               <div className="space-y-2">
                 <Label>Categoría</Label>
                 <Select value={roomFormData.category} onValueChange={(v) => setRoomFormData({...roomFormData, category: v})}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Doble">Doble</SelectItem>
                     <SelectItem value="Triple">Triple</SelectItem>
                     <SelectItem value="Familiar">Familiar</SelectItem>
                     <SelectItem value="SuiteFamiliar">Suite Familiar</SelectItem>
+                    <SelectItem value="Suite">Suite</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Precio Base</Label>
-                <Input
-                    type="number"
-                    value={roomFormData.basePrice}
-                    onChange={(e) => setRoomFormData({...roomFormData, basePrice: Number(e.target.value)})}
-                />
+                <Input type="number" value={roomFormData.basePrice} onChange={(e) => setRoomFormData({...roomFormData, basePrice: Number(e.target.value)})}/>
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSaveRoom} disabled={isSubmitting}>
-                {isSubmitting ? "Guardando..." : "Guardar"}
+              <Button onClick={handleSaveRoom} disabled={isSubmitting} className="bg-[#D4AF37] text-black hover:bg-[#D4AF37]/90 font-bold">
+                {isSubmitting ? "Guardando..." : "Guardar Habitación"}
               </Button>
             </DialogFooter>
           </DialogContent>
