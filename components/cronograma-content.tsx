@@ -130,8 +130,8 @@ const getStatusStyles = (status: VisualReservationStatus) => {
 
 const getCategoryColor = (category: string | undefined) => {
   const cat = (category || "").toLowerCase()
-  if (cat.includes("estándar") || cat.includes("standard")) return "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-400/20 dark:bg-blue-400/5"
-  if (cat.includes("superior")) return "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-400/20 dark:bg-purple-400/5"
+  if (cat.includes("doble") || cat.includes("standard")) return "text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:border-blue-400/20 dark:bg-blue-400/5"
+  if (cat.includes("super familiar")) return "text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-400 dark:border-purple-400/20 dark:bg-purple-400/5"
   if (cat.includes("deluxe") || cat.includes("triple")) return "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:border-amber-400/20 dark:bg-amber-400/5"
   if (cat.includes("suite") || cat.includes("familiar")) return "text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:border-rose-400/20 dark:bg-rose-400/5"
   return "text-muted-foreground bg-muted border-border"
