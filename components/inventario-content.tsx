@@ -52,7 +52,7 @@ interface InventoryItem {
   cost?: number;
 }
 
-const categories = ["Bebidas", "Licores", "Snacks", "Cocina", "Amenities", "Servicios"]
+const categories = ["Bebidas", "Licores", "Cócteles", "Mecato", "Refrescantes", "Cervezas", "Aseo Personal", "Cocina", "Servicios", "Otros"]
 
 export function InventarioContent() {
   const [products, setProducts] = useState<InventoryItem[]>([])

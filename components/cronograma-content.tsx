@@ -31,6 +31,7 @@ import api, { reservationsApi } from "@/lib/api"
 import {
   Room as RoomType,
 } from "@/types"
+import {getColombiaHolidays} from "@/lib/colombia-holidays";
 
 // --- TYPES LOCALES ---
 type ViewMode = "day" | "week" | "month"
@@ -159,6 +160,19 @@ export function CronogramaContent() {
   const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null)
 
   const gridRef = useRef<HTMLDivElement>(null)
+
+  const holidaysMap = useMemo(() => {
+    // Calculamos festivos del año actual y el siguiente por si el usuario navega entre diciembre/enero
+    const currentYear = currentDate.getFullYear();
+    const nextYear = currentYear + 1;
+    const prevYear = currentYear - 1;
+
+    return {
+      ...getColombiaHolidays(prevYear),
+      ...getColombiaHolidays(currentYear),
+      ...getColombiaHolidays(nextYear)
+    };
+  }, [currentDate]);
 
   useEffect(() => {
     const handleRefresh = () => setRefreshTrigger(prev => prev + 1);
@@ -485,27 +499,45 @@ export function CronogramaContent() {
           <div ref={gridRef} className="flex-1 overflow-auto custom-scrollbar">
             <div className="min-w-max">
               <div className="flex sticky top-0 z-40 bg-card shadow-sm border-b">
-                <div className="w-[180px] shrink-0 border-r p-3 sticky left-0 z-50 bg-card flex items-center justify-between border-b shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
+                <div
+                    className="w-[180px] shrink-0 border-r p-3 sticky left-0 z-50 bg-card flex items-center justify-between border-b shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                   <span className="text-xs font-semibold">Habitación</span>
                 </div>
                 <div className="flex">
-                  {days.map((day, idx) => (
-                      <div key={idx} className={cn(
-                          "min-w-[48px] w-12 border-r py-2 text-center flex flex-col justify-center transition-all duration-300",
-                          isToday(day)
-                              ? "bg-primary text-primary-foreground border-b-2 border-primary shadow-md relative z-10"
-                              : "bg-card text-foreground")}>
-                        <span className={cn("text-[10px] uppercase font-medium",
-                            isToday(day) ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                          {format(day, "EEE", {locale: es})}
-                        </span>
-                        <span className={cn(
-                            "text-sm font-bold",
-                            isToday(day) ? "text-primary-foreground" : "text-foreground")}>
-                          {format(day, "d")}
-                        </span>
-                      </div>
-                  ))}
+                  {days.map((day, idx) => {
+                    const dayKey = format(day, "yyyy-MM-dd");
+                    const holidayName = holidaysMap[dayKey]; // ¿Es festivo?
+                    const isHoliday = !!holidayName;
+
+                    return (
+                        <div key={idx} className={cn(
+                            "min-w-[48px] w-12 border-r py-2 text-center flex flex-col justify-center transition-all duration-300 relative group/header", // Agregué group/header para tooltip
+                            isToday(day)
+                                ? "bg-primary text-primary-foreground border-b-2 border-primary shadow-md relative z-10"
+                                : isHoliday
+                                    ? "bg-red-50 text-red-900 border-b-red-200" // ESTILO FESTIVO
+                                    : "bg-card text-foreground"
+                        )}>
+                          {/* Tooltip nativo simple para el nombre del festivo */}
+                          {isHoliday && (
+                              <div
+                                  className="absolute -top-8 left-1/2 -translate-x-1/2 bg-red-600 text-white text-[9px] px-2 py-1 rounded shadow-lg opacity-0 group-hover/header:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none">
+                                {holidayName}
+                                <div
+                                    className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-red-600"></div>
+                              </div>
+                          )}
+                          <span className={cn("text-[10px] uppercase font-medium",
+                              isToday(day) ? "text-primary-foreground/80" : isHoliday ? "text-red-600 font-bold" : "text-muted-foreground")}>
+                            {format(day, "EEE", {locale: es})}
+                          </span>
+                          <span className={cn(
+                              "text-sm font-bold",
+                              isToday(day) ? "text-primary-foreground" : isHoliday ? "text-red-700" : "text-foreground")}>
+                            {format(day, "d")}
+                          </span>
+                        </div>
+                    )})}
                 </div>
               </div>
 
@@ -522,16 +554,19 @@ export function CronogramaContent() {
 
                       {floor.rooms.map((room) => {
                         const roomSegments = reservations.flatMap(res =>
-                            res.segments.map((seg, idx) => ({reservation: res, segment: seg, idx }))
+                            res.segments.map((seg, idx) => ({reservation: res, segment: seg, idx}))
                                 .filter(item => item.segment.roomId === room.id)
                         )
 
                         return (
-                            <div key={room.id} className="flex border-b h-[72px] relative group bg-background hover:bg-accent/30 transition-colors duration-200">
-                              <div className="w-[180px] shrink-0 border-r px-4 flex flex-col justify-center sticky left-0 z-30 bg-background group-hover:bg-accent/50 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
+                            <div key={room.id}
+                                 className="flex border-b h-[72px] relative group bg-background hover:bg-accent/30 transition-colors duration-200">
+                              <div
+                                  className="w-[180px] shrink-0 border-r px-4 flex flex-col justify-center sticky left-0 z-30 bg-background group-hover:bg-accent/50 transition-colors shadow-[4px_0_10px_-5px_rgba(0,0,0,0.1)]">
                                 <div className="flex items-center justify-between w-full mb-1">
                                   <span className="text-xl font-bold">{room.number}</span>
-                                  <Badge variant="outline" className={cn("text-[9px] px-1 py-0", getCategoryColor(room.category))}>
+                                  <Badge variant="outline"
+                                         className={cn("text-[9px] px-1 py-0", getCategoryColor(room.category))}>
                                     {room.category}
                                   </Badge>
                                 </div>
@@ -547,6 +582,8 @@ export function CronogramaContent() {
                                   const isOccupied = isDateOccupied(room.id, day, draggingId);
                                   const price = getRoomPrice(room, day);
                                   const isPriceOverridden = price !== room.basePrice;
+                                  const dayKey = format(day, "yyyy-MM-dd");
+                                  const isHoliday = !!holidaysMap[dayKey];
 
                                   return (
                                       <div
@@ -561,6 +598,7 @@ export function CronogramaContent() {
                                           className={cn(
                                               "min-w-[48px] w-12 border-r transition-colors duration-300 relative",
                                               isToday(day) && !isOccupied && "bg-primary/5 ring-1 ring-inset ring-primary/20",
+                                              !isToday(day) && isHoliday && !isOccupied && "bg-red-50/60 dark:bg-red-900/10", // <--- COLOR COLUMNA FESTIVO
                                               isPriceOverridden && !isOccupied && "bg-green-500/5",
                                               isOccupied
                                                   ? (isToday(day) ? "bg-muted/30 cursor-not-allowed opacity-50 ring-1 ring-inset ring-primary/20" : "bg-muted/10 cursor-not-allowed opacity-50")
