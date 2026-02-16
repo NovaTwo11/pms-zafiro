@@ -413,7 +413,7 @@ export function HabitacionesContent() {
                     <SelectItem value="Doble">Doble</SelectItem>
                     <SelectItem value="Triple">Triple</SelectItem>
                     <SelectItem value="Familiar">Familiar</SelectItem>
-                    <SelectItem value="SuiteFamiliar">Suite Familiar</SelectItem>
+                    <SelectItem value="Super Familiar">Suite Familiar</SelectItem>
                     <SelectItem value="Suite">Suite</SelectItem>
                   </SelectContent>
                 </Select>

@@ -15,7 +15,7 @@ export type PaymentMethod = 'None' | 'Cash' | 'CreditCard' | 'DebitCard' | 'Tran
 export type CashierShiftStatus = 'Open' | 'Closed';
 
 // Categorías de Habitación (Frontend constraint)
-export type RoomCategory = "Doble" | "Triple" | "Familiar" | "SuiteFamiliar";
+export type RoomCategory = "Doble" | "Triple" | "Familiar" | "Super Familiar" | "Suite";
 
 // ==========================================
 // 2. DTOs DEL BACKEND (Respuestas de API)
