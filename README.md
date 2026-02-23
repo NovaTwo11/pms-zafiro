@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+### 2. Frontend: `pms-zafiro`
+Este README se enfoca en la **Experiencia de Usuario (UX)**, el uso de componentes modernos (Shadcn) y la gestión de estado compleja necesaria para un dashboard administrativo.
 
-## Getting Started
+```markdown
+# Zafiro PMS - Frontend Client
 
-First, run the development server:
+Interfaz de usuario moderna y reactiva para el sistema de gestión hotelera Zafiro. Construida con **Next.js 16 (App Router)** y **React 19**, enfocada en ofrecer una experiencia de usuario fluida, accesible y rica en datos para administradores y recepcionistas.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 💻 Tecnologías y Stack
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+* **Framework:** Next.js 16 (App Router) & React 19
+* **Lenguaje:** TypeScript
+* **Estilos:** Tailwind CSS
+* **UI Components:** Shadcn UI (basado en Radix UI)
+* **Estado & Data Fetching:** Zustand & TanStack Query (React Query)
+* **Gráficos:** Recharts (para reportes de ingresos y ocupación)
+* **Formularios:** React Hook Form + Zod (Validación de esquemas)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🎨 Módulos y Características
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+* **Dashboard Interactivo:**
+    * Visualización de KPIs en tiempo real.
+    * Gráficos de ingresos, ocupación y demografía de huéspedes.
+    * Feed de actividades recientes.
+* **Calendario / Cronograma:** Vista visual de ocupación de habitaciones y gestión de reservas "Drag & Drop".
+* **Gestión de Operaciones:**
+    * **Huéspedes:** Base de datos de clientes e historial.
+    * **Habitaciones:** Estado de limpieza y mantenimiento.
+    * **Inventario:** Gestión de productos y servicios.
+* **Punto de Venta (POS):** Interfaz para cajeros, ventas rápidas y cierre de turnos.
+* **Guest Check-in Wizard:** Flujo dedicado para que los huéspedes realicen su pre-checkin online mediante código de reserva.
+* **Configuración:** Gestión de tarifas, usuarios y parámetros del hotel.
 
-## Learn More
+## 📸 Capturas de Pantalla
 
-To learn more about Next.js, take a look at the following resources:
+*(Aquí te recomiendo subir un par de imágenes de tu carpeta /public o capturas de pantalla a tu repo y linkearlas)*
+* *Dashboard Principal*
+* *Vista de Cronograma*
+* *Wizard de Check-in*
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🚀 Configuración Local
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Prerrequisitos
+* Node.js 18+ (Recomendado 20 LTS o superior)
+* npm o pnpm
 
-## Deploy on Vercel
+### Instalación
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1.  **Clonar el repositorio:**
+    ```bash
+    git clone [https://github.com/tu-usuario/pms-zafiro.git](https://github.com/tu-usuario/pms-zafiro.git)
+    cd pms-zafiro
+    ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2.  **Instalar dependencias:**
+    ```bash
+    npm install
+    # o si usas pnpm
+    pnpm install
+    ```
+
+3.  **Configurar Variables de Entorno:**
+    Crea un archivo `.env.local` en la raíz:
+    ```env
+    NEXT_PUBLIC_API_URL=https://localhost:7062/api
+    ```
+
+4.  **Iniciar servidor de desarrollo:**
+    ```bash
+    npm run dev
+    ```
+    Abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+
+## 📦 Scripts Disponibles
+
+* `npm run dev`: Inicia el entorno de desarrollo.
+* `npm run build`: Compila la aplicación para producción.
+* `npm run start`: Inicia el servidor de producción.
+* `npm run lint`: Ejecuta el linter para asegurar calidad de código.
